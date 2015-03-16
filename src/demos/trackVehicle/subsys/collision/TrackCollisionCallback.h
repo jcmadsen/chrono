@@ -209,31 +209,27 @@ class GearPinCollisionCallback : public ChSystem::ChCustomComputeCollisionCallba
     ChVector<> pin_gear_XY_Pz(pin_gear_Pz_bar.x, pin_gear_Pz_bar.y, 0);
     ChVector<> pin_gear_XY_Nz(pin_gear_Nz_bar.x, pin_gear_Nz_bar.y, 0);
     double center_len = m_bound_rad_Gear + m_bound_rad_Pin;
-    double p1_len = pin_gear_XY_Pz.Length();
-    double p2_len =  pin_gear_XY_Nz.Length();
 
-    if( p1_len <= center_len )
+    if( pin_gear_XY_Pz.Length() <= center_len )
     {
-      GetLog() << "pin 1 is w/in collision envelope \n";
+      // GetLog() << "pin 1 is w/in collision envelope \n";
       return true;
     }
-    if( p2_len <= center_len )
+    if( pin_gear_XY_Nz.Length() <= center_len )
     {
-      GetLog() << "pin 2 is w/in collision envelope \n";
+      // GetLog() << "pin 2 is w/in collision envelope \n";
       return true;
     }
     // gear and pin bounding shapes don't intersect
     return false;
   }
 
-  // true if in contact in the x-y plane.
-  // fills the contact info and normal on pin, since the direction is defined by the concave section
-  //  all relative to gear c-sys. Contact pts. use z- from pin_cen_bar. Normal is only in XY-bar plane
+  // true if in contact in the x-y plane, also calls the function to add the
+  //  contact to the system.
+  // Contact pts. use z- from pin_cen_bar. Normal is only in XY-bar plane
   bool eval2Dcontact(const ChVector<>& gear_seat_cen_bar,
     const ChVector<>& pin_cen_bar, 
-    ChVector<>& contact_pos_gear_bar,
-    ChVector<>& contact_pos_pin_bar,
-    ChVector<>& contact_normal_onGear_bar)
+    const size_t shoe_idx)
   {
     // find the center of the gear base circle, in XY-gear plane.
     ChVector<> pitch_circle_cenXY_bar = gear_seat_cen_bar;
@@ -242,31 +238,46 @@ class GearPinCollisionCallback : public ChSystem::ChCustomComputeCollisionCallba
     pitch_circle_cenXY_bar *= (m_geom.gear_pitch_radius / m_geom.gear_base_radius);
 
     // vector from circle center to pin center, XY-gear plane
-    ChVector<> r_pin_circleXY = pin_cen_bar - pitch_circle_cenXY_bar;
-    r_pin_circleXY.z = 0;
+    ChVector<> r_pitch_pin_XY = pin_cen_bar - pitch_circle_cenXY_bar;
+    r_pitch_pin_XY.z = 0;
+    // XY normalized direction between pin center, concave circle center
+    // points towards gear surface
+    ChVector<> r_pitch_pin_XY_hat = r_pitch_pin_XY / (r_pitch_pin_XY.Length() );
+    // also, take a look at the vector from center of gear to the gear seat, in the XY plane
+    ChVector<> gear_seat_bar_XY_hat = gear_seat_cen_bar;
+    gear_seat_bar_XY_hat.z = 0;
+    gear_seat_bar_XY_hat.Normalize();
 
-    // in the XY gear plane, pin is in contact
-    if( r_pin_circleXY.Length() + m_geom.pin_radius > m_geom.gear_concave_radius )
+    // negative when pin center is radially inwards from the pitch circle center pos, the direction of imortance.
+    double hat_dot = Vdot(r_pitch_pin_XY_hat, gear_seat_bar_XY_hat); 
+
+    // true when the pin intersects with the semi-circle that is radially inwards from the pitch circle center position
+    //  (relative to gear c-sys)
+    if( r_pitch_pin_XY.Length() + m_geom.pin_radius <= m_geom.gear_concave_radius && hat_dot < 0 )
     {
-      // fill in contact info. NOTE: could check to make sure that this point
+      // fill in contact info. 
+      // TODO: perform check to make sure that this point
       //  actually does lie w/in the curved part of the gear seat, but bullet should
       //  detect contact /w the top flat part of the gear tooth (box shape) to
       //  prevent the pin from ever getting to that point.
 
-      // XY normalized direction between pin center, concave circle center
-      // points towards gear surface
-      ChVector<> r_cpXY_hat = r_pin_circleXY / (r_pin_circleXY.Length() );
-
       // contact points, XY-bar plane
-      contact_pos_gear_bar = pitch_circle_cenXY_bar + r_cpXY_hat * m_geom.gear_concave_radius;
-      contact_pos_pin_bar = pin_cen_bar + r_cpXY_hat * m_geom.pin_radius;
+      ChVector<> contact_pos_gear_bar = pitch_circle_cenXY_bar + r_pitch_pin_XY_hat * m_geom.gear_concave_radius;
+      ChVector<> contact_pos_pin_bar = pin_cen_bar + r_pitch_pin_XY_hat * m_geom.pin_radius;
       // both contact points use pin z-coord, relative to gear
       contact_pos_gear_bar.z = pin_cen_bar.z;
       contact_pos_pin_bar.z = pin_cen_bar.z;
 
       // normal dir is only in XY-gear plane, gear is way more stiff than pin
-      contact_normal_onGear_bar = r_cpXY_hat;
+      ChVector<> contact_normal_onGear_bar = r_pitch_pin_XY_hat;
       contact_normal_onGear_bar.z = 0; // to be complete
+
+      // add contact info to the system, in the format the collision engine expects
+      Found_GearPin_Contact(contact_pos_gear_bar,
+        contact_pos_pin_bar,
+        contact_normal_onGear_bar,
+        shoe_idx);
+
       return true;
     }
     else
@@ -288,7 +299,7 @@ class GearPinCollisionCallback : public ChSystem::ChCustomComputeCollisionCallba
 
     // do narrow phase between this shoe and gear
     // find the closest gear to rotate the relate coordinates by the right angle
-    size_t tooth_idx = Get_GearToothIdx(gear_seat_cen_Pz, pin_cen_Pz, m_gear->GetRot() );
+    size_t tooth_idx = Get_GearToothIdx(pin_cen_Pz);
     double rot_ang = tooth_idx * CH_C_2PI / m_geom.num_teeth;
 
     // rotate the relative pos. things w.r.t gear c-sys
@@ -311,27 +322,17 @@ class GearPinCollisionCallback : public ChSystem::ChCustomComputeCollisionCallba
     ChVector<> pPin_bar;
     ChVector<> norm_onGear_bar;
 
-    if( eval2Dcontact(gear_seat_cen_bar_Pz, pin_cen_bar_Pz,
-      pGear_bar, pPin_bar, norm_onGear_bar) )
+    if( eval2Dcontact(gear_seat_cen_bar_Pz, pin_cen_bar_Pz, shoe_idx) )
     {
       GetLog() << "\n narrow phase contact, positive z-side \n\n";
-
-      Found_GearPin_Contact(pGear_bar, pPin_bar,
-        norm_onGear_bar,
-        shoe_idx);
 
       // curious about Pz/Nz contacts overall
       m_sum_Pz_contacts++;
     }
 
-    if( eval2Dcontact(gear_seat_cen_bar_Nz, pin_cen_bar_Nz, 
-      pGear_bar, pPin_bar, norm_onGear_bar) )
+    if( eval2Dcontact(gear_seat_cen_bar_Nz, pin_cen_bar_Nz, shoe_idx) )
     {
       GetLog() << "\n narrow phase contact, negative z-side \n\n";
-
-      Found_GearPin_Contact(pGear_bar, pPin_bar, 
-        norm_onGear_bar,
-        shoe_idx);
 
       // curious about Pz/Nz contacts overall
       m_sum_Nz_contacts++;
@@ -343,14 +344,12 @@ class GearPinCollisionCallback : public ChSystem::ChCustomComputeCollisionCallba
 
   /// based on the distance between input global centers, find the dist. relative to the gear
   /// c-sys. Return which gear tooth to perform narrow-phase with
-  size_t Get_GearToothIdx(const ChVector<>& gear_cen,
-    const ChVector<>& pin_cen,
-    const ChQuaternion<>& gear_rot) const
+  size_t Get_GearToothIdx(const ChVector<>& pin_cen) const
   {
-    ChVector<> len = pin_cen - gear_cen;  // global c-sys
-    // transform to local coords
-    len = gear_rot.RotateBack(len);
-    // in local coords, can find the rotation angle in x-y plane, off the y-axis
+    ChVector<> len = pin_cen - m_gear->GetPos();  // global c-sys
+    // transform to local gear c-sys
+    len = (m_gear->GetRot()).RotateBack(len);
+    // in local coords, can find the rotation angle in x-y plane, off the vertical y-axis
     double rot_ang = std::atan2(len.y,len.x) - CH_C_PI_2;
     double incr = chrono::CH_C_2PI / m_geom.num_teeth;
     size_t idx = std::floor( (rot_ang + 0.5*incr) / incr);
