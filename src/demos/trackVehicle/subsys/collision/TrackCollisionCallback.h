@@ -28,7 +28,10 @@
 
 namespace chrono {
 
-/// data container for the M113 gear/pin geometry.
+/// Gear seat geometry, # of teeth, pin size, spacing, offsets, etc. are parametrized
+///   with this data container class, for the below custom collision between the 
+///   sprocket gear seat and track shoe pins.
+/// Default values for M113 gear/pin geometry.
 class GearPinGeometry
 {
 public:
@@ -94,12 +97,12 @@ public:
   double pin_y_offset;
 };
 
-// Concave geometry (gear tooth seat) cannot be exactly represented by default collision primitives,
-//  nor can it be accurately modeled with a mesh or convex hull.
-// This custom collision checks the gear with all the track shoes
-// I suppose since you can choose between DVI and DEM contact, might as well
-// template this so we can add to either contact container type
-template <class ContactEngine = ChContactContainer>
+/// Concave geometry (gear tooth seat) cannot be exactly represented by default collision primitives,
+///  nor can it be accurately modeled with a mesh or convex hull.
+/// This custom collision checks the sprocket gear seat geometry with all the track shoe pins.
+/// Gear seat geometry, # of teeth, pin size, spacing, offsets, etc. are parametrized thru class GearPinGeometry. 
+/// Templated based on the type of collision engine you are using, e.g. DVI or DEM, (DVI default).
+template <class ContactEngine = ChContactContainerBase>
 class GearPinCollisionCallback : public ChSystem::ChCustomComputeCollisionCallback
 {
 	public:
@@ -170,6 +173,7 @@ class GearPinCollisionCallback : public ChSystem::ChCustomComputeCollisionCallba
 
  
   // check the hash table for persistent contact
+  // vnGear_bar the surface normal of the gear at the contact point.
 	void Found_GearPin_Contact(const ChVector<>& pGear_bar,
     const ChVector<>& pPin_bar, 
     const ChVector<>& vnGear_bar,
@@ -262,14 +266,14 @@ class GearPinCollisionCallback : public ChSystem::ChCustomComputeCollisionCallba
       contact_pos_gear_bar.z = pin_cen_bar.z;
       contact_pos_pin_bar.z = pin_cen_bar.z;
 
-      // normal dir is only in XY-gear plane, gear is way more stiff than pin
-      ChVector<> contact_normal_onGear_bar = r_pitch_pin_XY;
-      contact_normal_onGear_bar.z = 0; // to be complete
+      // normal surface of the gear is only in XY-gear plane.
+      ChVector<> contact_normal_Gear_bar = -r_pitch_pin_XY;
+      contact_normal_Gear_bar.z = 0; // to be complete
 
       // add contact info to the system, in the format the collision engine expects
       Found_GearPin_Contact(contact_pos_gear_bar,
         contact_pos_pin_bar,
-        contact_normal_onGear_bar,
+        contact_normal_Gear_bar,
         shoe_idx);
 
       return true;
@@ -318,7 +322,7 @@ class GearPinCollisionCallback : public ChSystem::ChCustomComputeCollisionCallba
 
     if( eval2Dcontact(gear_seat_cen_bar_Pz, pin_cen_bar_Pz, shoe_idx) )
     {
-      GetLog() << "\n narrow phase contact, positive z-side \n\n";
+      // GetLog() << "\n narrow phase contact, positive z-side \n\n";
 
       // curious about Pz/Nz contacts overall
       m_sum_Pz_contacts++;
@@ -326,7 +330,7 @@ class GearPinCollisionCallback : public ChSystem::ChCustomComputeCollisionCallba
 
     if( eval2Dcontact(gear_seat_cen_bar_Nz, pin_cen_bar_Nz, shoe_idx) )
     {
-      GetLog() << "\n narrow phase contact, negative z-side \n\n";
+      // GetLog() << "\n narrow phase contact, negative z-side \n\n";
 
       // curious about Pz/Nz contacts overall
       m_sum_Nz_contacts++;
