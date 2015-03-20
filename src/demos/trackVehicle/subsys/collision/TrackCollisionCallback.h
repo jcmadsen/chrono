@@ -477,21 +477,24 @@ public:
     if(to_console)
     {
       os << "\n ---- collision info, # : " << contact_num
+        <<"\n body A, body B : " << modA->GetPhysicsItem()->GetName() << ", " << modB->GetPhysicsItem()->GetName()
         <<"\n pA : " << pA
-        <<"\n pB : " << pB
-        <<"\n norm: " << plane_coord.Get_A_Xaxis()
-        <<"\n dist: " << distance
-        <<"\n forces: " << react_forces
-        << "\n";
+        <<" pB : " << pB
+        <<" norm : " << plane_coord.Get_A_Xaxis()
+        <<" dist : " << distance
+        <<"\n forces: " << react_forces;
     }
     else
     {
       // write to file
-      os << pA 
-        <<","<< pB
-        <<","<< plane_coord.Get_A_Xaxis()
+      ChVector<> x_hat = plane_coord.Get_A_Xaxis();
+      os << modA->GetPhysicsItem()->GetName()
+        <<","<< modB->GetPhysicsItem()->GetName()
+        <<","<< pA.x <<","<< pA.y <<","<< pA.z 
+        <<","<< pB.x <<","<< pB.y <<","<< pB.z
+        <<","<< x_hat.x <<","<< x_hat.y <<","<< x_hat.z
         <<","<< distance
-        <<","<< react_forces
+        <<","<< react_forces.x <<","<< react_forces.y <<","<< react_forces.z
         << "\n";
     }
 
