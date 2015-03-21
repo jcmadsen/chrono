@@ -72,16 +72,16 @@ ChVector<> initLoc(0, 1.0, 0);
 ChQuaternion<> initRot(QUNIT);
 
 // *****  Simulation step size, end time
-double step_size = 5e-4;
+double step_size = 1e-3;
 // stop at a certain time
-double end_time = 4;  // 99999
+double end_time = 8;  // 99999
 
 // *****  Driver settings
 // Automated simulation controls, applies positive half a sine wave.
 // Otherwise, control throttle with W/S
 bool autopilot = true;
-double sineAmp = 0.5;
-double sineFreq = 0.3;
+double sineAmp = 0.6;
+double sineFreq = 0.4;
 double tStart = 0.1;
 
 // ***** write to console or a file
@@ -90,15 +90,17 @@ double tStart = 0.1;
 // #define CONSOLE_DEBUG_INFO      // log constraint violations to console,
 #define CONSOLE_TIMING       // time each render and simulation step, log to console
 
-int what_to_save = DBG_FIRSTSHOE | DBG_GEAR ; // | DBG_IDLER | DBG_PTRAIN | DBG_CONSTRAINTS | DBG_COLLISIONCALLBACK;
+int what_to_save = DBG_FIRSTSHOE | DBG_GEAR; // | DBG_IDLER | DBG_PTRAIN | DBG_CONSTRAINTS | DBG_COLLISIONCALLBACK;
 int what_to_console = DBG_PTRAIN | DBG_GEAR | DBG_IDLER | DBG_FIRSTSHOE;  // DBG_COLLISIONCALLBACK | DBG_CONSTRAINTS;
 // int what_to_console = DBG_ALL_CONTACTS;
-double save_step_size = 5e-3;  // Time interval for writing data to file
+double save_step_size = 5e-3;  // Time interval for writing data to file, don't exceed 1 kHz.
 double console_step_size = 1.0;       // time interval for writing data to console
+std::string save_filename = "driveChain_M_CC";
+std::string save_outDir = "../outdata_driveChain";
 
 // *****  Visualization and camera settings
 // control how often to render a frame, write to file, write to console.
-int FPS = 50; // render Frames Per Second
+int FPS = 80; // render Frames Per Second
 double render_step_size = 1.0 / FPS;  // Time increment for rendered frames
 
 // camera controls, either static or  GUI controlled chase camera:
@@ -151,8 +153,8 @@ int main(int argc, char* argv[])
   // if writing an output file, setup what debugInformation we want added each step data is saved.
 #ifdef WRITE_OUTPUT
   chainSystem.Setup_log_to_file(what_to_save,
-    "test_driveChain",
-    "../outdata_driveChain");
+   save_filename,
+    save_outDir);
 #endif
 
   if(autopilot)

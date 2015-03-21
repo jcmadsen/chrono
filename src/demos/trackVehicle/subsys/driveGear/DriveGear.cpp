@@ -244,18 +244,6 @@ void DriveGear::AddCollisionGeometry(const std::vector<ChSharedPtr<ChBody> >& sh
   switch (m_collide) {
   case CollisionType::Primitives:
   {
-    // two cyliders, length along spin axis of gear. Radius = gear seat XY length.
-    double cyl_width =  (m_width - m_widthGap)/2.0;
-    ChVector<> shape_offset =  ChVector<>(0, 0, cyl_width + m_widthGap/2.0);
-     // use two simple cylinders. 
-    m_gear->GetCollisionModel()->AddCylinder(m_radius, m_radius, cyl_width,
-      shape_offset, Q_from_AngAxis(CH_C_PI_2,VECT_X));
-    
-    // mirror first cylinder about the x-y plane
-    shape_offset.z *= -1;
-    m_gear->GetCollisionModel()->AddCylinder(m_radius, m_radius, cyl_width,
-      shape_offset, Q_from_AngAxis(CH_C_PI_2,VECT_X));
-
     // a set of boxes to represent the top-most flat face of the gear tooth
     // as the gear should be oriented initially with the tooth base directly
     // above the COG, each tooth box is rotated from the initial half rotation angle
@@ -292,6 +280,26 @@ void DriveGear::AddCollisionGeometry(const std::vector<ChSharedPtr<ChBody> >& sh
         box_rot_mat); // does this rotation occur about gear c-sys or center of box ????
 
     }
+
+    
+    // NOTE: Custom callback doesn't work well when there is interpenetration,
+    //    maintain the cylinder bodies as a gear seat base.
+    // Only contributes when there is too much penetration between the gear seat and pin.
+    // TODO: replace with boxes, so the contact normal will always be normal to the gear seat pos.,
+    //  even when the pin slides off-center from the gear seat bottom.
+    ChVector<> shape_offset =  ChVector<>(0, 0, 0.5*(m_gearPinGeom.tooth_width + m_gearPinGeom.gear_seat_width_min));
+     // use two simple cylinders. 
+    m_gear->GetCollisionModel()->AddCylinder(m_gearPinGeom.gear_base_radius,
+      m_gearPinGeom.gear_base_radius,
+      0.5*m_gearPinGeom.tooth_width,
+      shape_offset, Q_from_AngAxis(CH_C_PI_2,VECT_X));
+    
+    // mirror first cylinder about the x-y plane
+    shape_offset.z *= -1;
+    m_gear->GetCollisionModel()->AddCylinder(m_gearPinGeom.gear_base_radius,
+      m_gearPinGeom.gear_base_radius,
+      0.5*m_gearPinGeom.tooth_width,
+      shape_offset, Q_from_AngAxis(CH_C_PI_2,VECT_X));
 
     break;
   }
