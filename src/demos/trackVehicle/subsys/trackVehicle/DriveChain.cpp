@@ -95,7 +95,7 @@ DriveChain::DriveChain(const std::string& name,
     gear_mass,
     gear_inertia) );
 
- // idlers
+  // idlers
   m_idlers.clear();
   m_idlers.resize(m_num_idlers);
   double idler_mass = 100.0; // 429.6
