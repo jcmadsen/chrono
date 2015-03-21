@@ -74,7 +74,7 @@ ChQuaternion<> initRot(QUNIT);
 // *****  Simulation step size, end time
 double step_size = 5e-4;
 // stop at a certain time
-double end_time = 15;  // 99999
+double end_time = 4;  // 99999
 
 // *****  Driver settings
 // Automated simulation controls, applies positive half a sine wave.
@@ -85,16 +85,15 @@ double sineFreq = 0.3;
 double tStart = 0.1;
 
 // ***** write to console or a file
-// #define WRITE_OUTPUT         // write output data to file
+#define WRITE_OUTPUT         // write output data to file
 // #define CONSOLE_SYSTEM_INFO  // display the system heirarchy in the console
 // #define CONSOLE_DEBUG_INFO      // log constraint violations to console,
 #define CONSOLE_TIMING       // time each render and simulation step, log to console
 
-int what_to_save = DBG_FIRSTSHOE | DBG_GEAR | DBG_IDLER | DBG_PTRAIN | DBG_CONSTRAINTS | DBG_COLLISIONCALLBACK;
+int what_to_save = DBG_FIRSTSHOE | DBG_GEAR ; // | DBG_IDLER | DBG_PTRAIN | DBG_CONSTRAINTS | DBG_COLLISIONCALLBACK;
 int what_to_console = DBG_PTRAIN | DBG_GEAR | DBG_IDLER | DBG_FIRSTSHOE;  // DBG_COLLISIONCALLBACK | DBG_CONSTRAINTS;
 // int what_to_console = DBG_ALL_CONTACTS;
-
-double output_step_size = step_size;  // Time interval for writing data to file
+double save_step_size = 5e-3;  // Time interval for writing data to file
 double console_step_size = 1.0;       // time interval for writing data to console
 
 // *****  Visualization and camera settings
@@ -234,7 +233,7 @@ int main(int argc, char* argv[])
   int render_steps = (int)std::ceil(render_step_size / step_size);
 
   // Number of simulation steps between two output frames
-  int output_steps = (int)std::ceil(output_step_size / step_size);
+  int save_steps = (int)std::ceil(save_step_size / step_size);
 
   // Number of steps between two log to consoles
   int console_steps = (int)std::ceil(console_step_size / step_size);
@@ -328,7 +327,7 @@ int main(int argc, char* argv[])
     time_since_last_output += step_timer();
 
 #ifdef WRITE_OUTPUT
-    if (step_number % output_steps == 0) 
+    if (step_number % save_steps == 0) 
     {
       // write data to file
       chainSystem.Log_to_file();  // needs to already be setup before sim loop calls it
@@ -346,7 +345,7 @@ int main(int argc, char* argv[])
       GetLog() << "\n --------- TIMING -------- : time: " << chainSystem.GetSystem()->GetChTime()
        << "\n total render time: " << total_render_time << ",  % of total: " << 100.*total_render_time / total_step_time
        << "\n total compute time: " << total_step_time 
-       << "\n Avg. time per step " << time_since_last_output * chainSystem.GetSystem()->GetStep() / output_step_size
+       << "\n Avg. time per step " << time_since_last_output * chainSystem.GetSystem()->GetStep() / save_steps
        << "\n overall avg. time/step: " << total_step_time/step_number << "    for a stepsize: " << chainSystem.GetSystem()->GetStep()
        << "\n RTR : " << total_step_time / chainSystem.GetSystem()->GetChTime();
       time_since_last_output = 0;

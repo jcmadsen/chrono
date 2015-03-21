@@ -155,6 +155,22 @@ class GearPinCollisionCallback : public ChSystem::ChCustomComputeCollisionCallba
     // the bounding concave section needs to include an outward envelope, which reduces the concave 
     //  circle radius
     m_bound_gear_seat_rad = m_geom.gear_concave_radius - m_envelope;
+    
+    // the two vectors for the r1r2_dot_limit value
+
+    // r2: gear_seat_bar, XY-gear plane
+    ChVector<> gear_seat_bar_XY = m_seat_pos_bar;
+    gear_seat_bar_XY.z = 0;
+    // pitch circle pos, XY-gear plane
+    ChVector<> pitch_bar_XY = gear_seat_bar_XY;
+    pitch_bar_XY.z = 0;
+    // center of the pitch circle should just be radially outward from the seat position, XY gear plane.
+    pitch_bar_XY *= (m_geom.gear_pitch_radius / m_geom.gear_base_radius);
+    ChVector<> r_pitch_corner_bar_XY = m_geom.tooth_mid_bar - pitch_bar_XY;
+    r_pitch_corner_bar_XY.z = 0;
+
+    // negative when pin center is radially inwards from the pitch circle center pos, the direction of imortance.
+    m_r1r2_dot_limit =  Vdot(r_pitch_corner_bar_XY, gear_seat_bar_XY);
 
 		// alloc the hash table for persistent manifold of gear-cylinder contacts
 		m_hashed_contacts = new ChHashTable<int, GearPinCacheContact>(m_persistent_hashtable_dim);
@@ -262,7 +278,7 @@ class GearPinCollisionCallback : public ChSystem::ChCustomComputeCollisionCallba
 
     // true when the pin intersects with the semi-circle that is radially inwards from the pitch circle center position
     //  (relative to gear c-sys)
-    if( r_pitch_pin_XY.Length() + m_bound_rad_Pin >= m_bound_gear_seat_rad && r1r2_dot < 0 )
+    if( r_pitch_pin_XY.Length() + m_bound_rad_Pin >= m_bound_gear_seat_rad && r1r2_dot < m_r1r2_dot_limit )
     {
       // fill in contact info. 
 
@@ -394,14 +410,6 @@ class GearPinCollisionCallback : public ChSystem::ChCustomComputeCollisionCallba
       ChVector<> pin_gear_bar_Pz = m_gear->GetRot().RotateBack(m_gear->GetPos() - pin_pos_Pz);
       ChVector<> pin_gear_bar_Nz = m_gear->GetRot().RotateBack(m_gear->GetPos() - pin_pos_Nz);
 
-
-      // DEBUGGING
-      if(idx == 9 && m_gear->GetSystem()->GetChTime() > 0.09)
-        int arg = 2;
-
-
-
-
       // broad-phase passes?
       if( BroadphasePassed(pin_gear_bar_Pz, pin_gear_bar_Nz) )
       {
@@ -446,11 +454,12 @@ private:
   std::vector<ChSharedPtr<ChBody> > m_shoes;
   ChSharedPtr<ChBody> m_gear;
   const GearPinGeometry m_geom; ///< gear and pin geometry data
-  const double m_envelope; 
+  const double m_envelope; ///< outward envelope to add to geometry
   double m_bound_rad_Gear; ///< broadphase geometry bounding sphere radius for gear
-  double m_bound_rad_Pin; ///< geometry bounding sphere circumscribes the outside circumference of the pins
+  double m_bound_rad_Pin;   ///< geometry bounding sphere circumscribes the outside circumference of the pins
   double m_bound_broadphase;  ///< total bounding radius
   double m_bound_gear_seat_rad;  ///< radius swept out by the concave gear seat section
+  double m_r1r2_dot_limit;  ///< r1 is gear_seat_cen_bar, r2 is pitch_cen_bar to tooth_corner_bar
 
   // following are used for determining if contacts are "persistent"
   // i.e., no liftoff once they are engaged with the sprocket. 1 per shoe
