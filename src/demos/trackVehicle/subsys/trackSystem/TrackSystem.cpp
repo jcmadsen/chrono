@@ -127,7 +127,7 @@ void TrackSystem::BuildSubsystems()
   m_driveGear = ChSharedPtr<DriveGear>(new DriveGear(gearName.str(),
     VisualizationType::Mesh,
    //  CollisionType::Primitives) );
-    // VisualizationType::CompoundPrimitives,
+    // VisualizationType::Primitives,
     CollisionType::CallbackFunction));
 
   std::stringstream idlerName;
