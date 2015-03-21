@@ -121,43 +121,6 @@ void DriveGear::AddVisualization()
   switch (m_vis) {
   case VisualizationType::Primitives:
   {
-    // define the gear as two concentric cylinders with a gap
-    ChSharedPtr<ChCylinderShape> cyl(new ChCylinderShape);
-    cyl->GetCylinderGeometry().rad = m_radius;
-    cyl->GetCylinderGeometry().p1 = ChVector<>(0, 0, m_width/2.0);
-    cyl->GetCylinderGeometry().p2 = ChVector<>(0, 0, m_widthGap/2.0);
-    m_gear->AddAsset(cyl);
-
-    // second cylinder is a mirror of the first, about x-y plane
-    ChSharedPtr<ChCylinderShape> cylB(new ChCylinderShape(*cyl.get_ptr()));
-    cylB->GetCylinderGeometry().p1.z *= -1;
-    cylB->GetCylinderGeometry().p2.z *= -1;
-    m_gear->AddAsset(cylB);
-
-    ChSharedPtr<ChTexture> tex(new ChTexture);
-    tex->SetTextureFilename(GetChronoDataFile("bluwhite.png"));
-    m_gear->AddAsset(tex);
-
-    break;
-  }
-  case VisualizationType::Mesh:
-  {
-    geometry::ChTriangleMeshConnected trimesh;
-    trimesh.LoadWavefrontMesh(getMeshFile(), true, false);
-
-    ChSharedPtr<ChTriangleMeshShape> trimesh_shape(new ChTriangleMeshShape);
-    trimesh_shape->SetMesh(trimesh);
-    trimesh_shape->SetName(getMeshName());
-    m_gear->AddAsset(trimesh_shape);
-
-    ChSharedPtr<ChTexture> tex(new ChTexture);
-    tex->SetTextureFilename(GetChronoDataFile("redwhite.png"));
-    m_gear->AddAsset(tex);
-    
-    break;
-  }
-  case VisualizationType::CompoundPrimitives:
-  {
     // matches the primitive found in collisionType collisionCallback
     // cylinder and a bunch of boxes
     ChSharedPtr<ChAssetLevel> boxLevel(new ChAssetLevel);
@@ -222,9 +185,28 @@ void DriveGear::AddVisualization()
 
     // all assets on box level are added by now
     m_gear->AddAsset(boxLevel);
-
     break;
   }
+  case VisualizationType::Mesh:
+  {
+    geometry::ChTriangleMeshConnected trimesh;
+    trimesh.LoadWavefrontMesh(getMeshFile(), true, false);
+
+    ChSharedPtr<ChTriangleMeshShape> trimesh_shape(new ChTriangleMeshShape);
+    trimesh_shape->SetMesh(trimesh);
+    trimesh_shape->SetName(getMeshName());
+    m_gear->AddAsset(trimesh_shape);
+
+    ChSharedPtr<ChTexture> tex(new ChTexture);
+    tex->SetTextureFilename(GetChronoDataFile("redwhite.png"));
+    m_gear->AddAsset(tex);
+    
+    break;
+  }
+
+  // moved this above to primitives
+  // case VisualizationType::CompoundPrimitives:
+
   default:
   {
     GetLog() << "Didn't recognize VisualizationType for DriveGear \n";
@@ -262,15 +244,61 @@ void DriveGear::AddCollisionGeometry(const std::vector<ChSharedPtr<ChBody> >& sh
   switch (m_collide) {
   case CollisionType::Primitives:
   {
-    double cyl_width =  (m_width - m_widthGap)/2.0;
-    ChVector<> shape_offset =  ChVector<>(0, 0, cyl_width + m_widthGap/2.0);
+    // a set of boxes to represent the top-most flat face of the gear tooth
+    // as the gear should be oriented initially with the tooth base directly
+    // above the COG, each tooth box is rotated from the initial half rotation angle
+    double init_rot =  CH_C_PI / m_gearPinGeom.num_teeth; // std::atan(0.07334/0.24929); // from sprocket geometry blender file
+    for(size_t b_idx = 0; b_idx < m_gearPinGeom.num_teeth; b_idx++)
+    {
+      // this is the angle from the vertical (y-axis local y c-sys).
+      double rot_ang = init_rot + 2.0*init_rot*b_idx;
+      // distance center of tooth is from the gear spin axis
+      double len_from_rotaxis = ChVector<>(m_gearPinGeom.tooth_mid_bar.x,
+        m_gearPinGeom.tooth_mid_bar.y,
+        0).Length();
+      // shift the box vertically, midpoint of base should be at center of gear
+      // if the rotation is relative to sprocket COG, then this will end up in the right place
+      ChVector<> box_center(0.5*len_from_rotaxis*std::sin(rot_ang), // 0
+        0.5*len_from_rotaxis*std::cos(rot_ang), //  0.5*len_from_rotaxis
+        m_gearPinGeom.tooth_mid_bar.z);
+      
+      // z-axis is out of the page, to rotate clockwise negate the rotation angle.
+      ChMatrix33<> box_rot_mat(Q_from_AngAxis(-rot_ang, VECT_Z));
+
+      m_gear->GetCollisionModel()->AddBox(0.5*m_gearPinGeom.tooth_len,
+        0.5*len_from_rotaxis,
+        0.5*m_gearPinGeom.tooth_width,
+        box_center,
+        box_rot_mat); // does this rotation occur about gear c-sys or center of box ????
+
+      // the gear teeth are symmetric about XY plane
+      box_center.z *= -1;
+      m_gear->GetCollisionModel()->AddBox(0.5*m_gearPinGeom.tooth_len,
+        0.5*len_from_rotaxis,
+        0.5*m_gearPinGeom.tooth_width,
+        box_center,
+        box_rot_mat); // does this rotation occur about gear c-sys or center of box ????
+
+    }
+
+    
+    // NOTE: Custom callback doesn't work well when there is interpenetration,
+    //    maintain the cylinder bodies as a gear seat base.
+    // Only contributes when there is too much penetration between the gear seat and pin.
+    // TODO: replace with boxes, so the contact normal will always be normal to the gear seat pos.,
+    //  even when the pin slides off-center from the gear seat bottom.
+    ChVector<> shape_offset =  ChVector<>(0, 0, 0.5*(m_gearPinGeom.tooth_width + m_gearPinGeom.gear_seat_width_min));
      // use two simple cylinders. 
-    m_gear->GetCollisionModel()->AddCylinder(m_radius, m_radius, cyl_width,
+    m_gear->GetCollisionModel()->AddCylinder(m_gearPinGeom.gear_base_radius,
+      m_gearPinGeom.gear_base_radius,
+      0.5*m_gearPinGeom.tooth_width,
       shape_offset, Q_from_AngAxis(CH_C_PI_2,VECT_X));
     
     // mirror first cylinder about the x-y plane
     shape_offset.z *= -1;
-    m_gear->GetCollisionModel()->AddCylinder(m_radius, m_radius, cyl_width,
+    m_gear->GetCollisionModel()->AddCylinder(m_gearPinGeom.gear_base_radius,
+      m_gearPinGeom.gear_base_radius,
+      0.5*m_gearPinGeom.tooth_width,
       shape_offset, Q_from_AngAxis(CH_C_PI_2,VECT_X));
 
     break;

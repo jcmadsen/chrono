@@ -95,7 +95,7 @@ DriveChain::DriveChain(const std::string& name,
     gear_mass,
     gear_inertia) );
 
- // idlers
+  // idlers
   m_idlers.clear();
   m_idlers.resize(m_num_idlers);
   double idler_mass = 100.0; // 429.6
@@ -1037,7 +1037,7 @@ void DriveChain::Log_to_console(int console_what)
   
   }
 
-  if(console_what & DBG_COLLISIONCALLBACK)
+  if(console_what & DBG_COLLISIONCALLBACK & (m_gear->GetCollisionCallback() != NULL) )
   {
     GetLog() << "\n ---- collision callback info :"
       << "\n Contacts this step: " << m_gear->GetCollisionCallback()->GetNcontacts()
@@ -1191,7 +1191,7 @@ void DriveChain::Log_to_file()
       ofilePT << ss_pt.str().c_str();
     }
 
-    if( m_log_what_to_file & DBG_COLLISIONCALLBACK)
+    if( m_log_what_to_file & DBG_COLLISIONCALLBACK & (m_gear->GetCollisionCallback() != NULL) )
     {
       std::stringstream ss_cc;
       // report # of contacts detected this step between shoe pins # gear.
@@ -1336,7 +1336,7 @@ void DriveChain::create_fileHeaders(int what)
   }
 
   // write broadphase, narrow phase contact info
-  if(what & DBG_COLLISIONCALLBACK)
+  if(what & DBG_COLLISIONCALLBACK & (m_gear->GetCollisionCallback() != NULL) )
   {
     m_filename_DBG_COLLISIONCALLBACK = m_log_file_name+"_Ccallback.csv";
     ChStreamOutAsciiFile ofileDBG_COLLISIONCALLBACK(m_filename_DBG_COLLISIONCALLBACK.c_str());
