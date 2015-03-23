@@ -1,7 +1,7 @@
 // =============================================================================
 // PROJECT CHRONO - http://projectchrono.org
 //
-// Copyright (c) 2014 projectchrono.org
+// Copyright (c) 2015 projectchrono.org
 // All right reserved.
 //
 // Use of this source code is governed by a BSD-style license that can be found
@@ -12,15 +12,15 @@
 // Authors: Justin Madsen
 // =============================================================================
 //
-// model a single track chain system, as part of a tracked vehicle. 
-//	TODO: read in subsystem data w/ JSON input files
+// model a single track chain system, as part of a tracked vehicle.
+// Sprocket drive gear body driven with a motion, i.e. no powertrain.
 //
 // =============================================================================
 
 #include <cstdio>
 #include <sstream>
 
-#include "subsys/trackSystem/TrackSystem.h"
+#include "subsys/trackSystem/TrackSystemM113.h"
 
 namespace chrono {
 
@@ -28,18 +28,18 @@ namespace chrono {
 // Static variables
 
 // idler, right side
-const ChVector<> TrackSystem::m_idlerPos(-2.1904, -0.1443, 0.2447); // relative to local csys
-const ChQuaternion<> TrackSystem::m_idlerRot(QUNIT);
-const double TrackSystem::m_idler_preload = 100000;  // [N]
+const ChVector<> TrackSystemM113::m_idlerPos(-2.1904, -0.1443, 0.2447); // relative to local csys
+const ChQuaternion<> TrackSystemM113::m_idlerRot(QUNIT);
+const double TrackSystemM113::m_idler_preload = 100000;  // [N]
   
 // drive gear, right side
-const ChVector<> TrackSystem::m_gearPos(1.7741, -0.0099, 0.2447);  // relative to local csys
-const ChQuaternion<> TrackSystem::m_gearRot(QUNIT);
+const ChVector<> TrackSystemM113::m_gearPos(1.7741, -0.0099, 0.2447);  // relative to local csys
+const ChQuaternion<> TrackSystemM113::m_gearRot(QUNIT);
 
 // suspension
-const int TrackSystem::m_numSuspensions = 5;
+const int TrackSystemM113::m_numSuspensions = 5;
 
-TrackSystem::TrackSystem(const std::string& name, int track_idx)
+TrackSystemM113::TrackSystemM113(const std::string& name, int track_idx)
   : m_track_idx(track_idx), m_name(name)
 {
   // FILE* fp = fopen(filename.c_str(), "r");
@@ -52,7 +52,7 @@ TrackSystem::TrackSystem(const std::string& name, int track_idx)
 
 // Create: 1) load/set the subsystem data, resize vectors 2) BuildSubsystems()
 // TODO: replace hard-coded junk with JSON input files for each subsystem
-void TrackSystem::Create(int track_idx)
+void TrackSystemM113::Create(int track_idx)
 {
 
   /*
@@ -91,11 +91,11 @@ void TrackSystem::Create(int track_idx)
 
   m_suspensions.resize(m_numSuspensions);
   m_suspensionLocs.resize(m_numSuspensions);
-  // hard-code positions relative to trackSystem csys. Start w/ one nearest sprocket
+  // hard-code positions relative to TrackSystemM113 csys. Start w/ one nearest sprocket
   
   m_suspensionLocs[0] = ChVector<>(1.3336, 0, 0);
   m_suspensionLocs[1] = ChVector<>(0.6668, 0, 0);
-  // trackSystem c-sys aligned with middle suspension subsystem arm/chassis revolute constraint position
+  // TrackSystemM113 c-sys aligned with middle suspension subsystem arm/chassis revolute constraint position
   m_suspensionLocs[2] = ChVector<>(0,0,0); 
   m_suspensionLocs[3] = ChVector<>(-0.6682, 0, 0);
   m_suspensionLocs[4] = ChVector<>(-1.3368, 0, 0);
@@ -120,12 +120,12 @@ void TrackSystem::Create(int track_idx)
  
 }
 
-void TrackSystem::BuildSubsystems()
+void TrackSystemM113::BuildSubsystems()
 {
   std::stringstream gearName;
   gearName << "drive gear "<< m_track_idx;
   // build one of each of the following subsystems. VisualizationType and CollisionType defaults are PRIMITIVES
-  m_driveGear = ChSharedPtr<DriveGear>(new DriveGear(gearName.str(),
+  m_driveGear = ChSharedPtr<DriveGearMotion>(new DriveGearMotion(gearName.str(),
     VisualizationType::Mesh,
    //  CollisionType::Primitives) );
     // VisualizationType::Primitives,
@@ -157,7 +157,7 @@ void TrackSystem::BuildSubsystems()
 
 }
 
-void TrackSystem::Initialize(ChSharedPtr<ChBodyAuxRef> chassis,
+void TrackSystemM113::Initialize(ChSharedPtr<ChBodyAuxRef> chassis,
 			 const ChVector<>&  local_pos)
 {
   m_local_pos = local_pos;
@@ -178,7 +178,7 @@ void TrackSystem::Initialize(ChSharedPtr<ChBodyAuxRef> chassis,
   std::vector<ChVector<> > rolling_elem_spin_axis; /// w.r.t. abs. frame
 
   // initialize 1 of each of the following subsystems.
-  // will use the chassis ref frame to do the transforms, since the TrackSystem
+  // will use the chassis ref frame to do the transforms, since the TrackSystemM113
   // local ref. frame has same rot (just difference in position)
   // NOTE: move drive Gear Init() AFTER the chain of shoes is created, since
   //        need the list of shoes to be passed in to create custom collision w/ gear
@@ -236,7 +236,7 @@ void TrackSystem::Initialize(ChSharedPtr<ChBodyAuxRef> chassis,
 
 }
 
-const ChVector<> TrackSystem::Get_idler_spring_react()
+const ChVector<> TrackSystemM113::Get_idler_spring_react()
 {
   return m_idler->m_shock->Get_react_force();
 

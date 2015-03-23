@@ -74,28 +74,28 @@ ChQuaternion<> initRot(QUNIT);
 // *****  Simulation step size, end time
 double step_size = 1e-3;
 // stop at a certain time
-double end_time = 8;  // 99999
+double end_time = 6;  // 99999
 
 // *****  Driver settings
 // Automated simulation controls, applies positive half a sine wave.
 // Otherwise, control throttle with W/S
 bool autopilot = true;
-double sineAmp = 0.6;
-double sineFreq = 0.4;
+double sineAmp = 0.5;
+double sineFreq = 0.3;
 double tStart = 0.1;
 
 // ***** write to console or a file
 #define WRITE_OUTPUT         // write output data to file
 // #define CONSOLE_SYSTEM_INFO  // display the system heirarchy in the console
-// #define CONSOLE_DEBUG_INFO      // log constraint violations to console,
+//#define CONSOLE_DEBUG_INFO      // log constraint violations to console,
 #define CONSOLE_TIMING       // time each render and simulation step, log to console
 
-int what_to_save = DBG_FIRSTSHOE | DBG_GEAR; // | DBG_IDLER | DBG_PTRAIN | DBG_CONSTRAINTS | DBG_COLLISIONCALLBACK;
-int what_to_console = DBG_PTRAIN | DBG_GEAR | DBG_IDLER | DBG_FIRSTSHOE;  // DBG_COLLISIONCALLBACK | DBG_CONSTRAINTS;
+int what_to_save = DBG_FIRSTSHOE | DBG_GEAR | DBG_COLLISIONCALLBACK | DBG_PTRAIN; // | DBG_IDLER  | DBG_CONSTRAINTS;
+int what_to_console = DBG_PTRAIN | DBG_GEAR;  // DBG_COLLISIONCALLBACK | DBG_CONSTRAINTS | DBG_IDLER | DBG_FIRSTSHOE;
 // int what_to_console = DBG_ALL_CONTACTS;
-double save_step_size = 5e-3;  // Time interval for writing data to file, don't exceed 1 kHz.
+double save_step_size = 1e-3;  // Time interval for writing data to file, don't exceed 1 kHz.
 double console_step_size = 1.0;       // time interval for writing data to console
-std::string save_filename = "driveChain_M_CC";
+std::string save_filename = "driveChain_CC";
 std::string save_outDir = "../outdata_driveChain";
 
 // *****  Visualization and camera settings
@@ -106,10 +106,10 @@ double render_step_size = 1.0 / FPS;  // Time increment for rendered frames
 // camera controls, either static or  GUI controlled chase camera:
 bool use_fixed_camera = true;
 // static camera position, global c-sys. (Longitude, Vertical, Lateral)
-ChVector<> fixed_cameraPos(0.3, 1.5, 1.8);    // (1.5, 1.5, 1.5)
+ChVector<> fixed_cameraPos(0.15, 1.15, 1.5);    // (1.5, 1.5, 1.5)
 
 // Both cameras track this point, relative to the center of the gear
-ChVector<> trackPoint(0, 0.2, 0.2);
+ChVector<> trackPoint(0.15, 0.15, 0.0);
 
 // if chase cam enabled:
 double chaseDist = 2.5;
@@ -140,10 +140,10 @@ int main(int argc, char* argv[])
   // The drive chain inherits ChSystem. Specify the 
   // collision type used by the gear here.
   DriveChain chainSystem("Justins driveChain system", 
-    // VisualizationType::Mesh,
-    VisualizationType::Primitives,
-    // CollisionType::CallbackFunction,
-    CollisionType::Primitives,
+    VisualizationType::Mesh,
+    //VisualizationType::Primitives,
+    CollisionType::CallbackFunction,
+    //CollisionType::Primitives,
     num_idlers,
     num_rollers);
   
