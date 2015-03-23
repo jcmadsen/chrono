@@ -11,6 +11,7 @@
 //
 //   A tracked vehicle, M113, built and simulated using the trackedVehicle library.
 //   Build the vehicle using a hierarchy of subsystems.
+//   Driven by applying a motion directly to the sprocket bodies
 //   Simulate by GUI input to an irrlicht EventReceiver.
 //   Y-up, X-forward, Z-lateral global c-sys
 //
@@ -41,7 +42,7 @@
  # define USE_IRRLICHT
 #endif
  */
-#include "subsys/trackVehicle/TrackVehicle.h"
+#include "subsys/trackVehicle/TrackVehicleM113.h"
 #include "ModelDefs.h"
 // Use the main namespace of Chrono
 using namespace chrono;
@@ -64,13 +65,13 @@ ChQuaternion<> initRot(QUNIT);
 // flat ground size and COG location
 ChVector<> groundSize(60.0, 1.0, 100.0);
 ChVector<> groundPos(0, -1.0, 0);
-double mu = 0.8;  // dry friction coef.
+double mu = 0.7;  // dry friction coef.
 
 // Simulation step size
 double step_size = 1e-3;
 
 // Time interval between two render frames
-int FPS = 40;
+int FPS = 80;
 double render_step_size = 1.0 / FPS;   // FPS = 50
 // Time interval between two output frames
 double output_step_size = 1.0 / 1;    // once a second
@@ -93,7 +94,7 @@ bool do_shadows = false; // shadow map is experimental
 
 
 /// the ground body, visual assets and collision shape. 
-ChSharedPtr<ChBody> Add_FlatGround(TrackVehicle* vehicle,
+ChSharedPtr<ChBody> Add_FlatGround(TrackVehicleM113* vehicle,
                     const ChVector<>& size,
                     const ChVector<>& pos,
                     double friction_mu) 
@@ -128,7 +129,7 @@ int main(int argc, char* argv[])
   // Create the tracked vehicle and the ground/environment
 
   // The vehicle inherits ChSystem. Input chassis visual and collision type
-	TrackVehicle vehicle("Justins M113 model", 
+	TrackVehicleM113 vehicle("M113 model for validation", 
     VisualizationType::None,
     CollisionType::None);
   

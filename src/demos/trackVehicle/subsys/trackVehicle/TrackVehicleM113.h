@@ -1,7 +1,7 @@
 // =============================================================================
 // PROJECT CHRONO - http://projectchrono.org
 //
-// Copyright (c) 2014 projectchrono.org
+// Copyright (c) 2015 projectchrono.org
 // All right reserved.
 //
 // Use of this source code is governed by a BSD-style license that can be found
@@ -9,25 +9,23 @@
 // http://projectchrono.org/license-chrono.txt.
 //
 // =============================================================================
-// Authors: Justin Madsen, 
+// Authors: Justin Madsen 
 // =============================================================================
 //
 // Tracked vehicle model built from subsystems specified with hardcoded values
-// as static const variables in the subsystem .cpp files
+// Driven by directly applying rotational motion to sprocket bodies
 //
 // =============================================================================
 
-#ifndef TRACKVEHICLE_H
-#define TRACKVEHICLE_H
+#ifndef TRACKVEHICLEM113_H
+#define TRACKVEHICLEM113_H
 
 #include "core/ChCoordsys.h"
 #include "physics/ChSystem.h"
 #include "ModelDefs.h"
 
 #include "subsys/base/ChTrackVehicle.h"
-#include "subsys/trackSystem/TrackSystem.h"
-#include "subsys/powertrain/TrackPowertrain.h"
-// #include "subsys/driveline/TrackDriveline.h"
+#include "subsys/trackSystem/TrackSystemM113.h"
 
 namespace chrono {
 
@@ -44,11 +42,11 @@ namespace chrono {
 ///   >>  while ( simulate )
 ///   >>    tankA.Update( time, throttle, braking);
 ///   >>    tankA.Advance( step_size );
-class CH_SUBSYS_API TrackVehicle : public ChTrackVehicle
+class CH_SUBSYS_API TrackVehicleM113 : public ChTrackVehicle
 {
 public:
 
-  TrackVehicle(const std::string& name,
+  TrackVehicleM113(const std::string& name,
     VisualizationType::Enum vis = VisualizationType::None,
     CollisionType::Enum collide = CollisionType::None,
     double mass = 5489.2, // default for M113 APC
@@ -57,7 +55,7 @@ public:
     const ChVector<>& right_pos_rel = ChVector<>(0.23644, -0.4780, -0.83475)  // relative to chassis REF c-sys
     );
 
-  ~TrackVehicle();
+  ~TrackVehicleM113();
 
   /// Initialize the tracked vehicle REF frame with the specified Coordinate system.
   /// This initial transform is inherited by all vehicle subsystems.
@@ -73,26 +71,24 @@ public:
   virtual void Advance(double step);
 
   // Accessors
+  /// current value of the integration step size for the vehicle system.
+  double GetStepsize() const { return m_stepsize; }
+
+  /// number of track chain systems attached to the vehicle
+  int GetNum_TrackSystems() const { return m_num_tracks; }
+  
+  // Accessors
+  // not really relevant, but required
   virtual double GetDriveshaftSpeed(size_t idx) const;
 
   /// pointer to the powertrain
   virtual const ChSharedPtr<TrackPowertrain> GetPowertrain(size_t idx) const;
 
-  /// current value of the integration step size for the vehicle system.
-  double GetStepsize() const { return m_stepsize; }
-
-
-  /// number of track chain systems attached to the vehicle
-  int GetNum_TrackSystems() const { return m_num_tracks; }
-
-  // not really relevant, since it's a static system
-  // ChCoordsys<> GetLocalDriverCoordsys() const { return m_driverCsys; }
-
 private:
 
   // private variables
   std::vector<ChVector<> > m_TrackSystem_locs;   ///< location of each tracksystem, relative to chassis REF c-sys
-  std::vector<ChSharedPtr<TrackSystem> > m_TrackSystems;	///< handles to track systems
+  std::vector<ChSharedPtr<TrackSystemM113> > m_TrackSystems;	///< handles to track systems
   const ChVector<> m_trackSys_L;  ///< where to place left track system origin, relative to chassis REF c-sys
   const ChVector<> m_trackSys_R;  ///< where to place right track system origin, relative to chassis REF c-sys
   const size_t m_num_tracks;      ///< how many track systems to build
@@ -104,6 +100,8 @@ private:
 
   static const ChCoordsys<> m_driverCsys;  // driver position and orientation relative to chassis
 
+  // placeholder
+  ChSharedPtr<ChShaft> m_axle;  // dummy shaft
 };
 
 

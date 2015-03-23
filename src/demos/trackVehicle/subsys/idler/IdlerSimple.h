@@ -35,6 +35,7 @@ namespace chrono {
 class CH_SUBSYS_API IdlerSimple : public ChShared
 {
 friend class TrackSystem;
+friend class TrackSystemM113;
 public:
 
   /// constructor, where only the body name must be specified.

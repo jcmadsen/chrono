@@ -1,7 +1,7 @@
 // =============================================================================
 // PROJECT CHRONO - http://projectchrono.org
 //
-// Copyright (c) 2014 projectchrono.org
+// Copyright (c) 2015 projectchrono.org
 // All right reserved.
 //
 // Use of this source code is governed by a BSD-style license that can be found
@@ -14,7 +14,7 @@
 //
 // Tracked vehicle model built from subsystems.
 //  Location of subsystems hard-coded for M113 vehicle
-//  TODO: specify this w/ JSON input data file
+//  Sprocket body driven with a specified motion.
 //
 // =============================================================================
 
@@ -23,10 +23,9 @@
 
 #include "physics/ChGlobal.h"
 
-#include "TrackVehicle.h"
+#include "TrackVehicleM113.h"
 
-#include "subsys/trackSystem/TrackSystem.h"
-// #include "subsys/driveline/TrackDriveline.h"
+#include "subsys/trackSystem/TrackSystemM113.h"
 
 #include "utils/ChUtilsInputOutput.h"
 #include "utils/ChUtilsData.h"
@@ -36,14 +35,14 @@ namespace chrono {
 
 // -----------------------------------------------------------------------------
 // Static variables
-const double     TrackVehicle::mass_override = 5489.2 / 5.0; // chassis sprung mass override
-const ChVector<> TrackVehicle::COM_override = ChVector<>(0., 0.0, 0.);  // COM location, relative to body Csys REF frame
-const ChVector<> TrackVehicle::inertia_override(1786.9/5.0, 10449.7/5.0, 10721.2/5.0);  // chassis inertia (roll,yaw,pitch)
+const double     TrackVehicleM113::mass_override = 5489.2 / 5.0; // chassis sprung mass override
+const ChVector<> TrackVehicleM113::COM_override = ChVector<>(0., 0.0, 0.);  // COM location, relative to body Csys REF frame
+const ChVector<> TrackVehicleM113::inertia_override(1786.9/5.0, 10449.7/5.0, 10721.2/5.0);  // chassis inertia (roll,yaw,pitch)
 
-const ChCoordsys<> TrackVehicle::m_driverCsys(ChVector<>(0.0, 0.5, 1.2), ChQuaternion<>(1, 0, 0, 0));
+const ChCoordsys<> TrackVehicleM113::m_driverCsys(ChVector<>(0.0, 0.5, 1.2), ChQuaternion<>(1, 0, 0, 0));
 
 /// constructor sets the basic integrator settings for this ChSystem, as well as the usual stuff
-TrackVehicle::TrackVehicle(const std::string& name,
+TrackVehicleM113::TrackVehicleM113(const std::string& name,
                            VisualizationType::Enum chassisVis,
                            CollisionType::Enum chassisCollide,
                            double mass,
@@ -82,7 +81,7 @@ TrackVehicle::TrackVehicle(const std::string& name,
   for (int i = 0; i < m_num_tracks; i++) {
     std::stringstream t_ss;
     t_ss << "track chain " << i;
-    m_TrackSystems[i] = ChSharedPtr<TrackSystem>(new TrackSystem(t_ss.str(), i) );
+    m_TrackSystems[i] = ChSharedPtr<TrackSystemM113>(new TrackSystemM113(t_ss.str(), i) );
   }
   
   // create the powertrain and drivelines
@@ -96,19 +95,21 @@ TrackVehicle::TrackVehicle(const std::string& name,
     m_ptrains[j] = ChSharedPtr<TrackPowertrain>(new TrackPowertrain(pt_ss.str() ) );
   }
 
-  // TODO: add brakes. Perhaps they are a part of the suspension subsystem?
-
+  // add a dummy shaft
+  m_axle = ChSharedPtr<ChShaft>(new ChShaft);
+  m_axle->SetName("dummy shaft");
+  m_system->Add(m_axle);
 }
 
 
-TrackVehicle::~TrackVehicle()
+TrackVehicleM113::~TrackVehicleM113()
 {
   if(m_ownsSystem)
     delete m_system;
 }
 
 // Set any collision geometry on the hull, then Initialize() all subsystems
-void TrackVehicle::Initialize(const ChCoordsys<>& chassis_Csys)
+void TrackVehicleM113::Initialize(const ChCoordsys<>& chassis_Csys)
 {
   // move the chassis REF frame to the specified initial position/orientation
   m_chassis->SetFrame_REF_to_abs(ChFrame<>(chassis_Csys));
@@ -127,14 +128,13 @@ void TrackVehicle::Initialize(const ChCoordsys<>& chassis_Csys)
   {
     size_t driveGear_R_idx = 2*j;
     size_t driveGear_L_idx = 2*j + 1;
-    // m_drivelines[j]->Initialize(m_chassis, m_TrackSystems[driveGear_R_idx]->GetDriveGear(), m_TrackSystems[driveGear_L_idx]->GetDriveGear());
-    m_ptrains[j]->Initialize(m_chassis, m_TrackSystems[j]->GetDriveGear()->GetAxle() );
+    m_ptrains[j]->Initialize(m_chassis, m_axle );
   }
 
 }
 
 
-void TrackVehicle::Update(double	time,
+void TrackVehicleM113::Update(double	time,
                           const std::vector<double>&  throttle,
                           const std::vector<double>&  braking)
 {
@@ -148,7 +148,7 @@ void TrackVehicle::Update(double	time,
 
 }
 
-void TrackVehicle::Advance(double step)
+void TrackVehicleM113::Advance(double step)
 {
   double t = 0;
   double settlePhaseA = 0.05;
@@ -172,14 +172,14 @@ void TrackVehicle::Advance(double step)
 }
 
 
-double TrackVehicle::GetDriveshaftSpeed(size_t idx) const
+double TrackVehicleM113::GetDriveshaftSpeed(size_t idx) const
 {
   assert(idx < m_num_tracks );
-  return m_TrackSystems[idx]->GetDriveGear()->GetAxle()->GetPos_dt();
+  return m_axle->GetPos_dt();
 }
 
 
-const ChSharedPtr<TrackPowertrain> TrackVehicle::GetPowertrain(size_t idx) const
+const ChSharedPtr<TrackPowertrain> TrackVehicleM113::GetPowertrain(size_t idx) const
 { 
   assert( idx < m_num_engines );
   return  m_ptrains[idx];
