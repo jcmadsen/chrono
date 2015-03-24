@@ -158,7 +158,8 @@ void TrackSystemM113::BuildSubsystems()
 }
 
 void TrackSystemM113::Initialize(ChSharedPtr<ChBodyAuxRef> chassis,
-			 const ChVector<>&  local_pos)
+			 const ChVector<>&  local_pos,
+       double pin_damping)
 {
   m_local_pos = local_pos;
   m_gearPosRel = m_gearPos;
@@ -227,6 +228,10 @@ void TrackSystemM113::Initialize(ChSharedPtr<ChBodyAuxRef> chassis,
     rolling_elem_locs, clearance, rolling_elem_spin_axis,
     start_pos );
 
+  // add some initial damping to the inter-shoe pin joints
+  if(pin_damping > 0)
+    m_chain->Set_pin_friction(pin_damping);
+
   // chain of shoes available for gear init
   m_driveGear->Initialize(chassis, 
     chassis->GetFrame_REF_to_abs(),
@@ -234,6 +239,12 @@ void TrackSystemM113::Initialize(ChSharedPtr<ChBodyAuxRef> chassis,
     m_chain->GetShoeBody() );
 
 
+}
+
+void TrackSystemM113::Update(double time, double throttle)
+{ 
+  // gear will apply a rot. vel. according to a set max omega
+  m_driveGear->Update(time, throttle); 
 }
 
 const ChVector<> TrackSystemM113::Get_idler_spring_react()

@@ -43,7 +43,9 @@ public:
     CollisionType::Enum collide = CollisionType::Primitives,
     size_t chainSys_idx = 0, ///< what chain system is this gear associated with?
     double gear_mass = 436.7,
-    const ChVector<>& gear_Ixx = ChVector<>(12.22, 12.22, 13.87) );
+    const ChVector<>& gear_Ixx = ChVector<>(12.22, 12.22, 13.87),
+    double max_gear_omega = 25.0  ///< max gear rotational velocity, rad/sec
+    );
 
   ~DriveGearMotion();
 
@@ -52,6 +54,10 @@ public:
     const ChFrame<>& chassis_REF,
     const ChCoordsys<>& local_Csys,
     const std::vector<ChSharedPtr<ChBody> >& shoes);
+
+  /// for updating the link engine rot vel, w/ input between -1 and 1
+  void Update(double time,
+    double omega_throttle);
 
   // accessors
   ChSharedPtr<ChBody> GetBody() const { return m_gear; }
@@ -70,8 +76,13 @@ public:
   //  Gear Constraint Violation, (x,y,z,rx,ry)
   const std::string getFileHeader_ConstraintViolations(size_t idx) const;
 
+
 private:
   // private functions
+  double getMaxOmega() { return m_maxOmega; }
+  /// returns the value clamped to range [min,max]
+  double clamp(double val, double min_val = -1, double max_val = 1);
+
   const std::string& getMeshName() const { return m_meshName; }
   const std::string& getMeshFile() const { return m_meshFile; }
 
@@ -84,7 +95,7 @@ private:
   
   // private variables
   ChSharedPtr<ChBody> m_gear;
-  ChSharedPtr<ChLinkLockRevolute>  m_revolute;  ///< handle to revolute joint
+  ChSharedPtr<ChLinkEngine>  m_revolute;  ///< handle to revolute joint
 
   VisualizationType::Enum m_vis;    // visual asset geometry type
   CollisionType::Enum m_collide;    // collision geometry type
@@ -93,6 +104,7 @@ private:
 
   ChVector<> m_inertia;
   double m_mass;
+  double m_maxOmega;
 
   const std::string m_meshName;
   const std::string m_meshFile;

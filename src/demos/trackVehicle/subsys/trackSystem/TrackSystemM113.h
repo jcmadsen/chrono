@@ -47,9 +47,15 @@ public:
   /// of the chassis). It is assumed that the suspension reference frame is
   /// always aligned with the chassis reference frame.
   void Initialize(ChSharedPtr<ChBodyAuxRef> chassis,
-				 const ChVector<>&         location);
+				 const ChVector<>&         location,
+         double pin_damping = 0 ///< damping coef. between connected shoe pads
+         );
 
   void Create(int track_idx);
+
+  /// update the track system components
+  void Update(double time,
+    double throttle);
 
   // Accessors
 

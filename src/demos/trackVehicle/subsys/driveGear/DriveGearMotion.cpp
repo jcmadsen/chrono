@@ -44,13 +44,15 @@ DriveGearMotion::DriveGearMotion(const std::string& name,
   CollisionType::Enum collide,
   size_t chainSys_idx,
   double mass,
-  const ChVector<>& gear_Ixx
+  const ChVector<>& gear_Ixx,
+  double max_gear_omega
   ): m_vis(vis),
     m_collide(collide),
     m_meshFile(utils::GetModelDataFile("M113/Sprocket_XforwardYup.obj")),
     m_chainSys_idx(chainSys_idx),
     m_mass(mass),
     m_inertia(gear_Ixx),
+    m_maxOmega(max_gear_omega),
     m_meshName("gear_mesh"),
     m_gearPinContact(NULL)
 {
@@ -61,8 +63,10 @@ DriveGearMotion::DriveGearMotion(const std::string& name,
   m_gear->SetInertiaXX(m_inertia);
 
   // create the revolute joint
-  m_revolute = ChSharedPtr<ChLinkLockRevolute>(new ChLinkLockRevolute);
-  m_revolute->SetNameString(name+"_revolute");
+  m_revolute = ChSharedPtr<ChLinkEngine>(new ChLinkEngine);
+  m_revolute->Set_eng_mode(ChLinkEngine::ENG_MODE_SPEED);
+  m_revolute->Set_shaft_mode(ChLinkEngine::ENG_SHAFT_LOCK);
+  m_revolute->SetNameString(name+"_revoluteEngine");
 
   // create the visuals
   AddVisualization();
@@ -100,6 +104,13 @@ void DriveGearMotion::Initialize(ChSharedPtr<ChBody> chassis,
   m_revolute->Initialize(chassis, m_gear, ChCoordsys<>(gear_to_abs.GetPos(), gear_to_abs.GetRot()) );
   chassis->GetSystem()->AddLink(m_revolute);
 
+}
+
+void DriveGearMotion::Update(double time, double omega_throttle)
+{
+  double throttle = clamp(omega_throttle);  // default range [-1,1]
+  if( ChSharedPtr<ChFunction_Const> func = m_revolute->Get_rot_funct().DynamicCastTo<ChFunction_Const>() )
+    func->Set_yconst( getMaxOmega() * throttle);
 }
 
 void DriveGearMotion::AddVisualization()
@@ -441,6 +452,16 @@ const std::string DriveGearMotion::getFileHeader_ConstraintViolations(size_t idx
   std::stringstream ss;
   ss << "time,x,y,z,rx,ry\n";
   return ss.str();
+}
+
+// helper functions
+double DriveGearMotion::clamp(double val, double min_val, double max_val)
+{
+  if (val <= min_val)
+    return min_val;
+  if (val >= max_val)
+    return max_val;
+  return val;
 }
 
 } // end namespace chrono

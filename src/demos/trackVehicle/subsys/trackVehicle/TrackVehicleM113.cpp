@@ -48,12 +48,19 @@ TrackVehicleM113::TrackVehicleM113(const std::string& name,
                            double mass,
                            const ChVector<>& Ixx,
                            const ChVector<>& left_pos_rel,
-                           const ChVector<>& right_pos_rel
+                           const ChVector<>& right_pos_rel,
+                           double pin_damping_coef
 ):ChTrackVehicle(name, chassisVis, chassisCollide, mass, Ixx, 1),
   m_num_tracks(2),
   m_trackSys_L(left_pos_rel),
-  m_trackSys_R(right_pos_rel)
+  m_trackSys_R(right_pos_rel),
+  m_damping(pin_damping_coef)
 {
+  // Solver variables
+  m_system->SetIterLCPomega(0.8);
+  m_system->SetIterLCPsharpnessLambda(0.8);
+  m_system->SetMaxPenetrationRecoverySpeed(3.5);
+
   // ---------------------------------------------------------------------------
   // Set the base class variables not created by constructor, if we plan to use them.
   m_meshName = "M113_chassis";
@@ -120,7 +127,7 @@ void TrackVehicleM113::Initialize(const ChCoordsys<>& chassis_Csys)
   // initialize the subsystems with the initial c-sys and specified offsets
   for (int i = 0; i < m_num_tracks; i++)
   {
-    m_TrackSystems[i]->Initialize(m_chassis, m_TrackSystem_locs[i]);
+    m_TrackSystems[i]->Initialize(m_chassis, m_TrackSystem_locs[i], m_damping);
   }
 
   // initialize the powertrain, drivelines
@@ -133,38 +140,36 @@ void TrackVehicleM113::Initialize(const ChCoordsys<>& chassis_Csys)
 
 }
 
-
+// 
 void TrackVehicleM113::Update(double	time,
                           const std::vector<double>&  throttle,
                           const std::vector<double>&  braking)
 {
-  assert( throttle.size() >= m_num_tracks);
-  assert( braking.size() >= m_num_tracks );
-  // update left and right powertrains, with the new left and right throttle/shaftspeed
-  for(int i = 0; i < m_num_engines; i++)
+  assert( throttle.size() == m_num_tracks);
+  
+  // throttle is applied as the rotational speed on the gears
+  for (int i = 0; i < m_num_tracks; i++)
   {
-    m_ptrains[i]->Update(time, throttle[i], GetDriveshaftSpeed(i) );
+    m_TrackSystems[i]->Update(time, throttle[i]);
   }
-
 }
 
 void TrackVehicleM113::Advance(double step)
 {
   double t = 0;
-  double settlePhaseA = 0.05;
-  double settlePhaseB = 0.1;
-  m_system->SetIterLCPmaxItersStab(100);
-  m_system->SetIterLCPmaxItersSpeed(150);
+  double settlePhaseA = 0.25;
+  double settlePhaseB = 0.45;
+  m_system->SetIterLCPmaxItersStab(200);
+  m_system->SetIterLCPmaxItersSpeed(250);
   while (t < step) {
     double h = std::min<>(m_stepsize, step - t);
     if( m_system->GetChTime() < settlePhaseA )
     {
-      m_system->SetIterLCPmaxItersStab(80);
+      m_system->SetIterLCPmaxItersStab(100);
       m_system->SetIterLCPmaxItersSpeed(100);
     } else if ( m_system->GetChTime() < settlePhaseB )
     {
-      m_system->SetIterLCPmaxItersStab(100);
-      m_system->SetIterLCPmaxItersSpeed(150);
+      //h = h/2;
     }
     m_system->DoStepDynamics(h);
     t += h;
