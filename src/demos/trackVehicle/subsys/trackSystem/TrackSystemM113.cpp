@@ -30,7 +30,6 @@ namespace chrono {
 // idler, right side
 const ChVector<> TrackSystemM113::m_idlerPos(-2.1904, -0.1443, 0.2447); // relative to local csys
 const ChQuaternion<> TrackSystemM113::m_idlerRot(QUNIT);
-const double TrackSystemM113::m_idler_preload = 100000;  // [N]
   
 // drive gear, right side
 const ChVector<> TrackSystemM113::m_gearPos(1.7741, -0.0099, 0.2447);  // relative to local csys
@@ -40,7 +39,7 @@ const ChQuaternion<> TrackSystemM113::m_gearRot(QUNIT);
 const int TrackSystemM113::m_numSuspensions = 5;
 
 TrackSystemM113::TrackSystemM113(const std::string& name, int track_idx)
-  : m_track_idx(track_idx), m_name(name)
+  : m_track_idx(track_idx), m_name(name), m_idler_preload(0)
 {
   // FILE* fp = fopen(filename.c_str(), "r");
   // char readBuffer[65536];
@@ -67,6 +66,11 @@ void TrackSystemM113::Create(int track_idx)
   m_idler_K = d["Idler"]["SpringK"].GetDouble();
   m_idler_C = d["Idler"]["SpringC"].GetDouble();
 
+  */
+
+  m_idler_preload = 5e3;
+
+  /*
   // Read Drive Gear data
   assert(d.HasMember("Drive Gear"));
   assert(d["Drive Gear"].IsObject());
@@ -116,7 +120,6 @@ void TrackSystemM113::Create(int track_idx)
 
   // create the various subsystems, from the hardcoded static variables in each subsystem class
   BuildSubsystems();
-
  
 }
 
@@ -127,22 +130,33 @@ void TrackSystemM113::BuildSubsystems()
   // build one of each of the following subsystems. VisualizationType and CollisionType defaults are PRIMITIVES
   m_driveGear = ChSharedPtr<DriveGearMotion>(new DriveGearMotion(gearName.str(),
     VisualizationType::Mesh,
-   //  CollisionType::Primitives) );
+    //  CollisionType::Primitives) );
     // VisualizationType::Primitives,
-    CollisionType::CallbackFunction));
+    CollisionType::CallbackFunction,
+    m_track_idx,
+    436.7/5.0,
+    ChVector<>(12.22/5.0, 12.22/5.0, 13.87/5.0) ) );
 
   std::stringstream idlerName;
   idlerName << "idler " << m_track_idx;
   m_idler = ChSharedPtr<IdlerSimple>(new IdlerSimple(idlerName.str(),
     VisualizationType::Mesh,
-    CollisionType::Primitives) );
+    CollisionType::Primitives,
+    m_track_idx,
+    429.6/5.0,
+    ChVector<>(12.55/5.0, 12.55/5.0, 14.7/5.0),
+    5e3,
+    1e2) );
 
   std::stringstream chainname;
   chainname << "chain " << m_track_idx;
   m_chain = ChSharedPtr<TrackChain>(new TrackChain(chainname.str(),
     // VisualizationType::Primitives,
     VisualizationType::CompoundPrimitives,
-    CollisionType::Primitives) );
+    CollisionType::Primitives,
+    m_track_idx,
+    18.02/5.0,
+    ChVector<>(0.22/5.0, 0.25/5.0, 0.04/5.0) ) );
     // CollisionType::CompoundPrimitives) );
   
   // build suspension/road wheel subsystems
@@ -152,13 +166,22 @@ void TrackSystemM113::BuildSubsystems()
     susp_name << "suspension " << i << ", chain " << m_track_idx;
     m_suspensions[i] = ChSharedPtr<TorsionArmSuspension>(new TorsionArmSuspension(susp_name.str(),
       VisualizationType::Primitives,
-      CollisionType::Primitives) );
+      CollisionType::Primitives,
+      m_track_idx,
+      561.1/5.0,
+      ChVector<>(19.82/5.0, 19.82/5.0, 26.06/5.0),
+      75.26/5.0,
+      ChVector<>(0.77/5.0, 0.37/5.0, 0.77/5.0),
+      5e3,
+      1e2,
+      3e2) );
   }
 
 }
 
 void TrackSystemM113::Initialize(ChSharedPtr<ChBodyAuxRef> chassis,
-			 const ChVector<>&  local_pos)
+			 const ChVector<>&  local_pos,
+       double pin_damping)
 {
   m_local_pos = local_pos;
   m_gearPosRel = m_gearPos;
@@ -227,6 +250,10 @@ void TrackSystemM113::Initialize(ChSharedPtr<ChBodyAuxRef> chassis,
     rolling_elem_locs, clearance, rolling_elem_spin_axis,
     start_pos );
 
+  // add some initial damping to the inter-shoe pin joints
+  if(pin_damping > 0)
+    m_chain->Set_pin_friction(pin_damping);
+
   // chain of shoes available for gear init
   m_driveGear->Initialize(chassis, 
     chassis->GetFrame_REF_to_abs(),
@@ -234,6 +261,12 @@ void TrackSystemM113::Initialize(ChSharedPtr<ChBodyAuxRef> chassis,
     m_chain->GetShoeBody() );
 
 
+}
+
+void TrackSystemM113::Update(double time, double throttle)
+{ 
+  // gear will apply a rot. vel. according to a set max omega
+  m_driveGear->Update(time, throttle); 
 }
 
 const ChVector<> TrackSystemM113::Get_idler_spring_react()

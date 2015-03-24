@@ -60,9 +60,9 @@ public:
     const ChVector<>& wheelIxx = ChVector<>(19.82, 19.82, 26.06), // [kg-m2], z-axis of rotation,
     double arm_mass = 75.26,  ///< [kg]
     const ChVector<>& armIxx = ChVector<>(0.77, 0.37, 0.77),  ///< [kg-m2]
-    double springK = 25000,	///< torsional spring constant [N-m/rad]
-    double springC = 250,	///< torsional damping constant [N-m-s/rad]
-    double springPreload = 1500.0,  ///< torque preload [N-m]
+    double springK = 2.5e4,	///< torsional spring constant [N-m/rad]
+    double springC = 5e2,	///< torsional damping constant [N-m-s/rad]
+    double springPreload = 1.5e3,  ///< torque preload [N-m]
     bool use_custom_spring = false  ///< use ChFunction_CustomSpring rather than default: a pre-loaded linear Rotational spring-damper?
     );
 

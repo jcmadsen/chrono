@@ -46,8 +46,8 @@ public:
     size_t chainSys_idx = 0,  ///< what chain system is this idler associated with?
     double mass = 429.6,
     const ChVector<>& Ixx = ChVector<>(12.55, 12.55, 14.7),
-    double tensionerK = 200000, ///< idler tensioner spring coef. [N/m]
-    double tensionerC = 10000,  ///< idler tensioner damper coef. [N-s/m]
+    double tensionerK = 2e5, ///< idler tensioner spring coef. [N/m]
+    double tensionerC = 1e4,  ///< idler tensioner damper coef. [N-s/m]
     double springFreeLen = 1.0  ///< idler tensioner spring free length [m]
     );
 

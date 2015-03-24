@@ -47,9 +47,15 @@ public:
   /// of the chassis). It is assumed that the suspension reference frame is
   /// always aligned with the chassis reference frame.
   void Initialize(ChSharedPtr<ChBodyAuxRef> chassis,
-				 const ChVector<>&         location);
+				 const ChVector<>&         location,
+         double pin_damping = 0 ///< damping coef. between connected shoe pads
+         );
 
   void Create(int track_idx);
+
+  /// update the track system components
+  void Update(double time,
+    double throttle);
 
   // Accessors
 
@@ -82,6 +88,7 @@ private:
 
   ChVector<> m_gearPosRel;
   ChVector<> m_idlerPosRel;
+  double  m_idler_preload;
 
   int m_track_idx;  // give unique ID to each TrackSystemM113, to use as a collision family ID for all associated sub-systems 
   
@@ -89,7 +96,6 @@ private:
   // idler
   static const ChVector<>     m_idlerPos; // relative to TrackSystemM113 _REF c-sys
   static const ChQuaternion<> m_idlerRot; 
-  static const double         m_idler_preload;
   
   // drive gear
   static const ChVector<> m_gearPos;  // relative to TrackSystemM113 _REF c-sys

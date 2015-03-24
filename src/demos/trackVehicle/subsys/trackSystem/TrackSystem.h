@@ -82,6 +82,7 @@ private:
 
   ChVector<> m_gearPosRel;
   ChVector<> m_idlerPosRel;
+  double  m_idler_preload;
 
   int m_track_idx;  // give unique ID to each TrackSystem, to use as a collision family ID for all associated sub-systems 
   
@@ -89,7 +90,6 @@ private:
   // idler
   static const ChVector<>     m_idlerPos; // relative to TrackSystem _REF c-sys
   static const ChQuaternion<> m_idlerRot; 
-  static const double         m_idler_preload;
   
   // drive gear
   static const ChVector<> m_gearPos;  // relative to Tracksystem _REF c-sys

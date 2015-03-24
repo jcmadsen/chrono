@@ -51,8 +51,9 @@ public:
     CollisionType::Enum collide = CollisionType::None,
     double mass = 5489.2, // default for M113 APC
     const ChVector<>& Ixx = ChVector<>(1786.9, 10449.7, 10721.2), // default for M113 APC
-    const ChVector<>& left_pos_rel = ChVector<>(0.23644, -0.4780, 0.83475),    // relative to chassis REF c-sys
-    const ChVector<>& right_pos_rel = ChVector<>(0.23644, -0.4780, -0.83475)  // relative to chassis REF c-sys
+    double pin_damping_coef = 0.5, // non-zero, since pins between connected shoes always are pin/rubber bushing type elements.
+    const ChVector<>& left_pos_rel = ChVector<>(0.23644, -0.4780, 0.83475),  // relative to chassis REF c-sys
+    const ChVector<>& right_pos_rel = ChVector<>(0.23644, -0.4780, -0.83475)// relative to chassis REF c-sys,
     );
 
   ~TrackVehicleM113();
@@ -84,6 +85,9 @@ public:
   /// pointer to the powertrain
   virtual const ChSharedPtr<TrackPowertrain> GetPowertrain(size_t idx) const;
 
+  /// return the contant part of the damping (if any)
+  virtual double GetShoePinDamping() const {return m_damping;}
+
 private:
 
   // private variables
@@ -92,6 +96,7 @@ private:
   const ChVector<> m_trackSys_L;  ///< where to place left track system origin, relative to chassis REF c-sys
   const ChVector<> m_trackSys_R;  ///< where to place right track system origin, relative to chassis REF c-sys
   const size_t m_num_tracks;      ///< how many track systems to build
+  const double m_damping;         ///< damping coef. applied between shoe bodies, to the rev. constraint
 
   // static variables
   static const double     mass_override;     // override chassis mass input
