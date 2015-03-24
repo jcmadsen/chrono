@@ -109,7 +109,7 @@ void DriveGearMotion::Initialize(ChSharedPtr<ChBody> chassis,
 void DriveGearMotion::Update(double time, double omega_throttle)
 {
   double throttle = clamp(omega_throttle);  // default range [-1,1]
-  if( ChSharedPtr<ChFunction_Const> func = m_revolute->Get_rot_funct().DynamicCastTo<ChFunction_Const>() )
+  if( ChSharedPtr<ChFunction_Const> func = m_revolute->Get_spe_funct().DynamicCastTo<ChFunction_Const>() )
     func->Set_yconst( getMaxOmega() * throttle);
 }
 

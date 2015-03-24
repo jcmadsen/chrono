@@ -47,19 +47,19 @@ TrackVehicleM113::TrackVehicleM113(const std::string& name,
                            CollisionType::Enum chassisCollide,
                            double mass,
                            const ChVector<>& Ixx,
+                            double pin_damping_coef,
                            const ChVector<>& left_pos_rel,
-                           const ChVector<>& right_pos_rel,
-                           double pin_damping_coef
-):ChTrackVehicle(name, chassisVis, chassisCollide, mass, Ixx, 1),
+                           const ChVector<>& right_pos_rel
+): ChTrackVehicle(name, chassisVis, chassisCollide, mass, Ixx, 1),
   m_num_tracks(2),
   m_trackSys_L(left_pos_rel),
   m_trackSys_R(right_pos_rel),
   m_damping(pin_damping_coef)
 {
   // Solver variables
-  m_system->SetIterLCPomega(0.8);
-  m_system->SetIterLCPsharpnessLambda(0.8);
-  m_system->SetMaxPenetrationRecoverySpeed(3.5);
+  m_system->SetIterLCPomega(0.9);
+  m_system->SetIterLCPsharpnessLambda(0.9);
+  m_system->SetMaxPenetrationRecoverySpeed(1.5);
 
   // ---------------------------------------------------------------------------
   // Set the base class variables not created by constructor, if we plan to use them.
@@ -158,9 +158,9 @@ void TrackVehicleM113::Advance(double step)
 {
   double t = 0;
   double settlePhaseA = 0.25;
-  double settlePhaseB = 0.45;
-  m_system->SetIterLCPmaxItersStab(200);
-  m_system->SetIterLCPmaxItersSpeed(250);
+  double settlePhaseB = 0.4;
+  m_system->SetIterLCPmaxItersStab(150);
+  m_system->SetIterLCPmaxItersSpeed(200);
   while (t < step) {
     double h = std::min<>(m_stepsize, step - t);
     if( m_system->GetChTime() < settlePhaseA )
@@ -169,7 +169,9 @@ void TrackVehicleM113::Advance(double step)
       m_system->SetIterLCPmaxItersSpeed(100);
     } else if ( m_system->GetChTime() < settlePhaseB )
     {
-      //h = h/2;
+      m_system->SetIterLCPmaxItersStab(100);
+      m_system->SetIterLCPmaxItersSpeed(150);
+      h = step/2.0;
     }
     m_system->DoStepDynamics(h);
     t += h;

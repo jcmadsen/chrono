@@ -70,10 +70,10 @@ ChVector<> groundPos(0, -1.0, 0);
 double mu = 0.67;  // dry friction coef.
 
 // Simulation step size
-double step_size = 1e-3;
+double step_size = 2e-3;
 
 // Time interval between two render frames
-int FPS = 60;
+int FPS = 80;
 double render_step_size = 1.0 / FPS;   // FPS = 50
 // Time interval between two output frames
 double output_step_size = 1.0 / 1;    // once a second
@@ -134,6 +134,8 @@ int main(int argc, char* argv[])
 	TrackVehicleM113 vehicle("M113 model for validation", 
     VisualizationType::None,
     CollisionType::None,
+    5489.2 / 5.0,
+    ChVector<>(1786.9/5.0, 10449.7/5.0, 10721.2/5.0),
     pin_damping_coef);
   
   // set the chassis REF at the specified initial config.
