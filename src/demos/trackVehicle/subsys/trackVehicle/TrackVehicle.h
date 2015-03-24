@@ -72,7 +72,12 @@ public:
   /// Advance the vehicle (and the ChSystem)
   virtual void Advance(double step);
 
+    /// set the pin friction as a damping value
+  virtual void SetShoePinDamping(double damping);
+
   // Accessors
+  virtual double GetShoePinDamping() const {return m_pin_damping;}
+
   virtual double GetDriveshaftSpeed(size_t idx) const;
 
   /// pointer to the powertrain
@@ -96,6 +101,8 @@ private:
   const ChVector<> m_trackSys_L;  ///< where to place left track system origin, relative to chassis REF c-sys
   const ChVector<> m_trackSys_R;  ///< where to place right track system origin, relative to chassis REF c-sys
   const size_t m_num_tracks;      ///< how many track systems to build
+  double m_pin_damping;
+
 
   // static variables
   static const double     mass_override;     // override chassis mass input

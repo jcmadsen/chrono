@@ -60,6 +60,7 @@ TrackVehicle::TrackVehicle(const std::string& name,
   m_meshName = "M113_chassis";
   m_meshFile = utils::GetModelDataFile("M113/Chassis_XforwardYup.obj");
   m_chassisBoxSize = ChVector<>(4.0, 1.2, 1.5); // full length, height, width of chassis box
+  m_pin_damping = 0.5;
 
   // setup the chassis body
   m_chassis->SetIdentifier(0);
@@ -119,7 +120,7 @@ void TrackVehicle::Initialize(const ChCoordsys<>& chassis_Csys)
   // initialize the subsystems with the initial c-sys and specified offsets
   for (int i = 0; i < m_num_tracks; i++)
   {
-    m_TrackSystems[i]->Initialize(m_chassis, m_TrackSystem_locs[i]);
+    m_TrackSystems[i]->Initialize(m_chassis, m_TrackSystem_locs[i], m_pin_damping);
   }
 
   // initialize the powertrain, drivelines
@@ -171,6 +172,16 @@ void TrackVehicle::Advance(double step)
   }
 }
 
+
+// call the chain function to update the constant damping coef.
+void TrackVehicle::SetShoePinDamping(double damping)
+{
+  m_pin_damping = damping;
+  for( int i = 0; i < m_num_tracks; i++)
+  {
+    m_TrackSystems[i]->m_chain->Set_pin_friction(damping);
+  }
+}
 
 double TrackVehicle::GetDriveshaftSpeed(size_t idx) const
 {

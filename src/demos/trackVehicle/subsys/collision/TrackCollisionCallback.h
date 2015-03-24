@@ -221,7 +221,12 @@ class GearPinCollisionCallback : public ChSystem::ChCustomComputeCollisionCallba
     mcont.vN = m_gear->GetRot().Rotate(vnGear_bar);
     mcont.vpA = m_gear->GetPos() + m_gear->GetRot().Rotate(pGear_bar);
     mcont.vpB = m_gear->GetPos() + m_gear->GetRot().Rotate(pPin_bar);
-    mcont.distance = (mcont.vpA - mcont.vpB).Length();
+    // contact normal is found in gear c-sys as pt_gear - pt_pin
+    // find the distance using a dot product; will be negative
+    // if the contact was found early (e.g., still a non-zero gap)
+    mcont.distance = Vdot(vnGear_bar, pGear_bar - pPin_bar);
+    if(mcont.distance < 0 )
+      mcont.distance = 0;
     mcont.reaction_cache = reaction_cache;
 
     // increment the counter, add the contact

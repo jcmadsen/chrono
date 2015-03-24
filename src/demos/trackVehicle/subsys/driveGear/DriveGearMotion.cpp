@@ -86,10 +86,14 @@ void DriveGearMotion::Initialize(ChSharedPtr<ChBody> chassis,
                            const ChCoordsys<>& local_Csys,
                            const std::vector<ChSharedPtr<ChBody> >& shoes)
 {
-
   assert(shoes.size() > 0);
+  
   // add any collision geometry
-  AddCollisionGeometry(shoes);
+  VehicleSide chassis_side = RIGHTSIDE;
+  if(local_Csys.pos.z < 0)
+    chassis_side = LEFTSIDE;
+
+  AddCollisionGeometry(shoes, chassis_side);
 
   // get the local frame in the absolute ref. frame
   ChFrame<> gear_to_abs(local_Csys);
@@ -213,10 +217,11 @@ void DriveGearMotion::AddVisualization()
 }
 
 void DriveGearMotion::AddCollisionGeometry(const std::vector<ChSharedPtr<ChBody> >& shoes,
-                                     double mu,
-                                     double mu_sliding,
-                                     double mu_roll,
-                                     double mu_spin)
+                                           VehicleSide side,
+                                           double mu,
+                                           double mu_sliding,
+                                           double mu_roll,
+                                           double mu_spin)
 {
   // add collision geometrey, if enabled. Warn if disabled
   if( m_collide == CollisionType::None)
@@ -229,7 +234,7 @@ void DriveGearMotion::AddCollisionGeometry(const std::vector<ChSharedPtr<ChBody>
   m_gear->SetCollide(true);
   m_gear->GetCollisionModel()->ClearModel();
 
-  m_gear->GetCollisionModel()->SetSafeMargin(0.001);	// inward safe margin
+  m_gear->GetCollisionModel()->SetSafeMargin(0.002);	// inward safe margin
 	m_gear->GetCollisionModel()->SetEnvelope(0.004);		// distance of the outward "collision envelope"
 
   // set the collision material
@@ -410,6 +415,16 @@ void DriveGearMotion::AddCollisionGeometry(const std::vector<ChSharedPtr<ChBody>
 
   // set collision family, gear is a rolling element like the wheels
   m_gear->GetCollisionModel()->SetFamily((int)CollisionFam::Gear);
+
+  // only collide w/ shoes on the same side of the vehicle
+  if(side == RIGHTSIDE)
+  {
+    m_gear->GetCollisionModel()->SetFamilyMaskNoCollisionWithFamily((int)CollisionFam::ShoeLeft);
+  }
+  else
+  {
+    m_gear->GetCollisionModel()->SetFamilyMaskNoCollisionWithFamily((int)CollisionFam::ShoeRight);
+  }
 
   // don't collide with other rolling elements
   m_gear->GetCollisionModel()->SetFamilyMaskNoCollisionWithFamily((int)CollisionFam::Ground);

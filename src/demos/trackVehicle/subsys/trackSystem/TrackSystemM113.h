@@ -62,6 +62,9 @@ public:
   /// handle to the drive gear subsystem, to initialize the driveline
   const ChSharedPtr<DriveGearMotion> GetDriveGear() const { return m_driveGear; }
   
+  /// handle to track chain
+  ChSharedPtr<TrackChain> GetTrackChain() const { return m_chain; }
+
   // subsystem relative to TrackSystemM113 coords
   const ChVector<>& Get_gearPosRel() const { return m_gearPosRel; }
   

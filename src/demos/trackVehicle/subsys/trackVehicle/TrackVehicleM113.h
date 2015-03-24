@@ -71,6 +71,9 @@ public:
   /// Advance the vehicle (and the ChSystem)
   virtual void Advance(double step);
 
+  /// set the pin friction as a damping value
+  virtual void SetShoePinDamping(double damping);
+
   // Accessors
   /// current value of the integration step size for the vehicle system.
   double GetStepsize() const { return m_stepsize; }
@@ -96,7 +99,7 @@ private:
   const ChVector<> m_trackSys_L;  ///< where to place left track system origin, relative to chassis REF c-sys
   const ChVector<> m_trackSys_R;  ///< where to place right track system origin, relative to chassis REF c-sys
   const size_t m_num_tracks;      ///< how many track systems to build
-  const double m_damping;         ///< damping coef. applied between shoe bodies, to the rev. constraint
+  double m_damping;         ///< damping coef. applied between shoe bodies, to the rev. constraint
 
   // static variables
   static const double     mass_override;     // override chassis mass input

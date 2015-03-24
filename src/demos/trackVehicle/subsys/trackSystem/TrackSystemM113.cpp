@@ -130,8 +130,8 @@ void TrackSystemM113::BuildSubsystems()
   // build one of each of the following subsystems. VisualizationType and CollisionType defaults are PRIMITIVES
   m_driveGear = ChSharedPtr<DriveGearMotion>(new DriveGearMotion(gearName.str(),
     VisualizationType::Mesh,
-    //  CollisionType::Primitives) );
     // VisualizationType::Primitives,
+    //  CollisionType::Primitives,
     CollisionType::CallbackFunction,
     m_track_idx,
     436.7/5.0,
@@ -145,8 +145,8 @@ void TrackSystemM113::BuildSubsystems()
     m_track_idx,
     429.6/5.0,
     ChVector<>(12.55/5.0, 12.55/5.0, 14.7/5.0),
-    5e3,
-    1e2) );
+    4e4,
+    2e3) );
 
   std::stringstream chainname;
   chainname << "chain " << m_track_idx;
@@ -186,6 +186,7 @@ void TrackSystemM113::Initialize(ChSharedPtr<ChBodyAuxRef> chassis,
   m_local_pos = local_pos;
   m_gearPosRel = m_gearPos;
   m_idlerPosRel = m_idlerPos;
+
   // if we're on the left side of the vehicle, switch lateral z-axis on all relative positions
   if(m_local_pos.z < 0)
   {

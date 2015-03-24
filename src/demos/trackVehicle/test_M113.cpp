@@ -58,7 +58,7 @@ using namespace core;
 // #define DEBUG_LOG 
 
 
-double pin_damping_coef = 0.5;  // apply pin damping between connected shoes
+double pin_damping_coef = 0.2;  // apply pin damping between connected shoes
 // Initial vehicle position and heading. Defines the REF frame for the hull body
 ChVector<> initLoc(0, 1.0, 0);
 //ChQuaternion<> initRot = Q_from_AngAxis(CH_C_PI_4, VECT_Y);
@@ -70,7 +70,7 @@ ChVector<> groundPos(0, -1.0, 0);
 double mu = 0.67;  // dry friction coef.
 
 // Simulation step size
-double step_size = 2e-3;
+double step_size = 1e-3;
 
 // Time interval between two render frames
 int FPS = 80;
@@ -82,7 +82,7 @@ double output_step_size = 1.0 / 1;    // once a second
   // Point on chassis tracked by the camera
 double chaseDist = 3.0;
 double chaseHeight = 0.5;
-ChVector<> trackPoint(1.0, -0.5, 0);
+ChVector<> trackPoint(1.0, -0.7, 0);
 
 bool do_shadows = false; // shadow map is experimental
   /*

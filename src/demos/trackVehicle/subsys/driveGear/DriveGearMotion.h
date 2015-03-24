@@ -88,10 +88,11 @@ private:
 
   void AddVisualization();
   void AddCollisionGeometry(const std::vector<ChSharedPtr<ChBody> >& shoes,
-                            double mu = 0.6,
-                            double mu_sliding = 0.5,
-                            double mu_roll = 0,
-                            double mu_spin = 0);
+    VehicleSide side = RIGHTSIDE, 
+    double mu = 0.6,
+    double mu_sliding = 0.5,
+    double mu_roll = 0,
+    double mu_spin = 0);
   
   // private variables
   ChSharedPtr<ChBody> m_gear;

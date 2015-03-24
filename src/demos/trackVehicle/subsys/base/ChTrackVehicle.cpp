@@ -281,7 +281,8 @@ void ChTrackVehicle::AddCollisionGeometry(double mu,
   m_chassis->GetCollisionModel()->SetFamily( (int)CollisionFam::Hull );
   // don't collide with rolling elements or tracks
   m_chassis->GetCollisionModel()->SetFamilyMaskNoCollisionWithFamily( (int)(CollisionFam::Wheel) );
-  m_chassis->GetCollisionModel()->SetFamilyMaskNoCollisionWithFamily( (int)(CollisionFam::Shoe) );
+  m_chassis->GetCollisionModel()->SetFamilyMaskNoCollisionWithFamily( (int)(CollisionFam::ShoeLeft) );
+  m_chassis->GetCollisionModel()->SetFamilyMaskNoCollisionWithFamily( (int)(CollisionFam::ShoeRight) );
   m_chassis->GetCollisionModel()->SetFamilyMaskNoCollisionWithFamily((int)CollisionFam::Gear);
 
   m_chassis->GetCollisionModel()->BuildModel();
