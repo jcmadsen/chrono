@@ -159,8 +159,8 @@ void TrackVehicleM113::Advance(double step)
   double t = 0;
   double settlePhaseA = 0.25;
   double settlePhaseB = 0.4;
-  m_system->SetIterLCPmaxItersStab(150);
-  m_system->SetIterLCPmaxItersSpeed(200);
+  m_system->SetIterLCPmaxItersStab(100);
+  m_system->SetIterLCPmaxItersSpeed(150);
   while (t < step) {
     double h = std::min<>(m_stepsize, step - t);
     if( m_system->GetChTime() < settlePhaseA )
@@ -169,8 +169,8 @@ void TrackVehicleM113::Advance(double step)
       m_system->SetIterLCPmaxItersSpeed(100);
     } else if ( m_system->GetChTime() < settlePhaseB )
     {
-      m_system->SetIterLCPmaxItersStab(100);
-      m_system->SetIterLCPmaxItersSpeed(150);
+      m_system->SetIterLCPmaxItersStab(150);
+      m_system->SetIterLCPmaxItersSpeed(250);
       h = step/2.0;
     }
     m_system->DoStepDynamics(h);

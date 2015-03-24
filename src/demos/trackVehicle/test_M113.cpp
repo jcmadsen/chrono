@@ -80,9 +80,9 @@ double output_step_size = 1.0 / 1;    // once a second
 
 // #ifdef USE_IRRLICHT
   // Point on chassis tracked by the camera
-double chaseDist = 3.5;
+double chaseDist = 3.0;
 double chaseHeight = 0.5;
-ChVector<> trackPoint(2.0, -0.5, 0);
+ChVector<> trackPoint(1.0, -0.5, 0);
 
 bool do_shadows = false; // shadow map is experimental
   /*

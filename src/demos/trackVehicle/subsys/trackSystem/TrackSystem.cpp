@@ -30,7 +30,6 @@ namespace chrono {
 // idler, right side
 const ChVector<> TrackSystem::m_idlerPos(-2.1904, -0.1443, 0.2447); // relative to local csys
 const ChQuaternion<> TrackSystem::m_idlerRot(QUNIT);
-const double TrackSystem::m_idler_preload = 100000;  // [N]
   
 // drive gear, right side
 const ChVector<> TrackSystem::m_gearPos(1.7741, -0.0099, 0.2447);  // relative to local csys
@@ -40,7 +39,7 @@ const ChQuaternion<> TrackSystem::m_gearRot(QUNIT);
 const int TrackSystem::m_numSuspensions = 5;
 
 TrackSystem::TrackSystem(const std::string& name, int track_idx)
-  : m_track_idx(track_idx), m_name(name)
+  : m_track_idx(track_idx), m_name(name), m_idler_preload(0)
 {
   // FILE* fp = fopen(filename.c_str(), "r");
   // char readBuffer[65536];
@@ -66,6 +65,12 @@ void TrackSystem::Create(int track_idx)
   m_idlerWidth = d["Spindle"]["Width"].GetDouble();
   m_idler_K = d["Idler"]["SpringK"].GetDouble();
   m_idler_C = d["Idler"]["SpringC"].GetDouble();
+  */
+
+  m_idler_preload = 1e5;
+
+
+  /*
 
   // Read Drive Gear data
   assert(d.HasMember("Drive Gear"));

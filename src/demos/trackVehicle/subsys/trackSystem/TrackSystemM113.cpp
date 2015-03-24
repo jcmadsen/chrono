@@ -30,7 +30,6 @@ namespace chrono {
 // idler, right side
 const ChVector<> TrackSystemM113::m_idlerPos(-2.1904, -0.1443, 0.2447); // relative to local csys
 const ChQuaternion<> TrackSystemM113::m_idlerRot(QUNIT);
-const double TrackSystemM113::m_idler_preload = 100000;  // [N]
   
 // drive gear, right side
 const ChVector<> TrackSystemM113::m_gearPos(1.7741, -0.0099, 0.2447);  // relative to local csys
@@ -40,7 +39,7 @@ const ChQuaternion<> TrackSystemM113::m_gearRot(QUNIT);
 const int TrackSystemM113::m_numSuspensions = 5;
 
 TrackSystemM113::TrackSystemM113(const std::string& name, int track_idx)
-  : m_track_idx(track_idx), m_name(name)
+  : m_track_idx(track_idx), m_name(name), m_idler_preload(0)
 {
   // FILE* fp = fopen(filename.c_str(), "r");
   // char readBuffer[65536];
@@ -67,6 +66,11 @@ void TrackSystemM113::Create(int track_idx)
   m_idler_K = d["Idler"]["SpringK"].GetDouble();
   m_idler_C = d["Idler"]["SpringC"].GetDouble();
 
+  */
+
+  m_idler_preload = 5e3;
+
+  /*
   // Read Drive Gear data
   assert(d.HasMember("Drive Gear"));
   assert(d["Drive Gear"].IsObject());
@@ -116,7 +120,6 @@ void TrackSystemM113::Create(int track_idx)
 
   // create the various subsystems, from the hardcoded static variables in each subsystem class
   BuildSubsystems();
-
  
 }
 
@@ -142,8 +145,8 @@ void TrackSystemM113::BuildSubsystems()
     m_track_idx,
     429.6/5.0,
     ChVector<>(12.55/5.0, 12.55/5.0, 14.7/5.0),
-    4.0e4,
-    2.0e3) );
+    5e3,
+    1e2) );
 
   std::stringstream chainname;
   chainname << "chain " << m_track_idx;
@@ -169,9 +172,9 @@ void TrackSystemM113::BuildSubsystems()
       ChVector<>(19.82/5.0, 19.82/5.0, 26.06/5.0),
       75.26/5.0,
       ChVector<>(0.77/5.0, 0.37/5.0, 0.77/5.0),
-      60000/5.0,
-      2000.0/5.0,
-      10000.0/5.0) );
+      5e3,
+      1e2,
+      3e2) );
   }
 
 }
