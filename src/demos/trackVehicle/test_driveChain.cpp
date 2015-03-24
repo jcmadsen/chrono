@@ -85,7 +85,7 @@ double sineFreq = 0.3;
 double tStart = 0.1;
 
 // ***** write to console or a file
-#define WRITE_OUTPUT         // write output data to file
+// #define WRITE_OUTPUT         // write output data to file
 // #define CONSOLE_SYSTEM_INFO  // display the system heirarchy in the console
 //#define CONSOLE_DEBUG_INFO      // log constraint violations to console,
 #define CONSOLE_TIMING       // time each render and simulation step, log to console
@@ -106,10 +106,10 @@ double render_step_size = 1.0 / FPS;  // Time increment for rendered frames
 // camera controls, either static or  GUI controlled chase camera:
 bool use_fixed_camera = true;
 // static camera position, global c-sys. (Longitude, Vertical, Lateral)
-ChVector<> fixed_cameraPos(0.15, 1.15, 1.5);    // (1.5, 1.5, 1.5)
+ChVector<> fixed_cameraPos(-1.5, 1.5, 1.5); // (0.15, 1.15, 1.5);    // 
 
 // Both cameras track this point, relative to the center of the gear
-ChVector<> trackPoint(0.15, 0.15, 0.0);
+ChVector<> trackPoint(-0.5, 0.15, 0.0);
 
 // if chase cam enabled:
 double chaseDist = 2.5;

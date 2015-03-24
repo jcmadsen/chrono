@@ -67,6 +67,11 @@ TrackVehicleM113::TrackVehicleM113(const std::string& name,
   m_meshFile = utils::GetModelDataFile("M113/Chassis_XforwardYup.obj");
   m_chassisBoxSize = ChVector<>(4.0, 1.2, 1.5); // full length, height, width of chassis box
 
+
+  // DEBUGGING
+  m_chassis->SetBodyFixed(true);
+
+
   // setup the chassis body
   m_chassis->SetIdentifier(0);
   m_chassis->SetFrame_COG_to_REF(ChFrame<>(COM_override, ChQuaternion<>(1, 0, 0, 0)));
@@ -158,7 +163,7 @@ void TrackVehicleM113::Advance(double step)
 {
   double t = 0;
   double settlePhaseA = 0.25;
-  double settlePhaseB = 0.4;
+  double settlePhaseB = 0.5;
   m_system->SetIterLCPmaxItersStab(100);
   m_system->SetIterLCPmaxItersSpeed(150);
   while (t < step) {
@@ -167,11 +172,12 @@ void TrackVehicleM113::Advance(double step)
     {
       m_system->SetIterLCPmaxItersStab(100);
       m_system->SetIterLCPmaxItersSpeed(100);
+      // h = step/2.0;
     } else if ( m_system->GetChTime() < settlePhaseB )
     {
       m_system->SetIterLCPmaxItersStab(150);
-      m_system->SetIterLCPmaxItersSpeed(250);
-      h = step/2.0;
+      m_system->SetIterLCPmaxItersSpeed(200);
+      // h = step/2.0;
     }
     m_system->DoStepDynamics(h);
     t += h;

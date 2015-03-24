@@ -96,6 +96,7 @@ void TrackChain::Initialize(ChSharedPtr<ChBody> chassis,
 {
   assert(rolling_element_loc.size() == clearance.size() );
   // get the following in abs coords: 1) start_loc, 2) rolling_elem, 3) control_points
+  m_start_loc_bar = start_loc;  // keep track of start_loc in chassis ref frame
   ChFrame<> start_to_abs(start_loc);
   start_to_abs.ConcatenatePreTransformation(chassis->GetFrame_REF_to_abs());
 
@@ -436,16 +437,18 @@ void TrackChain::AddVisualization(size_t track_idx,
 }
 
 
-void TrackChain::AddCollisionGeometry(double mu,
+void TrackChain::AddCollisionGeometry(double z_loc_bar, // lateral coord, local c-sys
+                                      double mu,
                                       double mu_sliding,
                                       double mu_roll,
                                       double mu_spin)
 {
   assert(m_numShoes > 0);
-  AddCollisionGeometry(m_numShoes-1, mu, mu_sliding, mu_roll, mu_spin);
+  AddCollisionGeometry(m_numShoes-1, z_loc_bar, mu, mu_sliding, mu_roll, mu_spin);
 }
 
 void TrackChain::AddCollisionGeometry(size_t track_idx,
+                                      double z_loc_bar, // lateral coord, local c-sys
                                       double mu,
                                       double mu_sliding,
                                       double mu_roll,
@@ -463,8 +466,8 @@ void TrackChain::AddCollisionGeometry(size_t track_idx,
   m_shoes[track_idx]->SetCollide(true);
   m_shoes[track_idx]->GetCollisionModel()->ClearModel();
 
-  m_shoes[track_idx]->GetCollisionModel()->SetSafeMargin(0.001);	// inward safe margin
-	m_shoes[track_idx]->GetCollisionModel()->SetEnvelope(0.002);		// distance of the outward "collision envelope"
+  m_shoes[track_idx]->GetCollisionModel()->SetSafeMargin(0.002);	// inward safe margin
+	m_shoes[track_idx]->GetCollisionModel()->SetEnvelope(0.004);		// distance of the outward "collision envelope"
 
   // set the collision material
   m_shoes[track_idx]->GetMaterialSurface()->SetSfriction(mu);
@@ -559,10 +562,20 @@ void TrackChain::AddCollisionGeometry(size_t track_idx,
   } // end switch
 
   // set collision family
-  m_shoes[track_idx]->GetCollisionModel()->SetFamily( (int)CollisionFam::Shoe);
+    // assume z+ is right side
+  if(z_loc_bar >= 0)
+  {
+    m_shoes[track_idx]->GetCollisionModel()->SetFamily((int)CollisionFam::ShoeRight);
+  }
+  else
+  {
+    // on left side
+    m_shoes[track_idx]->GetCollisionModel()->SetFamily((int)CollisionFam::ShoeLeft);
+  }
 
   // don't collide with other shoes, but with everything else
-  m_shoes[track_idx]->GetCollisionModel()->SetFamilyMaskNoCollisionWithFamily( (int)CollisionFam::Shoe );
+  m_shoes[track_idx]->GetCollisionModel()->SetFamilyMaskNoCollisionWithFamily( (int)CollisionFam::ShoeRight );
+    m_shoes[track_idx]->GetCollisionModel()->SetFamilyMaskNoCollisionWithFamily( (int)CollisionFam::ShoeLeft );
   m_shoes[track_idx]->GetCollisionModel()->SetFamilyMaskNoCollisionWithFamily( (int)CollisionFam::Hull );
 
   m_shoes[track_idx]->GetCollisionModel()->BuildModel();
@@ -639,11 +652,12 @@ void TrackChain::CreateShoes(ChSharedPtr<ChBody> chassis,
   if(m_numShoes == 1)
   {
     pos_on_seg = start_seg; // special case
-    AddCollisionGeometry(); // add collision geometry
     shoe_pos = pos_on_seg + norm_dir * m_shoe_chain_Yoffset;
     m_shoes.front()->SetPos(shoe_pos);
     m_shoes.front()->SetRot(rot_seg_A); // can assume its the same as the line segment
     chassis->GetSystem()->Add(m_shoes.front());
+    // add collision features AFTER adding to ChSystem
+    AddCollisionGeometry(m_start_loc_bar.z); // add collision geometry
 
    // First shoe on first line segment should always be aligned.
     m_aligned_with_seg = true; 
@@ -677,7 +691,7 @@ void TrackChain::CreateShoes(ChSharedPtr<ChBody> chassis,
     // even shoes can be a different texture
     (m_numShoes % 2 == 0) ? AddVisualization(m_numShoes -1, true, "spheretexture.png") : AddVisualization();
     
-    AddCollisionGeometry();
+    AddCollisionGeometry(m_start_loc_bar.z);
     std::stringstream shoe_s;
     shoe_s << "shoe" << m_numShoes;
     m_shoes.back()->SetNameString( shoe_s.str() );
@@ -792,6 +806,7 @@ void TrackChain::CreateShoes(ChSharedPtr<ChBody> chassis,
     m_shoes.back()->SetPos(COG_frame.GetPos() );
     m_shoes.back()->SetRot(COG_frame.GetRot() );
     chassis->GetSystem()->Add(m_shoes.back());
+    AddCollisionGeometry(m_start_loc_bar.z); // add collision geometry
 
     // create and init. the pin between the last shoe and this one, add to system.
     m_pins.push_back(ChSharedPtr<ChLinkLockRevolute>(new ChLinkLockRevolute));
@@ -862,7 +877,7 @@ void TrackChain::CreateShoes(ChSharedPtr<ChBody> chassis,
     m_shoes.back()->Copy( m_shoes.front().get_ptr() );
      // even shoes can be a different texture
     (m_numShoes % 2 == 0) ? AddVisualization(m_numShoes -1, true, "spheretexture.png") : AddVisualization();
-    AddCollisionGeometry();
+    AddCollisionGeometry(m_start_loc_bar.z);
     std::stringstream shoe_s;
     shoe_s << "shoe" << m_numShoes;
     m_shoes.back()->SetNameString( shoe_s.str() );
@@ -897,6 +912,8 @@ void TrackChain::CreateShoes(ChSharedPtr<ChBody> chassis,
     m_shoes.back()->SetPos(COG_frame.GetPos() );
     m_shoes.back()->SetRot(COG_frame.GetRot() );
     chassis->GetSystem()->Add(m_shoes.back());
+    // TODO: need to re-add collision geometry to this body, since SetFamily() only works after adding to system?
+    AddCollisionGeometry(m_start_loc_bar.z); // add collision geometry
 
     // create and init. the pin between the last shoe and this one, add to system.
     m_pins.push_back(ChSharedPtr<ChLinkLockRevolute>(new ChLinkLockRevolute));
@@ -969,7 +986,7 @@ void TrackChain::CreateShoes_closeChain(ChSharedPtr<ChBody> chassis,
     m_shoes.back()->Copy( m_shoes.front().get_ptr() );
      // even shoes can be a different texture
     (m_numShoes % 2 == 0) ? AddVisualization(m_numShoes -1, true, "spheretexture.png") : AddVisualization();
-    AddCollisionGeometry();
+    AddCollisionGeometry(m_start_loc_bar.z);
 
     std::stringstream shoe_s;
     shoe_s <<  "shoe" << m_numShoes;
@@ -1079,6 +1096,8 @@ void TrackChain::CreateShoes_closeChain(ChSharedPtr<ChBody> chassis,
     m_shoes.back()->SetPos(COG_frame.GetPos() );
     m_shoes.back()->SetRot(COG_frame.GetRot() );
     chassis->GetSystem()->Add(m_shoes.back());
+    // TODO: need to re-add collision geometry to this body, since SetFamily() only works after adding to system?
+    AddCollisionGeometry(m_start_loc_bar.z); // add collision geometry
 
     // create and init. the pin between the last shoe and this one, add to system.
     m_pins.push_back(ChSharedPtr<ChLinkLockRevolute>(new ChLinkLockRevolute));

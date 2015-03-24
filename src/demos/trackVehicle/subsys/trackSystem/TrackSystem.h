@@ -47,7 +47,8 @@ public:
   /// of the chassis). It is assumed that the suspension reference frame is
   /// always aligned with the chassis reference frame.
   void Initialize(ChSharedPtr<ChBodyAuxRef> chassis,
-				 const ChVector<>&         location);
+				 const ChVector<>&         location,
+         double pin_damping = 0);
 
   void Create(int track_idx);
 

@@ -67,9 +67,6 @@ void SupportRoller::Initialize(ChSharedPtr<ChBody> chassis,
                            const ChCoordsys<>& local_Csys)
 {
 
-  // add any collision geometry
-  AddCollisionGeometry();
-
   // get the local frame in the absolute ref. frame
   ChFrame<> frame_to_abs(local_Csys);
   frame_to_abs.ConcatenatePreTransformation(chassis_REF);
@@ -82,6 +79,9 @@ void SupportRoller::Initialize(ChSharedPtr<ChBody> chassis,
   // initialize the revolute joint, add to system
   m_revolute->Initialize(chassis, m_roller, ChCoordsys<>(frame_to_abs.GetPos(), frame_to_abs.GetRot()) );
   chassis->GetSystem()->AddLink(m_revolute);
+
+  // add any collision geometry last
+  AddCollisionGeometry(local_Csys.pos.z);
 
 }
 
@@ -134,10 +134,11 @@ void SupportRoller::AddVisualization()
   }
 }
 
-void SupportRoller::AddCollisionGeometry(double mu,
-                            double mu_sliding,
-                            double mu_roll,
-                            double mu_spin)
+void SupportRoller::AddCollisionGeometry(double z_loc_bar,
+                                         double mu,
+                                         double mu_sliding,
+                                         double mu_roll,
+                                         double mu_spin)
 {
   // add collision geometrey, if enabled. Warn if disabled
   if( m_collide == CollisionType::None)
@@ -215,7 +216,17 @@ void SupportRoller::AddCollisionGeometry(double mu,
 
   // set collision family, gear is a rolling element like the wheels
   m_roller->GetCollisionModel()->SetFamily((int)CollisionFam::Wheel);
-
+  // assume z+ is right side
+  if(z_loc_bar >= 0)
+  {
+    m_roller->GetCollisionModel()->SetFamilyMaskNoCollisionWithFamily((int)CollisionFam::ShoeLeft);
+ 
+  }
+  else
+  {
+    m_roller->GetCollisionModel()->SetFamilyMaskNoCollisionWithFamily((int)CollisionFam::ShoeRight);
+ 
+  }
   // don't collide with other rolling elements
   m_roller->GetCollisionModel()->SetFamilyMaskNoCollisionWithFamily((int)CollisionFam::Ground);
   m_roller->GetCollisionModel()->SetFamilyMaskNoCollisionWithFamily((int)CollisionFam::Wheel);

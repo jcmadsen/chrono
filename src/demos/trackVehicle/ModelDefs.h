@@ -57,15 +57,11 @@ namespace CollisionFam
     Ground,
     Hull,
     Wheel,
-    Shoe,
+    ShoeRight,
+    ShoeLeft,
     Gear,
   };
 }
-
-enum VehicleSide {
-    Right = 0,    
-    Left = 1     ///< x-forward leads to right side being position z-dir
-};
 
 enum DebugInformation {
   DBG_FIRSTSHOE   = 1 << 0,

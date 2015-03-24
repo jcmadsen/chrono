@@ -150,9 +150,6 @@ void TorsionArmSuspension::Initialize(ChSharedPtr<ChBody> chassis,
     m_wheel_PosRel.z *= -1;
   }
 
-  // add collision geometry, for the wheel
-  AddCollisionGeometry();
-
   // Express the revolute joint location in the absolute coordinate system.
   ChFrame<> pin1_abs(local_Csys);
   pin1_abs.ConcatenatePreTransformation(chassis_REF);
@@ -200,19 +197,12 @@ void TorsionArmSuspension::Initialize(ChSharedPtr<ChBody> chassis,
   chassis->GetSystem()->AddLink(m_armChassis_rev);
 
   // wheel-arm, z-axis is already in the lateral direction
-  
-  // TODO: figure out how to have a non-zero, constant, lateral (z-dir) offset (to calculate rxn. forces correctly)
-  //      For now, just use the point in the middle of pin2 and wheel COG.
   ChVector<> rev_pos_abs = (wheel_COG_abs.GetPos() - pin2_abs.GetPos())/2.0 + pin2_abs.GetPos();
   m_armWheel_rev->Initialize(m_wheel, m_arm, ChCoordsys<>(rev_pos_abs, wheel_COG_abs.GetRot()) );
-  /*
-  m_armWheel_rev->Initialize(m_wheel, m_arm, true, 
-    ChCoordsys<>(ChVector<>(), QUNIT), 
-    ChCoordsys<>(ChVector<>(0, arm_rel.Length()/2.0 ,0), QUNIT) );
-  ChSharedPtr<ChFunction_Const> z_func(new ChFunction_Const(abs(GetWheelPosRel().z) ));
-  m_armWheel_rev->SetMotion_Z(z_func.get_ptr());
-  */
   chassis->GetSystem()->AddLink(m_armWheel_rev);
+
+   // add collision geometry last, for the wheel
+  AddCollisionGeometry(local_Csys.pos.z);
 }
 
 /// add a cylinder to model the torsion bar arm and the wheel
@@ -275,7 +265,8 @@ void TorsionArmSuspension::AddVisualization()
 }
 
 /// only the road wheels are used for collision
-void TorsionArmSuspension::AddCollisionGeometry(double mu,
+void TorsionArmSuspension::AddCollisionGeometry(double z_loc_bar,
+                            double mu,
                             double mu_sliding,
                             double mu_roll,
                             double mu_spin)
@@ -291,8 +282,8 @@ void TorsionArmSuspension::AddCollisionGeometry(double mu,
   m_wheel->SetCollide(true);
   m_wheel->GetCollisionModel()->ClearModel();
 
-  m_wheel->GetCollisionModel()->SetSafeMargin(0.001);	// inward safe margin
-	m_wheel->GetCollisionModel()->SetEnvelope(0.002);		// distance of the outward "collision envelope"
+  m_wheel->GetCollisionModel()->SetSafeMargin(0.002);	// inward safe margin
+	m_wheel->GetCollisionModel()->SetEnvelope(0.004);		// distance of the outward "collision envelope"
 
   // set the collision material
   m_wheel->GetMaterialSurface()->SetSfriction(mu);
@@ -356,6 +347,17 @@ void TorsionArmSuspension::AddCollisionGeometry(double mu,
 
   // setup collision family, road wheel is a rolling element
   m_wheel->GetCollisionModel()->SetFamily((int)CollisionFam::Wheel);
+  // assume z+ is right side
+  if(z_loc_bar >= 0)
+  {
+    m_wheel->GetCollisionModel()->SetFamilyMaskNoCollisionWithFamily((int)CollisionFam::ShoeLeft);
+ 
+  }
+  else
+  {
+    m_wheel->GetCollisionModel()->SetFamilyMaskNoCollisionWithFamily((int)CollisionFam::ShoeRight);
+ 
+  }
 
   // don't collide with the other rolling elements
   m_wheel->GetCollisionModel()->SetFamilyMaskNoCollisionWithFamily((int)CollisionFam::Wheel);

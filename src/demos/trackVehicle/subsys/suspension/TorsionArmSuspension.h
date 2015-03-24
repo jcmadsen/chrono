@@ -100,7 +100,8 @@ private:
   // private functions
   void Create(const std::string& name);
   void AddVisualization();
-  void AddCollisionGeometry(double mu = 0.4,
+  void AddCollisionGeometry(double z_loc_bar, // lateral coord, local c-sys
+                            double mu = 0.4,
                             double mu_sliding = 0.3,
                             double mu_roll = 0,
                             double mu_spin = 0);

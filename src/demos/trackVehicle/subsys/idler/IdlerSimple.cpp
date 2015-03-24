@@ -137,9 +137,6 @@ void IdlerSimple::Initialize(ChSharedPtr<ChBody> chassis,
                              const ChCoordsys<>& local_Csys,
                              double preLoad)
 {
-  // add collision geometry
-  AddCollisionGeometry();
-
   // Express the reference frame in the absolute coordinate system.
   ChFrame<> idler_to_abs(local_Csys);
   idler_to_abs.ConcatenatePreTransformation(chassis_REF);
@@ -175,6 +172,9 @@ void IdlerSimple::Initialize(ChSharedPtr<ChBody> chassis,
   m_shock->Set_SpringRestLength(m_springRestLength);
 
   chassis->GetSystem()->AddLink(m_shock);
+
+  // add collision geometry last
+  AddCollisionGeometry(local_Csys.pos.z);
 }
 
 void IdlerSimple::AddVisualization(size_t chain_idx,
@@ -242,7 +242,8 @@ void IdlerSimple::AddVisualization(size_t chain_idx,
   } // end switch
 }
 
-void IdlerSimple::AddCollisionGeometry(double mu,
+void IdlerSimple::AddCollisionGeometry(double z_loc_bar, // lateral coord, local c-sys
+                                       double mu,
                                        double mu_sliding,
                                        double mu_roll,
                                        double mu_spin)
@@ -258,8 +259,8 @@ void IdlerSimple::AddCollisionGeometry(double mu,
   m_idler->SetCollide(true);
   m_idler->GetCollisionModel()->ClearModel();
 
-  m_idler->GetCollisionModel()->SetSafeMargin(0.001);	// inward safe margin
-	m_idler->GetCollisionModel()->SetEnvelope(0.002);		// distance of the outward "collision envelope"
+  m_idler->GetCollisionModel()->SetSafeMargin(0.002);	// inward safe margin
+	m_idler->GetCollisionModel()->SetEnvelope(0.005);		// distance of the outward "collision envelope"
 
   // set the collision material
   m_idler->GetMaterialSurface()->SetSfriction(mu);
@@ -321,6 +322,15 @@ void IdlerSimple::AddCollisionGeometry(double mu,
 
   // setup collision family, idler is a rolling element
   m_idler->GetCollisionModel()->SetFamily( (int)CollisionFam::Wheel );
+  // assume z+ is right side, x+ points forward, y+ up
+  if(z_loc_bar >= 0)
+  {
+    m_idler->GetCollisionModel()->SetFamilyMaskNoCollisionWithFamily((int)CollisionFam::ShoeLeft);
+  }
+  else
+  {
+    m_idler->GetCollisionModel()->SetFamilyMaskNoCollisionWithFamily((int)CollisionFam::ShoeRight);
+  }
   
   // don't collide with the other wheels, nor ground
   m_idler->GetCollisionModel()->SetFamilyMaskNoCollisionWithFamily( (int)CollisionFam::Wheel );

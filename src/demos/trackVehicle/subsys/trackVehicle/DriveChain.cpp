@@ -253,7 +253,7 @@ void DriveChain::Initialize(const ChCoordsys<>& gear_Csys)
     start_pos );
   
   // can set pin friction between adjoining shoes by activing damping on the DOF
-  // m_chain->Set_pin_friction(2.0); // [N-m-sec] ???
+  m_chain->Set_pin_friction(0.2); // [N-s/m]
 
   // now, init the gear
   m_gear->Initialize(m_chassis, 

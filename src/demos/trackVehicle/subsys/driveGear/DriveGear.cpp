@@ -92,8 +92,6 @@ void DriveGear::Initialize(ChSharedPtr<ChBody> chassis,
 {
 
   assert(shoes.size() > 0);
-  // add any collision geometry
-  AddCollisionGeometry(shoes);
 
   // get the local frame in the absolute ref. frame
   ChFrame<> gear_to_abs(local_Csys);
@@ -113,6 +111,8 @@ void DriveGear::Initialize(ChSharedPtr<ChBody> chassis,
   m_axle_to_gear->Initialize(m_axle, m_gear, VECT_Z);
   chassis->GetSystem()->Add(m_axle_to_gear);
 
+  // add collision geometry last, after body is added to the system.
+  AddCollisionGeometry(shoes, local_Csys.pos.z);
 }
 
 void DriveGear::AddVisualization()
@@ -215,6 +215,7 @@ void DriveGear::AddVisualization()
 }
 
 void DriveGear::AddCollisionGeometry(const std::vector<ChSharedPtr<ChBody> >& shoes,
+                                     double z_loc_bar, // lateral coord, local c-sys
                                      double mu,
                                      double mu_sliding,
                                      double mu_roll,
@@ -231,8 +232,8 @@ void DriveGear::AddCollisionGeometry(const std::vector<ChSharedPtr<ChBody> >& sh
   m_gear->SetCollide(true);
   m_gear->GetCollisionModel()->ClearModel();
 
-  m_gear->GetCollisionModel()->SetSafeMargin(0.001);	// inward safe margin
-	m_gear->GetCollisionModel()->SetEnvelope(0.004);		// distance of the outward "collision envelope"
+  m_gear->GetCollisionModel()->SetSafeMargin(0.002);	// inward safe margin
+	m_gear->GetCollisionModel()->SetEnvelope(0.005);		// distance of the outward "collision envelope"
 
   // set the collision material
   m_gear->GetMaterialSurface()->SetSfriction(mu);
@@ -412,6 +413,16 @@ void DriveGear::AddCollisionGeometry(const std::vector<ChSharedPtr<ChBody> >& sh
 
   // set collision family, gear is a rolling element like the wheels
   m_gear->GetCollisionModel()->SetFamily((int)CollisionFam::Gear);
+  // assume z+ is right side
+  if(z_loc_bar >= 0)
+  {
+    m_gear->GetCollisionModel()->SetFamilyMaskNoCollisionWithFamily((int)CollisionFam::ShoeLeft);
+
+  }
+  else
+  {
+    m_gear->GetCollisionModel()->SetFamilyMaskNoCollisionWithFamily((int)CollisionFam::ShoeRight);
+  }
 
   // don't collide with other rolling elements
   m_gear->GetCollisionModel()->SetFamilyMaskNoCollisionWithFamily((int)CollisionFam::Ground);

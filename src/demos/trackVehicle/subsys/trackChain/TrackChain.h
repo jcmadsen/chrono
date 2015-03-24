@@ -111,13 +111,15 @@ private:
     const std::string& tex_name = "none");
 
   /// add collision geometry to the last shoe added
-  void AddCollisionGeometry(double mu = 0.6,
+  void AddCollisionGeometry(double z_loc_bar, // lateral coord, local c-sys
+                            double mu = 0.6,
                             double mu_sliding = 0.5,
                             double mu_roll = 0,
                             double mu_spin = 0);
 
   /// add collision geometrey to a certain track shoe
   void AddCollisionGeometry(size_t track_idx,
+                            double z_loc_bar, // lateral coord, local c-sys
                             double mu = 0.6,
                             double mu_sliding = 0.5,
                             double mu_roll = 0,
@@ -187,6 +189,7 @@ private:
   const std::string m_meshName;  // name of the mesh
   
   // helper variable
+  ChVector<> m_start_loc_bar; ///< where to create the first shoe, chassis c-sys
   bool m_aligned_with_seg;  ///< when building track chain, was last shoe created exactly aligned with the envelope?
 
   //static values 
