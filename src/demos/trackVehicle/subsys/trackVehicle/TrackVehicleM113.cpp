@@ -68,8 +68,12 @@ TrackVehicleM113::TrackVehicleM113(const std::string& name,
   m_chassisBoxSize = ChVector<>(4.0, 1.2, 1.5); // full length, height, width of chassis box
 
 
+
+
   // DEBUGGING
   m_chassis->SetBodyFixed(true);
+
+
 
 
   // setup the chassis body
@@ -184,6 +188,16 @@ void TrackVehicleM113::Advance(double step)
   }
 }
 
+
+// call the chain function to update the constant damping coef.
+void TrackVehicleM113::SetShoePinDamping(double damping)
+{
+  m_damping = damping;
+  for( int i = 0; i < m_num_tracks; i++)
+  {
+    (m_TrackSystems[i]->GetTrackChain())->Set_pin_friction(damping);
+  }
+}
 
 double TrackVehicleM113::GetDriveshaftSpeed(size_t idx) const
 {

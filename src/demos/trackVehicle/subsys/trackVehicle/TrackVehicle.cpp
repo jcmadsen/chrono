@@ -173,6 +173,16 @@ void TrackVehicle::Advance(double step)
 }
 
 
+// call the chain function to update the constant damping coef.
+void TrackVehicle::SetShoePinDamping(double damping)
+{
+  m_pin_damping = damping;
+  for( int i = 0; i < m_num_tracks; i++)
+  {
+    m_TrackSystems[i]->m_chain->Set_pin_friction(damping);
+  }
+}
+
 double TrackVehicle::GetDriveshaftSpeed(size_t idx) const
 {
   assert(idx < m_num_tracks );

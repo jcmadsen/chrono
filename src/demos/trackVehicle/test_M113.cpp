@@ -58,7 +58,7 @@ using namespace core;
 // #define DEBUG_LOG 
 
 
-double pin_damping_coef = 0.1;  // apply pin damping between connected shoes
+double pin_damping_coef = 0.2;  // apply pin damping between connected shoes
 // Initial vehicle position and heading. Defines the REF frame for the hull body
 ChVector<> initLoc(0, 1.0, 0);
 //ChQuaternion<> initRot = Q_from_AngAxis(CH_C_PI_4, VECT_Y);

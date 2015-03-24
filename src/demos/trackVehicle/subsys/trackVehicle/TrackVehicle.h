@@ -72,7 +72,12 @@ public:
   /// Advance the vehicle (and the ChSystem)
   virtual void Advance(double step);
 
+    /// set the pin friction as a damping value
+  virtual void SetShoePinDamping(double damping);
+
   // Accessors
+  virtual double GetShoePinDamping() const {return m_pin_damping;}
+
   virtual double GetDriveshaftSpeed(size_t idx) const;
 
   /// pointer to the powertrain

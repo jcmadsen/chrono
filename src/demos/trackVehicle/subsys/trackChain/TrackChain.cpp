@@ -66,7 +66,7 @@ m_numShoes(0),
 m_use_custom_damper(false),
 m_damping_C(0)
 {
-    // clear vector holding list of body handles
+  // clear vector holding list of body handles
   m_shoes.clear();
   // add first track shoe body
   m_shoes.push_back(ChSharedPtr<ChBody>(new ChBody));

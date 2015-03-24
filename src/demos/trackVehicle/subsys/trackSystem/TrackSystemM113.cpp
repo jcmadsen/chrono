@@ -186,6 +186,7 @@ void TrackSystemM113::Initialize(ChSharedPtr<ChBodyAuxRef> chassis,
   m_local_pos = local_pos;
   m_gearPosRel = m_gearPos;
   m_idlerPosRel = m_idlerPos;
+
   // if we're on the left side of the vehicle, switch lateral z-axis on all relative positions
   if(m_local_pos.z < 0)
   {

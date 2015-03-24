@@ -243,7 +243,6 @@ void TrackSystem::Initialize(ChSharedPtr<ChBodyAuxRef> chassis,
     ChCoordsys<>(m_local_pos + Get_gearPosRel(), QUNIT),
     m_chain->GetShoeBody() );
 
-
 }
 
 const ChVector<> TrackSystem::Get_idler_spring_react()

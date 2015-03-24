@@ -53,7 +53,9 @@ public:
   ~DriveChain();
   
   /// Initialize the drive chain system
-  virtual void Initialize(const ChCoordsys<>& gear_Csys);  ///< [in] initial config of gear
+  virtual void Initialize(const ChCoordsys<>& gear_Csys,   ///< [in] initial config of gear
+    double pin_damping = 0    ///< inter-shoe body revolute joint damping coef., [N-s/m]
+    ); 
   
   /// Update the vehicle with the new settings for throttle and brake
   virtual void Update(double time,
@@ -64,7 +66,7 @@ public:
   virtual void Advance(double step);
 
   /// set the pin friction as a damping value
-  virtual void SetShoePinDamping(double damping);
+  virtual void SetShoePinDamping(double damping) { m_chain->Set_pin_friction(damping); }
 
   /// log the constraint violations, w/ and w/o chain body, to either the console or a file
   virtual void LogConstraintViolations(bool include_chain = false);
@@ -170,6 +172,7 @@ protected:
   std::vector<ChSharedPtr<IdlerSimple> >	m_idlers;	///< idler wheel
   size_t m_num_idlers;  ///< number of idlers to create
   ChSharedPtr<TrackChain> m_chain;    ///< chain
+  double m_pin_damping; ///< inter-shoe body pin damping coef, [N-s/m]
 
   ChVector<> m_idlerPosRel;	///< position of idler COG relative to local c-sys
   std::vector<ChSharedPtr<SupportRoller> > m_rollers;  ///< passive support rollers

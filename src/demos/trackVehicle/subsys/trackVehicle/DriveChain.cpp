@@ -171,8 +171,10 @@ DriveChain::~DriveChain()
 }
 
 // Set any collision geometry on the hull, then Initialize() all subsystems
-void DriveChain::Initialize(const ChCoordsys<>& gear_Csys)
+void DriveChain::Initialize(const ChCoordsys<>& gear_Csys,
+                            double pin_damping)
 {
+  m_pin_damping = pin_damping;
   // initialize the drive gear, idler and track chain
   double idler_preload = 10000;
   // m_idlerPosRel = m_idlerPos;
@@ -253,7 +255,7 @@ void DriveChain::Initialize(const ChCoordsys<>& gear_Csys)
     start_pos );
   
   // can set pin friction between adjoining shoes by activing damping on the DOF
-  m_chain->Set_pin_friction(0.2); // [N-s/m]
+  m_chain->Set_pin_friction(m_pin_damping); // [N-s/m]
 
   // now, init the gear
   m_gear->Initialize(m_chassis, 
@@ -321,14 +323,6 @@ void DriveChain::Advance(double step)
     t += h;
   }
 }
-
-
-// call the chain function to update the constant damping coef.
-void DriveChain::SetShoePinDamping(double damping)
-{
-  m_chain->Set_pin_friction(damping);
-}
-
 
 // get some data about the gear and its normal and friction contact forces each timestep.
 // info = (max, avg, stdev = sigma)
