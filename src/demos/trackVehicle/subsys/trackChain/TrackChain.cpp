@@ -63,8 +63,7 @@ m_collisionFile(utils::GetModelDataFile("M113/shoe_collision.obj")),
 m_meshFile(utils::GetModelDataFile("M113/shoe_view.obj")),
 m_meshName("M113 shoe"),
 m_numShoes(0),
-m_use_custom_damper(false),
-m_damping_C(0)
+m_use_custom_damper(false)
 {
   // clear vector holding list of body handles
   m_shoes.clear();

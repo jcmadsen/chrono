@@ -70,7 +70,7 @@ ChVector<> groundPos(0, -1.0, 0);
 double mu = 0.67;  // dry friction coef.
 
 // Simulation step size
-double step_size = 5e-4;
+double step_size = 1e-3;
 
 // Time interval between two render frames
 int FPS = 80;

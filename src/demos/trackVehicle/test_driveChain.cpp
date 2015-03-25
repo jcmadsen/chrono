@@ -66,6 +66,7 @@ using namespace chrono;
 // *****  General system settings
 size_t num_idlers = 1;
 size_t num_rollers = 2;
+double pin_damping_coef = 0.2;  // [N-s/m]
 // Initial position and heading
 ChVector<> initLoc(0, 1.0, 0);
 //ChQuaternion<> initRot = Q_from_AngAxis(CH_C_PI_4, VECT_Y);
@@ -74,13 +75,13 @@ ChQuaternion<> initRot(QUNIT);
 // *****  Simulation step size, end time
 double step_size = 1e-3;
 // stop at a certain time
-double end_time = 6;  // 99999
+double end_time = 15;  // 99999
 
 // *****  Driver settings
 // Automated simulation controls, applies positive half a sine wave.
 // Otherwise, control throttle with W/S
-bool autopilot = false;
-double sineAmp = 0.5;
+bool autopilot = true;
+double sineAmp = 0.7;
 double sineFreq = 0.3;
 double tStart = 0.1;
 
@@ -148,7 +149,8 @@ int main(int argc, char* argv[])
     num_rollers);
   
   // set the chassis REF at the specified initial config.
-  chainSystem.Initialize(ChCoordsys<>(initLoc, initRot));
+  chainSystem.Initialize(ChCoordsys<>(initLoc, initRot),
+    pin_damping_coef);
 
   // if writing an output file, setup what debugInformation we want added each step data is saved.
 #ifdef WRITE_OUTPUT

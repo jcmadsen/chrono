@@ -95,9 +95,6 @@ public:
   /// number of track shoes created/initialized
   size_t Get_numShoes() const { return m_numShoes; }
 
-  /// damping coef. in the pin revolute constraint
-  double Get_pin_damping() const { return m_damping_C;}
-
 private:
 
   // private functions
@@ -171,7 +168,6 @@ private:
 
   std::vector<ChSharedPtr<ChLinkLockRevolute> > m_pins; ///< handles to inter-shoe pin joints
   std::vector<ChLinkForce*> m_pin_friction; ///< functions to apply inter-shoe pin friction
-  double m_damping_C;        ///< shoe pin damping coef.
   bool m_use_custom_damper;  ///< use a nonlinear damping coefficient function?
   std::vector<ChSharedPtr<ChFunction_CustomDamper> > m_custom_dampers;
  
