@@ -55,14 +55,19 @@ public:
   TorsionArmSuspension(const std::string& name,
     VisualizationType::Enum vis = VisualizationType::Primitives,
     CollisionType::Enum collide = CollisionType::Primitives,
-    size_t chainSys_idx = 0,  ///< what chain system is the road wheel assoc. with?
+    size_t chainSys_idx = 0,    ///< what chain system is the road wheel assoc. with?
     double wheel_mass = 561.1 , ///< [kg]
     const ChVector<>& wheelIxx = ChVector<>(19.82, 19.82, 26.06), // [kg-m2], z-axis of rotation,
     double arm_mass = 75.26,  ///< [kg]
     const ChVector<>& armIxx = ChVector<>(0.77, 0.37, 0.77),  ///< [kg-m2]
     double springK = 2.5e4,	///< torsional spring constant [N-m/rad]
-    double springC = 5e2,	///< torsional damping constant [N-m-s/rad]
+    double springC = 5e2,	  ///< torsional damping constant [N-m-s/rad]
     double springPreload = 1.5e3,  ///< torque preload [N-m]
+    double wheel_width = 0.384,     ///< bogie wheel width [m]
+    double wheel_width_gap = .0912, ///< width beween parallel/concentric bogie wheel [m]
+    double wheel_radius = 0.305,    ///< bogie wheel radius [m]
+    ChVector<> wheel_pos_rel = ChVector<>(-0.2034, -0.2271, 0.24475), ///< wheel position to the arm/chassis rev joint, local c-sys
+    double arm_radius = 0.05,        ///< torsion arm radius
     bool use_custom_spring = false  ///< use ChFunction_CustomSpring rather than default: a pre-loaded linear Rotational spring-damper?
     );
 
@@ -125,8 +130,7 @@ private:
 
   ChSharedPtr<ChBody> m_wheel;  ///< wheel body
   ChSharedPtr<ChLinkLockRevolute> m_armWheel_rev; ///< arm-wheel revolute joint
-  ChVector<> m_wheel_PosRel;  ///< position of wheel center w.r.t. arm pin to chassis, corrected for left/right side.
-
+  
   // body variables
   double m_armMass;
   ChVector<> m_armInertia;
@@ -142,12 +146,13 @@ private:
   const std::string m_meshName; ///< name of the mesh, if any
   const std::string m_meshFile;  ///< filename of the mesh, if any
 
-  // static variables
-  static const double m_armRadius;
-  static const double m_wheelWidth;
-  static const double m_wheelWidthGap;
-  static const double m_wheelRadius;
-  static const ChVector<> m_wheel_Pos;
+  // constant variables
+  const double m_wheelWidth;
+  const double m_wheelWidthGap;
+  const double m_wheelRadius;
+  ChVector<> m_wheel_PosRel;  ///< position of wheel center w.r.t. arm pin to chassis, corrected for left/right side.
+  // const ChVector<> m_wheel_Pos;
+  const double m_armRadius;
   
   static const double m_shaft_inertia;
 };

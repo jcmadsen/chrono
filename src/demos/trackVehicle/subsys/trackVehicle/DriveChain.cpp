@@ -55,13 +55,17 @@ const ChQuaternion<> DriveChain::m_idlerRot(QUNIT);
 DriveChain::DriveChain(const std::string& name,
                        VisualizationType::Enum gearVis,
                        CollisionType::Enum gearCollide,
+                       double pin_damping_coef,
+                       double tensioner_preload,
                        size_t num_idlers,
-                       size_t num_rollers,
+                       size_t num_wheels,
                        double gear_mass,
                        const ChVector<>& gear_inertia
 ): ChTrackVehicle(name, gearVis, gearCollide, gear_mass, gear_inertia, 1),
-  m_num_rollers(num_rollers),
-  m_num_idlers(num_idlers)
+  m_num_wheels(num_wheels),
+  m_num_idlers(num_idlers),
+  m_pin_damping(pin_damping_coef),
+  m_tensioner_preload(tensioner_preload)
 {
   // ---------------------------------------------------------------------------
   // Init any debugging, reporter variables
@@ -100,8 +104,8 @@ DriveChain::DriveChain(const std::string& name,
   m_idlers.resize(m_num_idlers);
   double idler_mass = 100.0; // 429.6
   ChVector<> idler_Ixx(gear_inertia);    // 12.55, 12.55, 14.7
-  double tensioner_K = 40e3;
-  double tensioner_C = tensioner_K * 0.08;
+  double tensioner_K = 2e5;
+  double tensioner_C = 2.8e3;
   m_idlers[0] = ChSharedPtr<IdlerSimple>(new IdlerSimple("idler",
     VisualizationType::Mesh,
     // VisualizationType::Primitives,
@@ -125,41 +129,56 @@ DriveChain::DriveChain(const std::string& name,
   // create the powertrain, connect transmission shaft directly to gear shaft
   m_ptrains[0] = ChSharedPtr<TrackPowertrain>(new TrackPowertrain("powertrain ") );
 
-  // support rollers, if any
-  m_rollers.clear();
-  m_rollers.resize(m_num_rollers);
-  double roller_mass = 50.0;
-
-  for(int j = 0; j < m_num_rollers; j++)
+  // support wheels, if any
+  m_wheels.clear();
+  m_wheels.resize(m_num_wheels);
+  double wheel_mass = 50.0;
+  double wheel_r = 0.305;
+  double wheel_w = 0.384;
+  // assume constant density cylinder
+  ChVector<> wheel_Ixx = wheel_mass * ChVector<>((3.0*wheel_r*wheel_r + wheel_w*wheel_w)/12.0,
+    (3.0*wheel_r*wheel_r + wheel_w*wheel_w)/12.0,
+    wheel_r*wheel_r/2.0);
+  // asume the arm is 8x smaller than wheel weight, Ixx
+  double arm_mass = wheel_mass / 8.0;
+  ChVector<> arm_Ixx = wheel_Ixx / 8.0;
+  
+  // create the wheels
+  for(int j = 0; j < m_num_wheels; j++)
   {
-    double roller_r = m_rollers[j]->GetRadius();
-    double roller_w = m_rollers[j]->GetWidth();
-    // assume constant density cylinder
-    ChVector<> roller_Ixx = roller_mass * ChVector<>((3.0*roller_r*roller_r + roller_w*roller_w)/12.0,
-      (3.0*roller_r*roller_r + roller_w*roller_w)/12.0,
-      roller_r*roller_r/2.0);
-    GetLog() << " I just manually calculated inertia, uh-oh \n\n Ixx = " << roller_Ixx << "\n";
+    GetLog() << " I just manually calculated inertia, uh-oh \n\n Ixx = " << wheel_Ixx << "\n";
 
-    std::stringstream sr_s;
-    sr_s << "support roller " << j;
-    m_rollers[j] = ChSharedPtr<SupportRoller>(new SupportRoller(sr_s.str(),
+    std::stringstream ss_w;
+    ss_w << "bogie " << j;
+    m_wheels[j] = ChSharedPtr<TorsionArmSuspension>(new TorsionArmSuspension(ss_w.str(),
       VisualizationType::Primitives,
       CollisionType::Primitives,
       0,
-      roller_mass,
-      roller_Ixx) );
+      wheel_mass,
+      wheel_Ixx,
+      arm_mass,
+      arm_Ixx,
+      (2.5e4 / 5.0),  // torsional spring stiffness
+      (5.0e2 / 5.0),  // torsional spring damping 
+      (3.5e3 / 5.0),  // spring preload
+      0.384,  // bogie wheel width
+      0.0912, // gap
+      0.305,  // wheel radius
+      ChVector<>(-.2034, -0.2271,0) ) );  // relative pos. of wheel center to arm-chassis rev. joint
   }
 
   if(m_num_idlers > 1)
   {
     // for now, just create 1 more idler
-    m_idlers[1] = ChSharedPtr<IdlerSimple>(new IdlerSimple("idler 2",
+    m_idlers[1] = ChSharedPtr<IdlerSimple>(new IdlerSimple("idler2",
     VisualizationType::Mesh,
     // VisualizationType::Primitives,
     CollisionType::Primitives,
     0,
     idler_mass,
-    idler_Ixx) );
+    idler_Ixx,
+    tensioner_K,
+    tensioner_C) );
   }
 }
 
@@ -171,14 +190,11 @@ DriveChain::~DriveChain()
 }
 
 // Set any collision geometry on the hull, then Initialize() all subsystems
-void DriveChain::Initialize(const ChCoordsys<>& gear_Csys,
-                            double pin_damping)
+void DriveChain::Initialize(const ChCoordsys<>& gear_Csys)
 {
-  m_pin_damping = pin_damping;
   // initialize the drive gear, idler and track chain
-  double idler_preload = 10000;
   // m_idlerPosRel = m_idlerPos;
-  m_idlerPosRel = ChVector<>(-2, -0.10, 0);
+  m_idlerPosRel = ChVector<>(-2.5, -0.15, 0);
   m_chassis->SetFrame_REF_to_abs(ChFrame<>(gear_Csys.pos, gear_Csys.rot));
   
   // Create list of the center location of the rolling elements and their clearance.
@@ -202,27 +218,28 @@ void DriveChain::Initialize(const ChCoordsys<>& gear_Csys,
   // initialize the support rollers.
   // Usually use 2, so spacing is based on that
   double spacing = m_idlerPosRel.Length();
-  for(int r_idx = 0; r_idx < m_num_rollers; r_idx++)
+  for(int r_idx = 0; r_idx < m_num_wheels; r_idx++)
   {
-    ChVector<> roller_loc = m_chassis->GetPos();
-    roller_loc.y = -0.8;
-    roller_loc.x = gear_Csys.pos.x - 0.5 - r_idx*spacing/2.0;
+    ChVector<> armConnection_loc = m_chassis->GetPos();
+    armConnection_loc.y = -0.7;
+    armConnection_loc.x = gear_Csys.pos.x - 0.2 - r_idx*spacing/2.0;
 
-    m_rollers[r_idx]->Initialize(m_chassis,
+    m_wheels[r_idx]->Initialize(m_chassis,
       m_chassis->GetFrame_REF_to_abs(),
-      ChCoordsys<>(roller_loc, QUNIT) );
+      ChCoordsys<>(armConnection_loc, QUNIT) );
 
     // add to the points passed into the track chain
-    rolling_elem_locs.push_back( roller_loc );
-    clearance.push_back(m_rollers[r_idx]->GetRadius() );
-    rolling_elem_spin_axis.push_back( m_rollers[r_idx]->GetBody()->GetRot().GetZaxis() );
+    // in this case, use the center of the bogie wheel as the center point.
+    rolling_elem_locs.push_back( armConnection_loc + m_wheels[r_idx]->GetWheelPosRel() );
+    clearance.push_back(m_wheels[r_idx]->GetWheelRadius() );
+    rolling_elem_spin_axis.push_back( m_wheels[r_idx]->GetWheelBody()->GetRot().GetZaxis() );
   }
 
   // init the idler last
   m_idlers[0]->Initialize(m_chassis, 
     m_chassis->GetFrame_REF_to_abs(),
     ChCoordsys<>(m_idlerPosRel, Q_from_AngAxis(CH_C_PI, VECT_Z) ),
-    idler_preload);
+    m_tensioner_preload);
 
   // add to the lists passed into the track chain Init()
   rolling_elem_locs.push_back(m_idlerPosRel );
@@ -836,10 +853,10 @@ void DriveChain::LogConstraintViolations(bool include_chain)
   }
 
   // violations of the roller revolute joints
-  for(int roller = 0; roller < m_num_rollers; roller++)
+  for(int roller = 0; roller < m_num_wheels; roller++)
   {
     GetLog() << "\n---- Roller # " << roller << " constrain violations\n\n";
-    m_rollers[roller]->LogConstraintViolations();
+    m_wheels[roller]->LogConstraintViolations();
   }
 
   GetLog().SetNumFormat("%g");
@@ -872,12 +889,12 @@ void DriveChain::SaveConstraintViolations(bool include_chain)
   }
 
   // violations of the roller revolute joints
-  for(int roller = 0; roller < m_num_rollers; roller++)
+  for(int w_idx = 0; w_idx < m_num_wheels; w_idx++)
   {
     std::stringstream ss_r;
     ss_r << t;
-    m_rollers[roller]->SaveConstraintViolations(ss_r);
-    ChStreamOutAsciiFile ofileRCV(m_filename_RCV[roller].c_str(), std::ios::app);
+    m_wheels[w_idx]->SaveConstraintViolations(ss_r);
+    ChStreamOutAsciiFile ofileRCV(m_filename_RCV[w_idx].c_str(), std::ios::app);
     ofileRCV << ss_r.str().c_str();
   }
 
@@ -1304,7 +1321,7 @@ void DriveChain::create_fileHeaders(int what)
     }
 
     // violations of the roller revolute joints
-    for(int roller = 0; roller < m_num_rollers; roller++)
+    for(int roller = 0; roller < m_num_wheels; roller++)
     {
       std::stringstream ss_rCV;
       ss_rCV << m_log_file_name << "_roller" << roller << "CV.csv";

@@ -31,7 +31,7 @@
 #include "subsys/idler/IdlerSimple.h"
 #include "subsys/trackChain/TrackChain.h"
 #include "subsys/powertrain/TrackPowertrain.h"
-#include "subsys/idler/SupportRoller.h"
+#include "subsys/suspension/TorsionArmSuspension.h"
 
 namespace chrono {
 
@@ -45,16 +45,17 @@ public:
   DriveChain(const std::string& name,
     VisualizationType::Enum chassisVis = VisualizationType::Primitives,
     CollisionType::Enum chassisCollide = CollisionType::Primitives,
+    double pin_damping_coef = 0,  ///< inter-shoe body revolute joint damping coef., [N-s/m]
+    double tensioner_preload =  1e5,  ///< idler tensioner-spring preload [N]
     size_t num_idlers = 1,
-    size_t num_rollers = 1,
+    size_t num_wheels = 1,
     double gear_mass = 100.0,
     const ChVector<>& gear_inertia = ChVector<>(12.22/4.0, 12.22/4.0, 13.87/4.0) );
 
   ~DriveChain();
   
   /// Initialize the drive chain system
-  virtual void Initialize(const ChCoordsys<>& gear_Csys,   ///< [in] initial config of gear
-    double pin_damping = 0    ///< inter-shoe body revolute joint damping coef., [N-s/m]
+  virtual void Initialize(const ChCoordsys<>& gear_Csys ///< initial config of gear
     ); 
   
   /// Update the vehicle with the new settings for throttle and brake
@@ -171,12 +172,14 @@ protected:
   ChSharedPtr<DriveGear> m_gear;  		///< drive gear
   std::vector<ChSharedPtr<IdlerSimple> >	m_idlers;	///< idler wheel
   size_t m_num_idlers;  ///< number of idlers to create
+  double m_tensioner_preload;  ///< preload to apply to tensioner
   ChSharedPtr<TrackChain> m_chain;    ///< chain
   double m_pin_damping; ///< inter-shoe body pin damping coef, [N-s/m]
 
   ChVector<> m_idlerPosRel;	///< position of idler COG relative to local c-sys
-  std::vector<ChSharedPtr<SupportRoller> > m_rollers;  ///< passive support rollers
-  size_t m_num_rollers;
+  std::vector<ChSharedPtr<TorsionArmSuspension> > m_wheels;  ///< passive support rollers,
+  // or bogie wheels w/ torsion arm-suspension
+  size_t m_num_wheels;
 	
   // I/O stuff
   std::string m_filename_DBG_FIRSTSHOE;     // write to this file, first shoe/pin info
