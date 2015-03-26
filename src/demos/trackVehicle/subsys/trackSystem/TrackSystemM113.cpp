@@ -38,8 +38,8 @@ const ChQuaternion<> TrackSystemM113::m_gearRot(QUNIT);
 // suspension
 const int TrackSystemM113::m_numSuspensions = 5;
 
-TrackSystemM113::TrackSystemM113(const std::string& name, int track_idx)
-  : m_track_idx(track_idx), m_name(name), m_idler_preload(0)
+TrackSystemM113::TrackSystemM113(const std::string& name, int track_idx, double tensioner_preload)
+  : m_track_idx(track_idx), m_name(name), m_idler_preload(tensioner_preload)
 {
   // FILE* fp = fopen(filename.c_str(), "r");
   // char readBuffer[65536];
@@ -66,11 +66,6 @@ void TrackSystemM113::Create(int track_idx)
   m_idler_K = d["Idler"]["SpringK"].GetDouble();
   m_idler_C = d["Idler"]["SpringC"].GetDouble();
 
-  */
-
-  m_idler_preload = 5e3;
-
-  /*
   // Read Drive Gear data
   assert(d.HasMember("Drive Gear"));
   assert(d["Drive Gear"].IsObject());

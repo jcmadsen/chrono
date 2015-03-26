@@ -38,7 +38,7 @@ friend class TrackVehicle;
 public:
 
   /// specify name and a unique track identifier
-  TrackSystemM113(const std::string& filename, int track_idx);
+  TrackSystemM113(const std::string& filename, int track_idx, double tensioner_preload = 1e4);
 
   ~TrackSystemM113() {}
 

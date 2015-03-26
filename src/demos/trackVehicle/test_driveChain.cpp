@@ -66,8 +66,8 @@ using namespace chrono;
 // *****  General system settings
 size_t num_idlers = 1;
 size_t num_wheels = 2;
-double pin_damping_coef = 0.0;  // inter-shoe rev. joint damping coef. [N-s/m]
-double tensioner_preload = 1e4; // idler subsystem tensioner preload [N]
+double pin_damping_coef = 0.1;  // inter-shoe rev. joint damping coef. [N-s/m]
+double tensioner_preload = 5e4; // idler subsystem tensioner preload [N]
 
 // Initial position and heading
 ChVector<> initLoc(0, 1.0, 0);
@@ -75,16 +75,16 @@ ChVector<> initLoc(0, 1.0, 0);
 ChQuaternion<> initRot(QUNIT);
 
 // *****  Simulation step size, end time
-double step_size = 2e-4;
+double step_size = 1e-3;
 // stop at a certain time
 double end_time = 10;  // 99999
 
 // *****  Driver settings
 // Automated simulation controls, applies positive half a sine wave.
 // Otherwise, control throttle with W/S
-bool autopilot = false;
+bool autopilot = true;
 double sineAmp = 0.6;
-double sineFreq = 0.2;
+double sineFreq = 0.3;
 double tStart = 0.1;
 
 // ***** write to console or a file
@@ -103,11 +103,11 @@ std::string save_outDir = "../outdata_driveChain";
 
 // *****  Visualization and camera settings
 // control how often to render a frame, write to file, write to console.
-int FPS = 280; // render Frames Per Second
+int FPS = 60; // render Frames Per Second
 double render_step_size = 1.0 / FPS;  // Time increment for rendered frames
 
 // camera controls, either static or  GUI controlled chase camera:
-bool use_fixed_camera = true;
+bool use_fixed_camera = false;
 // static camera position, global c-sys. (Longitude, Vertical, Lateral)
 ChVector<> fixed_cameraPos(0.2, 1.15, 1.5); // (0.15, 1.15, 1.5);    // 
 

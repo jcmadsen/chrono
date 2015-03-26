@@ -52,6 +52,7 @@ public:
     double mass = 5489.2, // default for M113 APC
     const ChVector<>& Ixx = ChVector<>(1786.9, 10449.7, 10721.2), // default for M113 APC
     double pin_damping_coef = 0.5, // non-zero, since pins between connected shoes always are pin/rubber bushing type elements.
+    double tensioner_preload = 1e4, // idler tensioner preload
     const ChVector<>& left_pos_rel = ChVector<>(0.23644, -0.4780, 0.83475),  // relative to chassis REF c-sys
     const ChVector<>& right_pos_rel = ChVector<>(0.23644, -0.4780, -0.83475)// relative to chassis REF c-sys,
     );
@@ -100,6 +101,7 @@ private:
   const ChVector<> m_trackSys_R;  ///< where to place right track system origin, relative to chassis REF c-sys
   const size_t m_num_tracks;      ///< how many track systems to build
   double m_damping;         ///< damping coef. applied between shoe bodies, to the rev. constraint
+  double m_tensioner_preload;
 
   // static variables
   static const double     mass_override;     // override chassis mass input
