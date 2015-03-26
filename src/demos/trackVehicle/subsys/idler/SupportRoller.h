@@ -68,7 +68,7 @@ private:
 
   // private functions
   void AddVisualization();
-  void AddCollisionGeometry(double z_loc_bar, // lateral coord, local c-sys
+  void AddCollisionGeometry(VehicleSide side = RIGHTSIDE,
     double mu = 0.4,
     double mu_sliding = 0.3,
     double mu_roll = 0.0,

@@ -66,6 +66,8 @@ void SupportRoller::Initialize(ChSharedPtr<ChBody> chassis,
                            const ChFrame<>& chassis_REF,
                            const ChCoordsys<>& local_Csys)
 {
+  // add collision geometry for the wheel
+  (local_Csys.pos.z < 0) ? AddCollisionGeometry(LEFTSIDE) : AddCollisionGeometry();
 
   // get the local frame in the absolute ref. frame
   ChFrame<> frame_to_abs(local_Csys);
@@ -79,9 +81,6 @@ void SupportRoller::Initialize(ChSharedPtr<ChBody> chassis,
   // initialize the revolute joint, add to system
   m_revolute->Initialize(chassis, m_roller, ChCoordsys<>(frame_to_abs.GetPos(), frame_to_abs.GetRot()) );
   chassis->GetSystem()->AddLink(m_revolute);
-
-  // add any collision geometry last
-  AddCollisionGeometry(local_Csys.pos.z);
 
 }
 
@@ -134,7 +133,7 @@ void SupportRoller::AddVisualization()
   }
 }
 
-void SupportRoller::AddCollisionGeometry(double z_loc_bar,
+void SupportRoller::AddCollisionGeometry(VehicleSide side,
                                          double mu,
                                          double mu_sliding,
                                          double mu_roll,
@@ -216,16 +215,15 @@ void SupportRoller::AddCollisionGeometry(double z_loc_bar,
 
   // set collision family, gear is a rolling element like the wheels
   m_roller->GetCollisionModel()->SetFamily((int)CollisionFam::Wheel);
-  // assume z+ is right side
-  if(z_loc_bar >= 0)
+
+  // only collide w/ shoes on the same side of the vehicle
+  if(side == RIGHTSIDE)
   {
     m_roller->GetCollisionModel()->SetFamilyMaskNoCollisionWithFamily((int)CollisionFam::ShoeLeft);
- 
   }
   else
   {
     m_roller->GetCollisionModel()->SetFamilyMaskNoCollisionWithFamily((int)CollisionFam::ShoeRight);
- 
   }
   // don't collide with other rolling elements
   m_roller->GetCollisionModel()->SetFamilyMaskNoCollisionWithFamily((int)CollisionFam::Ground);

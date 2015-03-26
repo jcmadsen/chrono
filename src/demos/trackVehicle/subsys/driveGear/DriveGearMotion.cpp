@@ -86,8 +86,14 @@ void DriveGearMotion::Initialize(ChSharedPtr<ChBody> chassis,
                            const ChCoordsys<>& local_Csys,
                            const std::vector<ChSharedPtr<ChBody> >& shoes)
 {
-
   assert(shoes.size() > 0);
+  
+  // add any collision geometry
+  VehicleSide chassis_side = RIGHTSIDE;
+  if(local_Csys.pos.z < 0)
+    chassis_side = LEFTSIDE;
+
+  AddCollisionGeometry(shoes, chassis_side);
 
   // get the local frame in the absolute ref. frame
   ChFrame<> gear_to_abs(local_Csys);
@@ -102,8 +108,6 @@ void DriveGearMotion::Initialize(ChSharedPtr<ChBody> chassis,
   m_revolute->Initialize(chassis, m_gear, ChCoordsys<>(gear_to_abs.GetPos(), gear_to_abs.GetRot()) );
   chassis->GetSystem()->AddLink(m_revolute);
 
-  // add any collision geometry last, after body is added to the system
-  AddCollisionGeometry(shoes, local_Csys.pos.z);
 }
 
 void DriveGearMotion::Update(double time, double omega_throttle)
@@ -213,7 +217,7 @@ void DriveGearMotion::AddVisualization()
 }
 
 void DriveGearMotion::AddCollisionGeometry(const std::vector<ChSharedPtr<ChBody> >& shoes,
-                                           double z_loc_bar, // lateral coord, local c-sys
+                                           VehicleSide side,
                                            double mu,
                                            double mu_sliding,
                                            double mu_roll,
@@ -411,8 +415,9 @@ void DriveGearMotion::AddCollisionGeometry(const std::vector<ChSharedPtr<ChBody>
 
   // set collision family, gear is a rolling element like the wheels
   m_gear->GetCollisionModel()->SetFamily((int)CollisionFam::Gear);
-  // assume z+ is right side
-  if(z_loc_bar >= 0)
+
+  // only collide w/ shoes on the same side of the vehicle
+  if(side == RIGHTSIDE)
   {
     m_gear->GetCollisionModel()->SetFamilyMaskNoCollisionWithFamily((int)CollisionFam::ShoeLeft);
   }

@@ -145,6 +145,9 @@ void TorsionArmSuspension::Initialize(ChSharedPtr<ChBody> chassis,
                                       const ChFrame<>& chassis_REF,
                                       const ChCoordsys<>& local_Csys)
 {
+  // add collision geometry, for the wheel
+  (local_Csys.pos.z < 0) ? AddCollisionGeometry(LEFTSIDE) : AddCollisionGeometry();
+
   // correct armpin to wheel distance for left/right sides
   if(local_Csys.pos.z < 0)
   {
@@ -201,9 +204,6 @@ void TorsionArmSuspension::Initialize(ChSharedPtr<ChBody> chassis,
   ChVector<> rev_pos_abs = (wheel_COG_abs.GetPos() - pin2_abs.GetPos())/2.0 + pin2_abs.GetPos();
   m_armWheel_rev->Initialize(m_wheel, m_arm, ChCoordsys<>(rev_pos_abs, wheel_COG_abs.GetRot()) );
   chassis->GetSystem()->AddLink(m_armWheel_rev);
-
-   // add collision geometry last, for the wheel
-  AddCollisionGeometry(local_Csys.pos.z);
 }
 
 /// add a cylinder to model the torsion bar arm and the wheel
@@ -269,7 +269,7 @@ void TorsionArmSuspension::AddVisualization()
 }
 
 /// only the road wheels are used for collision
-void TorsionArmSuspension::AddCollisionGeometry(double z_loc_bar,
+void TorsionArmSuspension::AddCollisionGeometry(VehicleSide side,
                             double mu,
                             double mu_sliding,
                             double mu_roll,
@@ -351,16 +351,15 @@ void TorsionArmSuspension::AddCollisionGeometry(double z_loc_bar,
 
   // setup collision family, road wheel is a rolling element
   m_wheel->GetCollisionModel()->SetFamily((int)CollisionFam::Wheel);
-  // assume z+ is right side
-  if(z_loc_bar >= 0)
+
+  // only collide w/ shoes on the same side of the vehicle
+  if(side == RIGHTSIDE)
   {
     m_wheel->GetCollisionModel()->SetFamilyMaskNoCollisionWithFamily((int)CollisionFam::ShoeLeft);
- 
   }
   else
   {
     m_wheel->GetCollisionModel()->SetFamilyMaskNoCollisionWithFamily((int)CollisionFam::ShoeRight);
- 
   }
 
   // don't collide with the other rolling elements

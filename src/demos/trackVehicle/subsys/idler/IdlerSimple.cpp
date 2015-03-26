@@ -137,6 +137,9 @@ void IdlerSimple::Initialize(ChSharedPtr<ChBody> chassis,
                              const ChCoordsys<>& local_Csys,
                              double preLoad)
 {
+  // add collision geometry for the idler wheel
+  (local_Csys.pos.z < 0) ? AddCollisionGeometry(LEFTSIDE) : AddCollisionGeometry();
+
   // Express the reference frame in the absolute coordinate system.
   ChFrame<> idler_to_abs(local_Csys);
   idler_to_abs.ConcatenatePreTransformation(chassis_REF);
@@ -173,8 +176,6 @@ void IdlerSimple::Initialize(ChSharedPtr<ChBody> chassis,
 
   chassis->GetSystem()->AddLink(m_shock);
 
-  // add collision geometry last
-  AddCollisionGeometry(local_Csys.pos.z);
 }
 
 void IdlerSimple::AddVisualization(size_t chain_idx,
@@ -242,7 +243,7 @@ void IdlerSimple::AddVisualization(size_t chain_idx,
   } // end switch
 }
 
-void IdlerSimple::AddCollisionGeometry(double z_loc_bar, // lateral coord, local c-sys
+void IdlerSimple::AddCollisionGeometry(VehicleSide side,
                                        double mu,
                                        double mu_sliding,
                                        double mu_roll,
@@ -322,8 +323,9 @@ void IdlerSimple::AddCollisionGeometry(double z_loc_bar, // lateral coord, local
 
   // setup collision family, idler is a rolling element
   m_idler->GetCollisionModel()->SetFamily( (int)CollisionFam::Wheel );
-  // assume z+ is right side, x+ points forward, y+ up
-  if(z_loc_bar >= 0)
+
+  // only collide w/ shoes on the same side of the vehicle
+  if(side == RIGHTSIDE)
   {
     m_idler->GetCollisionModel()->SetFamilyMaskNoCollisionWithFamily((int)CollisionFam::ShoeLeft);
   }

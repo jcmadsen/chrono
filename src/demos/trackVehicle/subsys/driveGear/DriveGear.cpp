@@ -90,8 +90,14 @@ void DriveGear::Initialize(ChSharedPtr<ChBody> chassis,
                            const ChCoordsys<>& local_Csys,
                            const std::vector<ChSharedPtr<ChBody> >& shoes)
 {
-
   assert(shoes.size() > 0);
+
+  // add collision geometry
+  VehicleSide chassis_side = RIGHTSIDE;
+  if( local_Csys.pos.z < 0)
+    chassis_side = LEFTSIDE;
+
+  AddCollisionGeometry(shoes, chassis_side);
 
   // get the local frame in the absolute ref. frame
   ChFrame<> gear_to_abs(local_Csys);
@@ -110,9 +116,6 @@ void DriveGear::Initialize(ChSharedPtr<ChBody> chassis,
   chassis->GetSystem()->Add(m_axle);
   m_axle_to_gear->Initialize(m_axle, m_gear, VECT_Z);
   chassis->GetSystem()->Add(m_axle_to_gear);
-
-  // add collision geometry last, after body is added to the system.
-  AddCollisionGeometry(shoes, local_Csys.pos.z);
 }
 
 void DriveGear::AddVisualization()
@@ -215,7 +218,7 @@ void DriveGear::AddVisualization()
 }
 
 void DriveGear::AddCollisionGeometry(const std::vector<ChSharedPtr<ChBody> >& shoes,
-                                     double z_loc_bar, // lateral coord, local c-sys
+                                     VehicleSide side,
                                      double mu,
                                      double mu_sliding,
                                      double mu_roll,
@@ -372,6 +375,9 @@ void DriveGear::AddCollisionGeometry(const std::vector<ChSharedPtr<ChBody> >& sh
     }
 
     
+
+    /*
+
     // NOTE: Custom callback doesn't work well when there is interpenetration,
     //    which tends to happen to whatever shoe pin is directly opposite from the idler,
     //    and takes a large fraction of the tensioning force.
@@ -390,6 +396,9 @@ void DriveGear::AddCollisionGeometry(const std::vector<ChSharedPtr<ChBody> >& sh
       m_gearPinGeom.gear_base_radius,
       0.5*m_gearPinGeom.tooth_width,
       shape_offset, Q_from_AngAxis(CH_C_PI_2,VECT_X));
+
+
+    */
 
     // a custom callback function to find the pin-gear seat collision, analytically
     m_gearPinGeom = GearPinGeometry();
@@ -413,11 +422,10 @@ void DriveGear::AddCollisionGeometry(const std::vector<ChSharedPtr<ChBody> >& sh
 
   // set collision family, gear is a rolling element like the wheels
   m_gear->GetCollisionModel()->SetFamily((int)CollisionFam::Gear);
-  // assume z+ is right side
-  if(z_loc_bar >= 0)
+
+  if(side == RIGHTSIDE)
   {
     m_gear->GetCollisionModel()->SetFamilyMaskNoCollisionWithFamily((int)CollisionFam::ShoeLeft);
-
   }
   else
   {

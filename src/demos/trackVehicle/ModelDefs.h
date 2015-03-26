@@ -63,6 +63,13 @@ namespace CollisionFam
   };
 }
 
+// to specify if the part is on the right or left side,
+// relative to the chassis when facing forward.
+enum VehicleSide {
+  RIGHTSIDE,
+  LEFTSIDE
+};
+
 enum DebugInformation {
   DBG_FIRSTSHOE   = 1 << 0,
   DBG_GEAR        = 1 << 1,

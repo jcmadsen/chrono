@@ -66,8 +66,8 @@ using namespace chrono;
 // *****  General system settings
 size_t num_idlers = 1;
 size_t num_wheels = 2;
-double pin_damping_coef = 0.1;  // inter-shoe rev. joint damping coef. [N-s/m]
-double tensioner_preload = 5e4; // idler subsystem tensioner preload [N]
+double pin_damping_coef = 0.0;  // inter-shoe rev. joint damping coef. [N-s/m]
+double tensioner_preload = 2e4; // idler subsystem tensioner preload [N]
 
 // Initial position and heading
 ChVector<> initLoc(0, 1.0, 0);
@@ -82,7 +82,7 @@ double end_time = 10;  // 99999
 // *****  Driver settings
 // Automated simulation controls, applies positive half a sine wave.
 // Otherwise, control throttle with W/S
-bool autopilot = true;
+bool autopilot = false;
 double sineAmp = 0.6;
 double sineFreq = 0.2;
 double tStart = 0.1;
@@ -109,10 +109,10 @@ double render_step_size = 1.0 / FPS;  // Time increment for rendered frames
 // camera controls, either static or  GUI controlled chase camera:
 bool use_fixed_camera = true;
 // static camera position, global c-sys. (Longitude, Vertical, Lateral)
-ChVector<> fixed_cameraPos(0.5, 1.15, 1.5); // (0.15, 1.15, 1.5);    // 
+ChVector<> fixed_cameraPos(0.2, 1.15, 1.5); // (0.15, 1.15, 1.5);    // 
 
 // Both cameras track this point, relative to the center of the gear
-ChVector<> trackPoint(-1, 0, 0.0);
+ChVector<> trackPoint(0, 0, 0.0);
 
 // if chase cam enabled:
 double chaseDist = 2.5;

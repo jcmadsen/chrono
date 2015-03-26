@@ -117,8 +117,8 @@ DriveChain::DriveChain(const std::string& name,
     tensioner_C) );
 
   // track chain system
-  double shoe_mass = 18.03/4.0; // 18.03
-  ChVector<> shoe_Ixx(0.22/4.0, 0.25/4.0, 0.04/4.0);  // 0.22, 0.25, 0.04
+  double shoe_mass = 18.03/6.0; // 18.03
+  ChVector<> shoe_Ixx(0.22/6.0, 0.25/6.0, 0.04/6.0);  // 0.22, 0.25, 0.04
   m_chain = ChSharedPtr<TrackChain>(new TrackChain("chain",
     VisualizationType::CompoundPrimitives,
     CollisionType::Primitives,
@@ -194,7 +194,7 @@ void DriveChain::Initialize(const ChCoordsys<>& gear_Csys)
 {
   // initialize the drive gear, idler and track chain
   // m_idlerPosRel = m_idlerPos;
-  m_idlerPosRel = ChVector<>(-2.5, -0.15, 0);
+  m_idlerPosRel = ChVector<>(-2.4, -0.15, 0);
   m_chassis->SetFrame_REF_to_abs(ChFrame<>(gear_Csys.pos, gear_Csys.rot));
   
   // Create list of the center location of the rolling elements and their clearance.

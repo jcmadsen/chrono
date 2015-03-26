@@ -108,15 +108,15 @@ private:
     const std::string& tex_name = "none");
 
   /// add collision geometry to the last shoe added
-  void AddCollisionGeometry(double z_loc_bar, // lateral coord, local c-sys
+  void AddCollisionGeometry(VehicleSide side,
                             double mu = 0.6,
                             double mu_sliding = 0.5,
                             double mu_roll = 0,
                             double mu_spin = 0);
 
   /// add collision geometrey to a certain track shoe
-  void AddCollisionGeometry(size_t track_idx,
-                            double z_loc_bar, // lateral coord, local c-sys
+  void AddCollisionGeometry(VehicleSide side,
+                            size_t track_idx,
                             double mu = 0.6,
                             double mu_sliding = 0.5,
                             double mu_roll = 0,
