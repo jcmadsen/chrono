@@ -120,7 +120,9 @@ void TrackVehicle::Initialize(const ChCoordsys<>& chassis_Csys)
   // initialize the subsystems with the initial c-sys and specified offsets
   for (int i = 0; i < m_num_tracks; i++)
   {
-    m_TrackSystems[i]->Initialize(m_chassis, m_TrackSystem_locs[i], m_pin_damping);
+    m_TrackSystems[i]->Initialize(m_chassis, m_TrackSystem_locs[i], 
+      dynamic_cast<ChTrackVehicle*>(this),
+      m_pin_damping);
   }
 
   // initialize the powertrain, drivelines

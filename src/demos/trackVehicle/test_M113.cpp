@@ -15,7 +15,7 @@
 //   Simulate by GUI input to an irrlicht EventReceiver.
 //   Y-up, X-forward, Z-lateral global c-sys
 //
-//	 Author: Justin Madsen, 2014
+//	 Author: Justin Madsen, 2015
 ///////////////////////////////////////////////////
   
  
@@ -57,7 +57,7 @@ using namespace core;
 // display the 1) system heirarchy, 2) a set of subsystem hardpoints, 3) constraint violations
 // #define DEBUG_LOG 
 
-
+double tensioner_preload = 5e4; // idler subsystem tensioner preload [N]
 double pin_damping_coef = 0.2;  // apply pin damping between connected shoes
 // Initial vehicle position and heading. Defines the REF frame for the hull body
 ChVector<> initLoc(0, 1.0, 0);
@@ -73,16 +73,21 @@ double mu = 0.67;  // dry friction coef.
 double step_size = 1e-3;
 
 // Time interval between two render frames
-int FPS = 80;
+int FPS = 280;
 double render_step_size = 1.0 / FPS;   // FPS = 50
 // Time interval between two output frames
 double output_step_size = 1.0 / 1;    // once a second
 
 // #ifdef USE_IRRLICHT
+// camera controls, either static or  GUI controlled chase camera:
+bool use_fixed_camera = true;
+// static camera position, global c-sys. (Longitude, Vertical, Lateral)
+ChVector<> fixed_cameraPos(2, 1.15, 3); // (0.15, 1.15, 1.5);    // 
   // Point on chassis tracked by the camera
 double chaseDist = 3.0;
 double chaseHeight = 0.5;
-ChVector<> trackPoint(1.0, -0.7, 0);
+// relative to center of chassis
+ChVector<> trackPoint(1.0, -0.5, 1);
 
 bool do_shadows = false; // shadow map is experimental
   /*
@@ -136,7 +141,8 @@ int main(int argc, char* argv[])
     CollisionType::None,
     5489.2 / 5.0,
     ChVector<>(1786.9/5.0, 10449.7/5.0, 10721.2/5.0),
-    pin_damping_coef);
+    pin_damping_coef,
+    tensioner_preload);
   
   // set the chassis REF at the specified initial config.
   vehicle.Initialize(ChCoordsys<>(initLoc, initRot));
@@ -182,7 +188,8 @@ int main(int argc, char* argv[])
 
   // the GUI driver
   ChIrrGuiTrack driver(application, vehicle, trackPoint, chaseDist, chaseHeight);
-
+  if(use_fixed_camera)
+    driver.SetCameraPos(fixed_cameraPos);
   // Set the time response for steering and throttle keyboard inputs.
   // NOTE: this is not exact, since we do not render quite at the specified FPS.
   double steering_time = 1.0;  // time to go from 0 to +1 (or from 0 to -1)
@@ -262,7 +269,7 @@ int main(int argc, char* argv[])
     // Advance simulation for one timestep for all modules
     // double step = realtime_timer.SuggestSimulationStep(step_size);
 
-    driver.Advance(step_size);
+    use_fixed_camera ? driver.Advance(step_size, fixed_cameraPos): driver.Advance(step_size);
 
     // SETTLING FOLLOWED BY NORMAL OPERATION STEP SIZES HARDCODED
     // 1e-5 and 1e-4, respectively

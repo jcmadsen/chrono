@@ -164,6 +164,7 @@ void TrackSystem::BuildSubsystems()
 
 void TrackSystem::Initialize(ChSharedPtr<ChBodyAuxRef> chassis,
 			 const ChVector<>&  local_pos,
+       ChTrackVehicle* vehicle,
        double pin_damping)
 {
   m_local_pos = local_pos;
@@ -241,7 +242,8 @@ void TrackSystem::Initialize(ChSharedPtr<ChBodyAuxRef> chassis,
   m_driveGear->Initialize(chassis, 
     chassis->GetFrame_REF_to_abs(),
     ChCoordsys<>(m_local_pos + Get_gearPosRel(), QUNIT),
-    m_chain->GetShoeBody() );
+    m_chain->GetShoeBody(),
+    vehicle);
 
 }
 

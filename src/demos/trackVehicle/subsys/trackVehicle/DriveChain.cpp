@@ -221,8 +221,8 @@ void DriveChain::Initialize(const ChCoordsys<>& gear_Csys)
   for(int r_idx = 0; r_idx < m_num_wheels; r_idx++)
   {
     ChVector<> armConnection_loc = m_chassis->GetPos();
-    armConnection_loc.y = -0.7;
-    armConnection_loc.x = gear_Csys.pos.x - 0.2 - r_idx*spacing/2.0;
+    armConnection_loc.y = -0.7 - r_idx*0.2;
+    armConnection_loc.x = gear_Csys.pos.x - r_idx*spacing/2.0;
 
     m_wheels[r_idx]->Initialize(m_chassis,
       m_chassis->GetFrame_REF_to_abs(),
@@ -278,7 +278,8 @@ void DriveChain::Initialize(const ChCoordsys<>& gear_Csys)
   m_gear->Initialize(m_chassis, 
     m_chassis->GetFrame_REF_to_abs(),
     ChCoordsys<>(),
-    m_chain->GetShoeBody() );
+    m_chain->GetShoeBody(),
+    dynamic_cast<ChTrackVehicle*>(this) );
 
   // initialize the powertrain, drivelines
   m_ptrains[0]->Initialize(m_chassis, m_gear->GetAxle() );
@@ -1048,13 +1049,13 @@ void DriveChain::Log_to_console(int console_what)
   
   }
 
-  if(console_what & DBG_COLLISIONCALLBACK & (m_gear->GetCollisionCallback() != NULL) )
+  if(console_what & DBG_COLLISIONCALLBACK & ( GetCollisionCallback() != NULL) )
   {
     GetLog() << "\n ---- collision callback info :"
-      << "\n Contacts this step: " << m_gear->GetCollisionCallback()->GetNcontacts()
-      << "\n Broadphase passed this step: " << m_gear->GetCollisionCallback()->GetNbroadPhasePassed()
-      << "\n Sum contacts, +z side: " << m_gear->GetCollisionCallback()->Get_sum_Pz_contacts()
-      << "\n Sum contacts, -z side: " << m_gear->GetCollisionCallback()->Get_sum_Nz_contacts()
+      << "\n Contacts this step: " << GetCollisionCallback()->GetNcontacts()
+      << "\n Broadphase passed this step: " << GetCollisionCallback()->GetNbroadPhasePassed()
+      << "\n Sum contacts, +z side: " << GetCollisionCallback()->Get_sum_Pz_contacts()
+      << "\n Sum contacts, -z side: " << GetCollisionCallback()->Get_sum_Nz_contacts()
       <<"\n";
   }
 
@@ -1202,15 +1203,15 @@ void DriveChain::Log_to_file()
       ofilePT << ss_pt.str().c_str();
     }
 
-    if( m_log_what_to_file & DBG_COLLISIONCALLBACK & (m_gear->GetCollisionCallback() != NULL) )
+    if( m_log_what_to_file & DBG_COLLISIONCALLBACK & (GetCollisionCallback() != NULL) )
     {
       std::stringstream ss_cc;
       // report # of contacts detected this step between shoe pins # gear.
       // time,Ncontacts,Nbroadphase,NcPz,NcNz
-      ss_cc << t <<","<< m_gear->GetCollisionCallback()->GetNcontacts()
-        <<","<< m_gear->GetCollisionCallback()->GetNbroadPhasePassed()
-        <<","<< m_gear->GetCollisionCallback()->Get_sum_Pz_contacts()
-        <<","<< m_gear->GetCollisionCallback()->Get_sum_Nz_contacts()
+      ss_cc << t <<","<< GetCollisionCallback()->GetNcontacts()
+        <<","<< GetCollisionCallback()->GetNbroadPhasePassed()
+        <<","<< GetCollisionCallback()->Get_sum_Pz_contacts()
+        <<","<< GetCollisionCallback()->Get_sum_Nz_contacts()
         <<"\n";
       ChStreamOutAsciiFile ofileCCBACK(m_filename_DBG_COLLISIONCALLBACK.c_str(), std::ios::app);
       ofileCCBACK << ss_cc.str().c_str();
@@ -1347,7 +1348,7 @@ void DriveChain::create_fileHeaders(int what)
   }
 
   // write broadphase, narrow phase contact info
-  if(what & DBG_COLLISIONCALLBACK & (m_gear->GetCollisionCallback() != NULL) )
+  if(what & DBG_COLLISIONCALLBACK & (GetCollisionCallback() != NULL) )
   {
     m_filename_DBG_COLLISIONCALLBACK = m_log_file_name+"_Ccallback.csv";
     ChStreamOutAsciiFile ofileDBG_COLLISIONCALLBACK(m_filename_DBG_COLLISIONCALLBACK.c_str());

@@ -38,7 +38,7 @@ friend class TrackVehicle;
 public:
 
   /// specify name and a unique track identifier
-  TrackSystemM113(const std::string& filename, int track_idx);
+  TrackSystemM113(const std::string& filename, int track_idx, double tensioner_preload = 1e4);
 
   ~TrackSystemM113() {}
 
@@ -47,9 +47,10 @@ public:
   /// of the chassis). It is assumed that the suspension reference frame is
   /// always aligned with the chassis reference frame.
   void Initialize(ChSharedPtr<ChBodyAuxRef> chassis,
-				 const ChVector<>&         location,
-         double pin_damping = 0 ///< damping coef. between connected shoe pads
-         );
+    const ChVector<>& location,
+    ChTrackVehicle* vehicle,
+    double pin_damping = 0 ///< damping coef. between connected shoe pads
+    );
 
   void Create(int track_idx);
 

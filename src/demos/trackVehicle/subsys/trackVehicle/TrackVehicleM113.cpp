@@ -47,14 +47,16 @@ TrackVehicleM113::TrackVehicleM113(const std::string& name,
                            CollisionType::Enum chassisCollide,
                            double mass,
                            const ChVector<>& Ixx,
-                            double pin_damping_coef,
+                           double pin_damping_coef,
+                           double tensioner_preload,
                            const ChVector<>& left_pos_rel,
                            const ChVector<>& right_pos_rel
 ): ChTrackVehicle(name, chassisVis, chassisCollide, mass, Ixx, 1),
   m_num_tracks(2),
   m_trackSys_L(left_pos_rel),
   m_trackSys_R(right_pos_rel),
-  m_damping(pin_damping_coef)
+  m_damping(pin_damping_coef),
+  m_tensioner_preload(tensioner_preload)
 {
   // Solver variables
   m_system->SetIterLCPomega(0.9);
@@ -97,7 +99,7 @@ TrackVehicleM113::TrackVehicleM113(const std::string& name,
   for (int i = 0; i < m_num_tracks; i++) {
     std::stringstream t_ss;
     t_ss << "track chain " << i;
-    m_TrackSystems[i] = ChSharedPtr<TrackSystemM113>(new TrackSystemM113(t_ss.str(), i) );
+    m_TrackSystems[i] = ChSharedPtr<TrackSystemM113>(new TrackSystemM113(t_ss.str(), i, m_tensioner_preload) );
   }
   
   // create the powertrain and drivelines
@@ -136,7 +138,9 @@ void TrackVehicleM113::Initialize(const ChCoordsys<>& chassis_Csys)
   // initialize the subsystems with the initial c-sys and specified offsets
   for (int i = 0; i < m_num_tracks; i++)
   {
-    m_TrackSystems[i]->Initialize(m_chassis, m_TrackSystem_locs[i], m_damping);
+    m_TrackSystems[i]->Initialize(m_chassis, m_TrackSystem_locs[i],
+      dynamic_cast<ChTrackVehicle*>(this),
+      m_damping);
   }
 
   // initialize the powertrain, drivelines

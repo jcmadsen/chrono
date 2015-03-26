@@ -15,7 +15,7 @@
 //   Simulate by GUI input to an irrlicht EventReceiver.
 //   Y-up, X-forward, Z-lateral global c-sys
 //
-//	 Author: Justin Madsen, 2014
+//	 Author: Justin Madsen, 2015
 ///////////////////////////////////////////////////
   
  
