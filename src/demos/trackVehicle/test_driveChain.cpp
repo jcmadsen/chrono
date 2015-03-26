@@ -67,7 +67,7 @@ using namespace chrono;
 size_t num_idlers = 1;
 size_t num_wheels = 2;
 double pin_damping_coef = 0.0;  // inter-shoe rev. joint damping coef. [N-s/m]
-double tensioner_preload = 2e4; // idler subsystem tensioner preload [N]
+double tensioner_preload = 1e4; // idler subsystem tensioner preload [N]
 
 // Initial position and heading
 ChVector<> initLoc(0, 1.0, 0);
@@ -75,7 +75,7 @@ ChVector<> initLoc(0, 1.0, 0);
 ChQuaternion<> initRot(QUNIT);
 
 // *****  Simulation step size, end time
-double step_size = 1e-3;
+double step_size = 2e-4;
 // stop at a certain time
 double end_time = 10;  // 99999
 
@@ -103,7 +103,7 @@ std::string save_outDir = "../outdata_driveChain";
 
 // *****  Visualization and camera settings
 // control how often to render a frame, write to file, write to console.
-int FPS = 80; // render Frames Per Second
+int FPS = 280; // render Frames Per Second
 double render_step_size = 1.0 / FPS;  // Time increment for rendered frames
 
 // camera controls, either static or  GUI controlled chase camera:
