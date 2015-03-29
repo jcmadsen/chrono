@@ -142,7 +142,7 @@ public:
   /// return the contant part of the damping (if any)
   virtual double GetShoePinDamping() const {return 0;}
   
-  virtual const GearPinCollisionCallback<ChContactContainerBase>* GetCollisionCallback() const { return m_gearPinContact; }
+  virtual const GearPinCollisionCallback<ChContactContainerBase>* GetCollisionCallback() const { return m_gearPin_CollisionCallback; }
 
   // Log data, constraint violations, etc. to console (ChLog), or a file (
 
@@ -193,8 +193,8 @@ protected:
   const size_t m_num_engines;  ///< can support multiple powertrain/drivetrains
   std::vector<ChSharedPtr<TrackPowertrain> >  m_ptrains;  ///< powertrain system, one per track system
 
-  // data container for callback collision function
-  GearPinCollisionCallback<ChContactContainerBase> *m_gearPinContact;
+  // Custom collision class for gear and shoe pin geometry with non-convex analytically defined shapes
+  GearPinCollisionCallback<ChContactContainerBase> *m_gearPin_CollisionCallback;
 
   // output/Log variables
   bool  m_save_log_to_file;    ///< save the DebugLog() info to file? default false

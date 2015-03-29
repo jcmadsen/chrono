@@ -47,7 +47,7 @@ ChTrackVehicle::ChTrackVehicle(const std::string& name,
 : m_ownsSystem(true),
   m_vis(vis),
   m_collide(collide),
-  m_gearPinContact(0),
+  m_gearPin_CollisionCallback(0),
   m_num_engines(num_engines),
   m_stepsize(step_size),
   m_save_log_to_file(false), // save the DebugLog() info to file? default false
@@ -99,7 +99,7 @@ ChTrackVehicle::ChTrackVehicle(ChSystem* system,
   m_system(system),
   m_vis(vis),
   m_collide(collide),
-  m_gearPinContact(collision_callback),
+  m_gearPin_CollisionCallback(collision_callback),
   m_num_engines(num_engines),
   m_stepsize(system->GetStep()),
   m_save_log_to_file(false), // save the DebugLog() info to file? default false
@@ -128,6 +128,10 @@ ChTrackVehicle::~ChTrackVehicle()
 {
   if (m_ownsSystem)
     delete m_system;
+  // question: collision callback is created on the stack in here, but passed to the
+  //  ChSystem at some point. Will the ChSystem delete it for me?? 
+  if(m_gearPin_CollisionCallback)
+    delete m_gearPin_CollisionCallback;
 }
 
 
@@ -146,13 +150,19 @@ void ChTrackVehicle::Advance(double step)
 
 
 // Add the bodies to a collision callback for gear/pins
-void ChTrackVehicle::AddGearPinCollisionCallback(const std::vector<ChSharedPtr<ChBody> >& m_shoes,
+void ChTrackVehicle::AddGearPinCollisionCallback(const std::vector<ChSharedPtr<ChBody> >& shoes,
                           ChSharedPtr<ChBody> gear,
                           ChSharedPtr<GearPinGeometry> geom)
 {
-  // first time adding 
-  if(m_gearPinContact == 0)
-    m_gearPinContact = new GearPinCollisionCallback<ChContactContainerBase>(0.003);
+  // first time adding a gear & chain of shoe bodies, create the custom callback class
+  if(m_gearPin_CollisionCallback == 0)
+  {
+    m_gearPin_CollisionCallback = new GearPinCollisionCallback<ChContactContainerBase>(0.003);
+    // add the collision callback to the system
+    m_system->SetCustomComputeCollisionCallback(m_gearPin_CollisionCallback);
+  }
+  // add the handles to the relevant bodies to the callback class
+  m_gearPin_CollisionCallback->AddGearChain(shoes, gear, geom);
 }
 
 // -----------------------------------------------------------------------------

@@ -96,14 +96,14 @@ double tStart = 0.1;
 int what_to_save = DBG_FIRSTSHOE | DBG_GEAR | DBG_COLLISIONCALLBACK | DBG_PTRAIN; // | DBG_IDLER  | DBG_CONSTRAINTS;
 int what_to_console = DBG_PTRAIN | DBG_GEAR;  // DBG_COLLISIONCALLBACK | DBG_CONSTRAINTS | DBG_IDLER | DBG_FIRSTSHOE;
 // int what_to_console = DBG_ALL_CONTACTS;
-double save_step_size = 1e-3;  // Time interval for writing data to file, don't exceed 1 kHz.
+double save_step_size = 1e-4;  // Time interval for writing data to file, don't exceed 1 kHz.
 double console_step_size = 1.0;       // time interval for writing data to console
 std::string save_filename = "driveChain_CC";
 std::string save_outDir = "../outdata_driveChain";
 
 // *****  Visualization and camera settings
 // control how often to render a frame, write to file, write to console.
-int FPS = 80; // render Frames Per Second
+int FPS = 280; // render Frames Per Second
 double render_step_size = 1.0 / FPS;  // Time increment for rendered frames
 
 // camera controls, either static or  GUI controlled chase camera:
