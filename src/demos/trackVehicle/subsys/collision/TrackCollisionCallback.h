@@ -231,12 +231,12 @@ class GearPinCollisionCallback : public ChSystem::ChCustomComputeCollisionCallba
 			 
     // fill the contact container with info
 		collision::ChCollisionInfo mcont;
-		mcont.modelA = m_gear->GetCollisionModel();
-		mcont.modelB = m_shoes[shoeID]->GetCollisionModel();
+		mcont.modelA = m_gears[p_idx]->GetCollisionModel();
+		mcont.modelB = (m_shoes[p_idx][shoeID])->GetCollisionModel();
     // passed in contact points, normal, w.r.t. gear c-sys
-    mcont.vN = m_gear->GetRot().Rotate(vnGear_bar);
-    mcont.vpA = m_gear->GetPos() + m_gear->GetRot().Rotate(pGear_bar);
-    mcont.vpB = m_gear->GetPos() + m_gear->GetRot().Rotate(pPin_bar);
+    mcont.vN = m_gears[p_idx]->GetRot().Rotate(vnGear_bar);
+    mcont.vpA = m_gears[p_idx]->GetPos() + m_gears[p_idx]->GetRot().Rotate(pGear_bar);
+    mcont.vpB = m_gears[p_idx]->GetPos() + m_gears[p_idx]->GetRot().Rotate(pPin_bar);
     // contact normal is found in gear c-sys and always points normal to gear surface.
     // find the distance using a dot product; will be positive
     // if the contact was found early (e.g., still a non-zero gap)
@@ -245,7 +245,7 @@ class GearPinCollisionCallback : public ChSystem::ChCustomComputeCollisionCallba
 
     // increment the counter, add the contact
     m_Ncontacts++;
-		(m_gear->GetSystem()->GetContactContainer())->AddContact(mcont);
+		(m_gears[p_idx]->GetSystem()->GetContactContainer())->AddContact(mcont);
 	}
 
   // true when radial dist. from center of gear to pins on either side of shoe, in gear c-sys,
@@ -320,7 +320,8 @@ class GearPinCollisionCallback : public ChSystem::ChCustomComputeCollisionCallba
       Found_GearPin_Contact(contact_pos_gear_bar,
         contact_pos_pin_bar,
         contact_normal_Gear_bar,
-        shoe_ID);
+        shoe_ID,
+        p_idx);
 
       return true;
     }
