@@ -382,6 +382,7 @@ void DriveGear::AddCollisionGeometry(const std::vector<ChSharedPtr<ChBody> >& sh
     return;
   } // end switch
 
+
   // set collision family, gear is a rolling element like the wheels
   m_gear->GetCollisionModel()->SetFamily((int)CollisionFam::Gear);
 

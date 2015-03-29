@@ -149,50 +149,54 @@ class GearPinCollisionCallback : public ChSystem::ChCustomComputeCollisionCallba
     // two endpoints of cylinder pin, w.r.t. shoe c-sys. 
     // SYMMETRIC ABOUT XY PLANE (e.g., check for contact for -z)
     // point 1 = inner, 2 = outer
-    m_pin_pos_bar.push_back( ChVector<>(geom.pin_x_offset,
-      geom.pin_y_offset,
-      0.5*(geom.pin_width_min + geom.pin_width) ) );
+    m_pin_pos_bar.push_back( ChVector<>(geom->pin_x_offset,
+      geom->pin_y_offset,
+      0.5*(geom->pin_width_min + geom->pin_width) ) );
 
     // two endpoints of  the seat cylinder (there are as many as gear teeth
     // SYMMETRIC ABOUT XY PLANE (e.g., check for contact for -z)
     // point 1 = inner, 2 = outer
     m_seat_pos_bar.push_back( ChVector<>(0,
-      geom.gear_base_radius,
-      0.5*(geom.gear_seat_width_min + geom.gear_seat_width) ) );
+      geom->gear_base_radius,
+      0.5*(geom->gear_seat_width_min + geom->gear_seat_width) ) );
 
     // Gear broadphase collision shape is a cylinder that circumscribes corners
     //  of the tooth in the XY plane, z is gear rot axis.
-    ChVector<> tooth_mid_XY_bar = geom.tooth_mid_bar;
+    ChVector<> tooth_mid_XY_bar = geom->tooth_mid_bar;
     tooth_mid_XY_bar.z = 0;
-    tooth_mid_XY_bar.x += 0.5*geom.tooth_len;
+    tooth_mid_XY_bar.x += 0.5*geom->tooth_len;
     m_bound_rad_Gear.push_back( tooth_mid_XY_bar.Length() + m_envelope );
     
     // Shoe pin broadphase collision shape is a cylinder at each pin COG
     // apply one to each side of the shoe body
-    m_bound_rad_Pin.push_back( geom.pin_radius + m_envelope);
+    m_bound_rad_Pin.push_back( geom->pin_radius + m_envelope);
 
     // if the center of the pin and gear, in the XY gear c-sys, are less than this value, passes broad phase
-    m_bound_broadphase.push_back( m_bound_rad_Gear + m_bound_rad_Pin); // includes the outward envelope
+    m_bound_broadphase.push_back( m_bound_rad_Gear.back() + m_bound_rad_Pin.back() ); // includes the outward envelope
 
     // the bounding concave section needs to include an outward envelope, which reduces the concave 
     //  circle radius
-    m_bound_gear_seat_rad.push_back( geom.gear_concave_radius - m_envelope);
+    m_bound_gear_seat_rad.push_back( geom->gear_concave_radius - m_envelope);
     
     // the two vectors for the r1r2_dot_limit value
 
     // r2: gear_seat_bar, XY-gear plane
-    ChVector<> gear_seat_bar_XY = m_seat_pos_bar;
+    ChVector<> gear_seat_bar_XY = m_seat_pos_bar.back() ;
     gear_seat_bar_XY.z = 0;
     // pitch circle pos, XY-gear plane
     ChVector<> pitch_bar_XY = gear_seat_bar_XY;
     pitch_bar_XY.z = 0;
     // center of the pitch circle should just be radially outward from the seat position, XY gear plane.
-    pitch_bar_XY *= (geom.gear_pitch_radius / geom.gear_base_radius);
-    ChVector<> r_pitch_corner_bar_XY = geom.tooth_mid_bar - pitch_bar_XY;
+    pitch_bar_XY *= (geom->gear_pitch_radius / geom->gear_base_radius);
+    ChVector<> r_pitch_corner_bar_XY = geom->tooth_mid_bar - pitch_bar_XY;
     r_pitch_corner_bar_XY.z = 0;
 
     // negative when pin center is radially inwards from the pitch circle center pos, the direction of imortance.
     m_r1r2_dot_limit.push_back( Vdot(r_pitch_corner_bar_XY, gear_seat_bar_XY) );
+
+    // resize any vectors/lists as needed
+    m_sum_Pz_contacts.resize(m_geom.size() ); // curious about Pz/Nz contacts overall
+    m_sum_Nz_contacts.resize(m_geom.size() );
   }
 
 	~GearPinCollisionCallback()
@@ -231,12 +235,12 @@ class GearPinCollisionCallback : public ChSystem::ChCustomComputeCollisionCallba
 			 
     // fill the contact container with info
 		collision::ChCollisionInfo mcont;
-		mcont.modelA = m_gear->GetCollisionModel();
-		mcont.modelB = m_shoes[shoeID]->GetCollisionModel();
+		mcont.modelA = m_gears[p_idx]->GetCollisionModel();
+		mcont.modelB = (m_shoes[p_idx][shoeID])->GetCollisionModel();
     // passed in contact points, normal, w.r.t. gear c-sys
-    mcont.vN = m_gear->GetRot().Rotate(vnGear_bar);
-    mcont.vpA = m_gear->GetPos() + m_gear->GetRot().Rotate(pGear_bar);
-    mcont.vpB = m_gear->GetPos() + m_gear->GetRot().Rotate(pPin_bar);
+    mcont.vN = m_gears[p_idx]->GetRot().Rotate(vnGear_bar);
+    mcont.vpA = m_gears[p_idx]->GetPos() + m_gears[p_idx]->GetRot().Rotate(pGear_bar);
+    mcont.vpB = m_gears[p_idx]->GetPos() + m_gears[p_idx]->GetRot().Rotate(pPin_bar);
     // contact normal is found in gear c-sys and always points normal to gear surface.
     // find the distance using a dot product; will be positive
     // if the contact was found early (e.g., still a non-zero gap)
@@ -245,7 +249,7 @@ class GearPinCollisionCallback : public ChSystem::ChCustomComputeCollisionCallba
 
     // increment the counter, add the contact
     m_Ncontacts++;
-		(m_gear->GetSystem()->GetContactContainer())->AddContact(mcont);
+		(m_gears[0]->GetSystem()->GetContactContainer())->AddContact(mcont);
 	}
 
   // true when radial dist. from center of gear to pins on either side of shoe, in gear c-sys,
@@ -320,7 +324,8 @@ class GearPinCollisionCallback : public ChSystem::ChCustomComputeCollisionCallba
       Found_GearPin_Contact(contact_pos_gear_bar,
         contact_pos_pin_bar,
         contact_normal_Gear_bar,
-        shoe_ID);
+        shoe_ID,
+        p_idx);
 
       return true;
     }
@@ -461,9 +466,10 @@ class GearPinCollisionCallback : public ChSystem::ChCustomComputeCollisionCallba
             shoe_ID,
             p_idx);
 
-          // increment unique shoe ID
-          shoe_ID++;
         }
+
+        // increment unique shoe ID
+        shoe_ID++;
       }
     }
   }
