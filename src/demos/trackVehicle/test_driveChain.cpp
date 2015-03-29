@@ -83,7 +83,7 @@ double end_time = 10;  // 99999
 // Automated simulation controls, applies positive half a sine wave.
 // Otherwise, control throttle with W/S
 bool autopilot = true;
-double sineAmp = 0.6;
+double sineAmp = 0.4;
 double sineFreq = 0.3;
 double tStart = 0.1;
 
@@ -103,16 +103,16 @@ std::string save_outDir = "../outdata_driveChain";
 
 // *****  Visualization and camera settings
 // control how often to render a frame, write to file, write to console.
-int FPS = 60; // render Frames Per Second
+int FPS = 80; // render Frames Per Second
 double render_step_size = 1.0 / FPS;  // Time increment for rendered frames
 
 // camera controls, either static or  GUI controlled chase camera:
-bool use_fixed_camera = false;
+bool use_fixed_camera = true;
 // static camera position, global c-sys. (Longitude, Vertical, Lateral)
-ChVector<> fixed_cameraPos(0.2, 1.15, 1.5); // (0.15, 1.15, 1.5);    // 
+ChVector<> fixed_cameraPos(0.8, 1.2, 1.2); // (0.15, 1.15, 1.5);    // 
 
 // Both cameras track this point, relative to the center of the gear
-ChVector<> trackPoint(0, 0, 0.0);
+ChVector<> trackPoint(-0.3, -0.2, 0.0);
 
 // if chase cam enabled:
 double chaseDist = 2.5;

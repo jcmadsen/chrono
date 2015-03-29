@@ -20,15 +20,15 @@
 #define DRIVEGEAR_H
 
 #include "subsys/ChApiSubsys.h"
+#include "subsys/base/ChTrackVehicle.h"
 #include "physics/ChSystem.h"
 #include "physics/ChBodyAuxRef.h"
 #include "physics/ChShaft.h"
 #include "physics/ChShaftsBody.h"
 #include "ModelDefs.h"
-
 // collision callback function
 #include "subsys/collision/TrackCollisionCallback.h"
-#include "physics/ChContactContainer.h"
+
 
 namespace chrono {
 
@@ -52,14 +52,13 @@ public:
   void Initialize(ChSharedPtr<ChBody> chassis,
     const ChFrame<>& chassis_REF,
     const ChCoordsys<>& local_Csys,
-    const std::vector<ChSharedPtr<ChBody> >& shoes);
+    const std::vector<ChSharedPtr<ChBody> >& shoes,
+    ChTrackVehicle* vehicle);
 
   // accessors
   ChSharedPtr<ChBody> GetBody() const { return m_gear; }
 
   ChSharedPtr<ChShaft> GetAxle() const { return m_axle; }
-
-  const GearPinCollisionCallback<ChContactContainerBase>* GetCollisionCallback() const { return m_gearPinContact; }
 
   double GetRadius() const { return m_radius; }
 
@@ -80,6 +79,7 @@ private:
 
   void AddVisualization();
   void AddCollisionGeometry(const std::vector<ChSharedPtr<ChBody> >& shoes,
+    ChTrackVehicle* vehicle,
     VehicleSide side = RIGHTSIDE,
     double mu = 0.6,
     double mu_sliding = 0.5,
@@ -88,6 +88,8 @@ private:
   
   // private variables
   ChSharedPtr<ChBody> m_gear;
+  ChSharedPtr<GearPinGeometry> m_gearPinGeom;  ///< gear and pin geometry info
+
   ChSharedPtr<ChShaft> m_axle;                  ///< handle to axle shaft
   ChSharedPtr<ChShaftsBody>  m_axle_to_gear;    ///< handle to gear-shaft connector
   ChSharedPtr<ChLinkLockRevolute>  m_revolute;  ///< handle to revolute joint
@@ -102,10 +104,6 @@ private:
 
   const std::string m_meshName;
   const std::string m_meshFile;
-
-  // data container for callback collision function
-  GearPinGeometry m_gearPinGeom;
-  GearPinCollisionCallback<ChContactContainerBase> *m_gearPinContact;
 
   // static variables
   static const double m_radius;

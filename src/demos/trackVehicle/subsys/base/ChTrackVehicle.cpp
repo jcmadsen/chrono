@@ -47,8 +47,7 @@ ChTrackVehicle::ChTrackVehicle(const std::string& name,
 : m_ownsSystem(true),
   m_vis(vis),
   m_collide(collide),
-  // m_mass(mass),
-  // m_inertia(Ixx),
+  m_gearPinContact(0),
   m_num_engines(num_engines),
   m_stepsize(step_size),
   m_save_log_to_file(false), // save the DebugLog() info to file? default false
@@ -94,13 +93,13 @@ ChTrackVehicle::ChTrackVehicle(ChSystem* system,
                                CollisionType::Enum collide,
                                double mass,
                                const ChVector<>& Ixx,
-                               size_t num_engines
+                               size_t num_engines,
+                               GearPinCollisionCallback<ChContactContainerBase>* collision_callback
 ): m_ownsSystem(false),
   m_system(system),
   m_vis(vis),
   m_collide(collide),
-  // m_mass(mass),
-  // m_inertia(Ixx),
+  m_gearPinContact(collision_callback),
   m_num_engines(num_engines),
   m_stepsize(system->GetStep()),
   m_save_log_to_file(false), // save the DebugLog() info to file? default false
@@ -143,6 +142,17 @@ void ChTrackVehicle::Advance(double step)
     m_system->DoStepDynamics(h);
     t += h;
   }
+}
+
+
+// Add the bodies to a collision callback for gear/pins
+void ChTrackVehicle::AddGearPinCollisionCallback(const std::vector<ChSharedPtr<ChBody> >& m_shoes,
+                          ChSharedPtr<ChBody> gear,
+                          ChSharedPtr<GearPinGeometry> geom)
+{
+  // first time adding 
+  if(m_gearPinContact == 0)
+    m_gearPinContact = new GearPinCollisionCallback<ChContactContainerBase>(0.003);
 }
 
 // -----------------------------------------------------------------------------
