@@ -34,9 +34,9 @@ namespace chrono {
 // static variables
 const double DriveGear::m_shaft_inertia = 0.4;  // connects to driveline
 // for primitive collision/visualization
-const double DriveGear::m_radius = 0.212; // to collision surface
-const double DriveGear::m_width = 0.34;
-const double DriveGear::m_widthGap = 0.189; // 0.189; // inner distance between cydliners
+// const double DriveGear::m_radius = 0.212; // to collision surface
+// const double DriveGear::m_width = 0.34;
+// const double DriveGear::m_widthGap = 0.189; // 0.189; // inner distance between cydliners
 
 
 DriveGear::DriveGear(const std::string& name, 
@@ -52,7 +52,10 @@ DriveGear::DriveGear(const std::string& name,
     m_mass(mass),
     m_inertia(gear_Ixx),
     m_meshName("gear_mesh"),
-    m_gearPinGeom( ChSharedPtr<GearPinGeometry>(new GearPinGeometry() ) )
+    m_gearPinGeom( ChSharedPtr<GearPinGeometry>(new GearPinGeometry() ) ),
+    m_radius( m_gearPinGeom->gear_base_radius),
+    m_width( m_gearPinGeom->gear_seat_width),
+    m_widthGap( m_gearPinGeom->gear_seat_width_max - m_gearPinGeom->gear_seat_width_min)
 {
   // create the body, set the basic info
   m_gear = ChSharedPtr<ChBody>(new ChBody);

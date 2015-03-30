@@ -60,12 +60,12 @@ using namespace core;
 double tensioner_preload = 5e4; // idler subsystem tensioner preload [N]
 double pin_damping_coef = 0.3;  // apply pin damping between connected shoes
 // Initial vehicle position and heading. Defines the REF frame for the hull body
-ChVector<> initLoc(0, 1.0, 0);
+ChVector<> initLoc(0, 0.7, 0);
 //ChQuaternion<> initRot = Q_from_AngAxis(CH_C_PI_4, VECT_Y);
 ChQuaternion<> initRot(QUNIT);
 
 // flat ground size and COG location
-ChVector<> groundSize(50.0, 1.0, 80.0);
+ChVector<> groundSize(60.0, 1.0, 80.0);
 ChVector<> groundPos(0, -1.0, 0);
 double mu = 0.67;  // dry friction coef.
 
@@ -84,10 +84,10 @@ bool use_fixed_camera = false;
 // static camera position, global c-sys. (Longitude, Vertical, Lateral)
 ChVector<> fixed_cameraPos(2, 1.15, 3); // (0.15, 1.15, 1.5);    // 
   // Point on chassis tracked by the camera
-double chaseDist = 0; // 4.0;
-double chaseHeight = 3.5; // 1.0;
+double chaseDist = 3.5; // 4.0;
+double chaseHeight = 1.0; // 1.0;
 // relative to center of chassis
-ChVector<> trackPoint(0,0,0); // (0.5, -0.5, 0);
+ChVector<> trackPoint(0.5, -0.5, 0);
 
 bool do_shadows = false; // shadow map is experimental
   /*
@@ -124,7 +124,7 @@ ChSharedPtr<ChBody> Add_FlatGround(TrackVehicleM113* vehicle,
 
   // add a texture to the ground
   ChSharedPtr<ChTexture> tex(new ChTexture);
-  tex->SetTextureFilename(GetChronoDataFile("rock.jpg"));
+  tex->SetTextureFilename(GetChronoDataFile("track_data/terrain/glenway.jpg"));
   ground->AddAsset(tex);
 
   vehicle->GetSystem()->Add(ground);  // add this body to the system, which is the vehicle
