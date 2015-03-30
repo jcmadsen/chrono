@@ -140,17 +140,15 @@ int main(int argc, char* argv[])
   // TODO: superimposed obstacles using ChParticleEmitter class.
   ChSharedPtr<ChBody> ground = Add_FlatGround(&vehicle, groundSize, groundPos, mu);  
 
-  // --------------------------
-  // Setup the Irrlicht GUI
-
 /*
 #ifdef USE_IRRLICHT
 */
-	// Create the Irrlicht visualization applicaiton
-
+	// Setup the Irrlicht GUI
+  size_t window_x_len = 1200;
+  size_t window_y_len = 800;
   ChIrrApp application(vehicle.GetSystem(),
                       L"M113 tracked vehicle demo",
-                      dimension2d<u32>(1200, 800),
+                      dimension2d<u32>(window_x_len, window_y_len),
                       false,
                       do_shadows);
   // assumes Y-up
@@ -176,7 +174,7 @@ int main(int argc, char* argv[])
   application.SetTimestep(step_size);
 
   // the GUI driver
-  ChIrrGuiTrack driver(application, vehicle, trackPoint, chaseDist, chaseHeight);
+  ChIrrGuiTrack driver(application, vehicle, trackPoint, chaseDist, chaseHeight, window_x_len-150);
 
   // Set the time response for steering and throttle keyboard inputs.
   // NOTE: this is not exact, since we do not render quite at the specified FPS.

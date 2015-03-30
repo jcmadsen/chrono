@@ -58,14 +58,14 @@ using namespace core;
 // #define DEBUG_LOG 
 
 double tensioner_preload = 5e4; // idler subsystem tensioner preload [N]
-double pin_damping_coef = 0.2;  // apply pin damping between connected shoes
+double pin_damping_coef = 0.3;  // apply pin damping between connected shoes
 // Initial vehicle position and heading. Defines the REF frame for the hull body
-ChVector<> initLoc(0, 1.0, 0);
+ChVector<> initLoc(0, 0.7, 0);
 //ChQuaternion<> initRot = Q_from_AngAxis(CH_C_PI_4, VECT_Y);
 ChQuaternion<> initRot(QUNIT);
 
 // flat ground size and COG location
-ChVector<> groundSize(60.0, 1.0, 100.0);
+ChVector<> groundSize(60.0, 1.0, 80.0);
 ChVector<> groundPos(0, -1.0, 0);
 double mu = 0.67;  // dry friction coef.
 
@@ -80,14 +80,14 @@ double output_step_size = 1.0 / 1;    // once a second
 
 // #ifdef USE_IRRLICHT
 // camera controls, either static or  GUI controlled chase camera:
-bool use_fixed_camera = true;
+bool use_fixed_camera = false;
 // static camera position, global c-sys. (Longitude, Vertical, Lateral)
 ChVector<> fixed_cameraPos(2, 1.15, 3); // (0.15, 1.15, 1.5);    // 
   // Point on chassis tracked by the camera
-double chaseDist = 3.0;
-double chaseHeight = 0.5;
+double chaseDist = 3.5; // 4.0;
+double chaseHeight = 1.0; // 1.0;
 // relative to center of chassis
-ChVector<> trackPoint(1.0, -0.5, 1);
+ChVector<> trackPoint(0.5, -0.5, 0);
 
 bool do_shadows = false; // shadow map is experimental
   /*
@@ -119,8 +119,13 @@ ChSharedPtr<ChBody> Add_FlatGround(TrackVehicleM113* vehicle,
   
   // color asset for the ground
   ChSharedPtr<ChColorAsset> groundColor(new ChColorAsset);
-  groundColor->SetColor(ChColor(0.2f, 0.4f, 0.6f));
-  ground->AddAsset(groundColor);
+  groundColor->SetColor(ChColor(0.2f, 0.4f, 0.8f));
+  // ground->AddAsset(groundColor);
+
+  // add a texture to the ground
+  ChSharedPtr<ChTexture> tex(new ChTexture);
+  tex->SetTextureFilename(GetChronoDataFile("track_data/terrain/glenway.jpg"));
+  ground->AddAsset(tex);
 
   vehicle->GetSystem()->Add(ground);  // add this body to the system, which is the vehicle
 
@@ -151,17 +156,17 @@ int main(int argc, char* argv[])
   // TODO: superimposed obstacles using ChParticleEmitter class.
   ChSharedPtr<ChBody> ground = Add_FlatGround(&vehicle, groundSize, groundPos, mu);  
 
-  // --------------------------
-  // Setup the Irrlicht GUI
-
 /*
 #ifdef USE_IRRLICHT
 */
-	// Create the Irrlicht visualization applicaiton
+  // Setup the Irrlicht GUI
+
+  size_t window_x_len = 1200;
+  size_t window_y_len = 800;
 
   ChIrrApp application(vehicle.GetSystem(),
                       L"M113 tracked vehicle demo",
-                      dimension2d<u32>(1200, 800),
+                      dimension2d<u32>(window_x_len, window_y_len),
                       false,
                       do_shadows);
   // assumes Y-up
@@ -187,7 +192,7 @@ int main(int argc, char* argv[])
   application.SetTimestep(step_size);
 
   // the GUI driver
-  ChIrrGuiTrack driver(application, vehicle, trackPoint, chaseDist, chaseHeight);
+  ChIrrGuiTrack driver(application, vehicle, trackPoint, chaseDist, chaseHeight, window_x_len-150);
   if(use_fixed_camera)
     driver.SetCameraPos(fixed_cameraPos);
   // Set the time response for steering and throttle keyboard inputs.

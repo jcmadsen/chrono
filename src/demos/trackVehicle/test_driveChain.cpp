@@ -56,7 +56,7 @@ using namespace core;
 #include "subsys/trackVehicle/DriveChain.h"
 #include "subsys/driver/Track_FuncDriver.h"
 #include "ModelDefs.h"
-// Use the main namespace of Chrono
+// Use the main namespace of Chronossssssssssssssssssssssssssssssssssssssssssss
 using namespace chrono;
 
 // =============================================================================
@@ -167,11 +167,9 @@ int main(int argc, char* argv[])
 /*
 #ifdef USE_IRRLICHT
 */
+  // Setup the Irrlicht GUI
   size_t window_x_len = 1200;
   size_t window_y_len = 800;
-  // --------------------------
-  // Setup the Irrlicht GUI
-
   // Create the Irrlicht visualization applicaiton
   ChIrrApp application(chainSystem.GetSystem(),
                       L"test driveChain demo",

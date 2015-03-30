@@ -105,10 +105,12 @@ private:
   const std::string m_meshName;
   const std::string m_meshFile;
 
+  // most basic gear geometry: two concentric cylinders.
+  const double m_radius;
+  const double m_width;
+  const double m_widthGap; // inner distance between cylinders
+
   // static variables
-  static const double m_radius;
-  static const double m_width;
-  static const double m_widthGap; // inner distance between cydliners
   static const double m_shaft_inertia;
   
 };
