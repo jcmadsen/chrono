@@ -66,7 +66,7 @@ using namespace chrono;
 // *****  General system settings
 size_t num_idlers = 1;
 size_t num_wheels = 2;
-double pin_damping_coef = 0.1;  // inter-shoe rev. joint damping coef. [N-s/m]
+double pin_damping_coef = 0.05;  // inter-shoe rev. joint damping coef. [N-s/m]
 double tensioner_preload = 5e4; // idler subsystem tensioner preload [N]
 
 // Initial position and heading
@@ -90,29 +90,29 @@ double tStart = 0.1;
 // ***** write to console or a file
 // #define WRITE_OUTPUT         // write output data to file
 // #define CONSOLE_SYSTEM_INFO  // display the system heirarchy in the console
-//#define CONSOLE_DEBUG_INFO      // log constraint violations to console,
+// #define CONSOLE_DEBUG_INFO      // log constraint violations to console,
 #define CONSOLE_TIMING       // time each render and simulation step, log to console
 
 int what_to_save = DBG_FIRSTSHOE | DBG_GEAR | DBG_COLLISIONCALLBACK | DBG_PTRAIN; // | DBG_IDLER  | DBG_CONSTRAINTS;
 int what_to_console = DBG_PTRAIN | DBG_GEAR;  // DBG_COLLISIONCALLBACK | DBG_CONSTRAINTS | DBG_IDLER | DBG_FIRSTSHOE;
 // int what_to_console = DBG_ALL_CONTACTS;
-double save_step_size = 1e-4;  // Time interval for writing data to file, don't exceed 1 kHz.
+double save_step_size = 1e-3;  // Time interval for writing data to file, don't exceed 1 kHz.
 double console_step_size = 1.0;       // time interval for writing data to console
 std::string save_filename = "driveChain_CC";
 std::string save_outDir = "../outdata_driveChain";
 
 // *****  Visualization and camera settings
 // control how often to render a frame, write to file, write to console.
-int FPS = 280; // render Frames Per Second
+int FPS = 80; // render Frames Per Second
 double render_step_size = 1.0 / FPS;  // Time increment for rendered frames
 
 // camera controls, either static or  GUI controlled chase camera:
 bool use_fixed_camera = true;
 // static camera position, global c-sys. (Longitude, Vertical, Lateral)
-ChVector<> fixed_cameraPos(0.8, 1.2, 1.2); // (0.15, 1.15, 1.5);    // 
+ChVector<> fixed_cameraPos(0.6, 1.2, 1.8); // (0.15, 1.15, 1.5);    // 
 
 // Both cameras track this point, relative to the center of the gear
-ChVector<> trackPoint(-0.3, -0.2, 0.0);
+ChVector<> trackPoint(-0.4, -0.2, 0.0);
 
 // if chase cam enabled:
 double chaseDist = 2.5;
@@ -327,6 +327,16 @@ int main(int argc, char* argv[])
     {
       chainSystem.Advance(step_size);
       step_number++;
+    }
+
+
+
+    // DEBUGGING
+    if( chainSystem.GetCollisionCallback()->GetNcontacts() > 0 && 0)
+    {
+      // write contact info to console when narrow phase passes
+      chainSystem.Log_to_console(DBG_ALL_CONTACTS);
+      int arg = 2;
     }
 
     // stop and increment the step timer

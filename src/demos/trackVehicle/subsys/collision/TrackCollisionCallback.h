@@ -249,7 +249,7 @@ class GearPinCollisionCallback : public ChSystem::ChCustomComputeCollisionCallba
 
     // increment the counter, add the contact
     m_Ncontacts++;
-		(m_gears[p_idx]->GetSystem()->GetContactContainer())->AddContact(mcont);
+		(m_gears[0]->GetSystem()->GetContactContainer())->AddContact(mcont);
 	}
 
   // true when radial dist. from center of gear to pins on either side of shoe, in gear c-sys,
@@ -466,9 +466,10 @@ class GearPinCollisionCallback : public ChSystem::ChCustomComputeCollisionCallba
             shoe_ID,
             p_idx);
 
-          // increment unique shoe ID
-          shoe_ID++;
         }
+
+        // increment unique shoe ID
+        shoe_ID++;
       }
     }
   }
