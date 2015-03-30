@@ -167,11 +167,9 @@ int main(int argc, char* argv[])
 /*
 #ifdef USE_IRRLICHT
 */
+  // Setup the Irrlicht GUI
   size_t window_x_len = 1200;
   size_t window_y_len = 800;
-  // --------------------------
-  // Setup the Irrlicht GUI
-
   // Create the Irrlicht visualization applicaiton
   ChIrrApp application(chainSystem.GetSystem(),
                       L"test driveChain demo",
