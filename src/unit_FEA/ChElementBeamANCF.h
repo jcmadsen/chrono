@@ -48,7 +48,7 @@ class  ChElementBeamANCF : public ChElementBeam
 protected:
 	std::vector< ChSharedPtr<ChNodeFEAxyzD> > nodes;
 	
-	ChSharedPtr<ChBeamSection> section;
+	ChSharedPtr<ChBeamSectionCable> section;
 
 	ChMatrixNM<double,12,12> StiffnessMatrix; // stiffness matrix
 	ChMatrixNM<double,12,12> MassMatrix;	   // mass matrix
@@ -82,7 +82,9 @@ public:
 					nodes[1]=nodeB;
 					std::vector<ChLcpVariables*> mvars;
 					mvars.push_back(&nodes[0]->Variables());
+					mvars.push_back(&nodes[0]->Variables_D());
 					mvars.push_back(&nodes[1]->Variables());
+					mvars.push_back(&nodes[1]->Variables_D());
 					Kmatr.SetVariables(mvars);
 				}
 
@@ -94,9 +96,9 @@ public:
 
 				/// Set the section & material of beam element .
 				/// It is a shared property, so it can be shared between other beams.
-	void   SetSection( ChSharedPtr<ChBeamSection> my_material) { section = my_material; }
+	void   SetSection( ChSharedPtr<ChBeamSectionCable> my_material) { section = my_material; }
 				/// Get the section & material of the element
-	ChSharedPtr<ChBeamSection> GetSection() {return section;}
+	ChSharedPtr<ChBeamSectionCable> GetSection() {return section;}
 
 				/// Get the first node (beginning) 
 	ChSharedPtr<ChNodeFEAxyzD> GetNodeA() {return nodes[0];}
@@ -244,8 +246,7 @@ public:
 						// produce a rank deficient matrix for straight beams.
 						double Area = section->Area;
 						double E    = section->E;
-						double Izz  = section->Izz;
-						double Iyy  = section->Iyy;
+						double I    = section->I;
 
 						double l	= this->length;
 
@@ -431,7 +432,7 @@ public:
 										1,					// end of x
 										3					// order of integration
 										);
-						Kcurv *= E*Izz*length; // note Iyy should be the same value (circular section assumption)
+						Kcurv *= E*I*length; // note Iyy should be the same value (circular section assumption)
 
 						this->StiffnessMatrix += Kcurv;
 
@@ -568,8 +569,7 @@ public:
 
 					double Area = section->Area;
 					double E    = section->E;
-					double Izz  = section->Izz;
-					double Iyy  = section->Iyy;
+					double I    = section->I;
 
 					double l	= this->length;
 
@@ -751,7 +751,7 @@ public:
 									1,					// end of x
 									3					// order of integration
 									);
-					Fcurv *= -E*Izz*length; // note Iyy should be the same value (circular section assumption)
+					Fcurv *= -E*I*length; // note Iyy should be the same value (circular section assumption)
 					
 					Fi += Fcurv;
 				}
@@ -832,11 +832,11 @@ public:
 				/// Note, eta=-1 at node1, eta=+1 at node2.
 				/// Note, 'displ' is the displ.state of 2 nodes, ex. get it as GetField().
 				/// Results are not corotated, and are expressed in the reference system of beam.
+				/// This is not mandatory for the element to work, but it can be useful for plotting,
+				/// showing results, etc.
 	virtual void EvaluateSectionForceTorque(const double eta, const ChMatrix<>& displ, ChVector<>& Fforce, ChVector<>& Mtorque)
 				{
 					assert (!section.IsNull());
-
-					double Jpolar = section->J;
 
 					ChMatrixNM<double,1,4> N;
 

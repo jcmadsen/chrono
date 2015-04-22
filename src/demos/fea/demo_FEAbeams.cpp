@@ -20,14 +20,16 @@
 
 #include "physics/ChSystem.h"
 #include "physics/ChLinkMate.h"
+#include "physics/ChBodyEasy.h"
 #include "timestepper/ChTimestepper.h"
 #include "lcp/ChLcpIterativePMINRES.h"
 #include "lcp/ChLcpIterativeMINRES.h"
 #include "unit_FEA/ChElementBeamEuler.h"
-#include "unit_FEA/ChElementBeamANCF.h"
 #include "unit_FEA/ChBuilderBeam.h"
 #include "unit_FEA/ChMesh.h"
 #include "unit_FEA/ChVisualizationFEAmesh.h"
+#include "unit_FEA/ChLinkPointFrame.h"
+#include "unit_FEA/ChLinkDirFrame.h"
 #include "unit_IRRLICHT/ChIrrApp.h"
 #include "unit_MATLAB/ChMatlabEngine.h"
 #include "unit_MATLAB/ChLcpMatlabSolver.h"
@@ -180,51 +182,6 @@ int main(int argc, char* argv[])
 
 
 
-	//
-	// Add some ANCF CABLE BEAMS:
-	//
-
-	beam_L  = 0.1;
-	
-	msection->SetIzz(3.6e-9);
-	ChSharedPtr<ChNodeFEAxyzD> hnodeancf1(new ChNodeFEAxyzD( ChVector<>(0,0,-0.2), ChVector<>(1,0,0) ) ); 
-	ChSharedPtr<ChNodeFEAxyzD> hnodeancf2(new ChNodeFEAxyzD( ChVector<>(beam_L,0,-0.2), ChVector<>(1,0,0) ) );
-
-	my_mesh->AddNode(hnodeancf1);
-	my_mesh->AddNode(hnodeancf2);
-
-	ChSharedPtr<ChElementBeamANCF> belementancf1 (new ChElementBeamANCF);
-
-	belementancf1->SetNodes(hnodeancf1, hnodeancf2);
-	belementancf1->SetSection(msection);
-
-	my_mesh->AddElement(belementancf1);
-
-				// Apply a force or a torque to a node:
-	hnodeancf2->SetForce( ChVector<>(0,3,0));
-
-	hnodeancf1->SetFixed(true);
-	
-
-	// FOR COMPARISON: AN EULER BEAM:
-
-	ChSharedPtr<ChNodeFEAxyzrot> hnodeeul1(new ChNodeFEAxyzrot( ChFrame<>(ChVector<>(0,0,-0.3) ) )); 
-	ChSharedPtr<ChNodeFEAxyzrot> hnodeeul2(new ChNodeFEAxyzrot( ChFrame<>(ChVector<>(beam_L,0,-0.3) ) ));
-
-	my_mesh->AddNode(hnodeeul1);
-	my_mesh->AddNode(hnodeeul2);
-
-	ChSharedPtr<ChElementBeamEuler> belementeul (new ChElementBeamEuler);
-
-	belementeul->SetNodes(hnodeeul1, hnodeeul2);
-	belementeul->SetSection(msection);
-
-	my_mesh->AddElement(belementeul);
-
-				// Apply a force or a torque to a node:
-	hnodeeul2->SetForce( ChVector<>(0,3,0));
-
-	hnodeeul1->SetFixed(true);
 
 
 	//
@@ -233,9 +190,6 @@ int main(int argc, char* argv[])
 				// This is necessary in order to precompute the 
 				// stiffness matrices for all inserted elements in mesh
 	my_mesh->SetupInitial();
-
-	
-	belementancf1->SetRestLength(beam_L);
 
 
 				// Remember to add the mesh to the system!
@@ -312,7 +266,7 @@ application.GetSystem()->Update();
 application.SetPaused(true);
 
 
-	/*
+	
 	// Change type of integrator: 
 	my_system.SetIntegrationType(chrono::ChSystem::INT_HHT); 
 	
@@ -323,7 +277,7 @@ application.SetPaused(true);
 		mystepper->SetMaxiters(6);
 		mystepper->SetTolerance(1e-12);
 	}
-	*/
+	my_system.SetIntegrationType(chrono::ChSystem::INT_EULER_IMPLICIT_LINEARIZED); 
 
 	application.SetTimestep(0.001);
 
@@ -338,7 +292,7 @@ application.SetPaused(true);
 
 
 
-	application.GetSystem()->DoStaticLinear();
+//	application.GetSystem()->DoStaticLinear();
 
 
 	GetLog() << "BEAM RESULTS (LINEAR STATIC ANALYSIS) \n\n";
@@ -365,10 +319,6 @@ application.SetPaused(true);
 	GetLog() << "Node 3 coordinate x= " << hnode3->Frame().GetPos().x << "    y=" << hnode3->Frame().GetPos().y << "    z=" << hnode3->Frame().GetPos().z << "\n\n";
 	
 
-	GetLog() << "Node 2 ANCF coordinate x= " << hnodeancf2->GetPos().x << "    y=" << hnodeancf2->GetPos().y << "    z=" << hnodeancf2->GetPos().z << "\n\n";
-	GetLog() << "             direction x= " << hnodeancf2->GetD().x << "    y=" << hnodeancf2->GetD().y << "    z=" << hnodeancf2->GetD().z << "\n\n";
-
-
 
 
 	GetLog() << "Press SPACE bar to start/stop dynamic simulation \n\n";
@@ -384,8 +334,6 @@ application.SetPaused(true);
 		application.DoStep();
 
 		application.EndScene();
-
-		//GetLog() << " node pos =" << hnode3->Frame().GetPos() << "\n";
 	}
 
 
