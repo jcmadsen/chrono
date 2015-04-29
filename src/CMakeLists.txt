@@ -30,11 +30,6 @@ SET (CTEST_MEMORYCHECK_COMMAND_OPTIONS "-v --tool=memcheck --leak-check=full --t
 
 
 #-----------------------------------------------------------------------------
-# Hide uneeded default stuff from GUI.
-
-MARK_AS_ADVANCED(CMAKE_INSTALL_PREFIX)
-
-#-----------------------------------------------------------------------------
 # Disable the warning when adding a subdir that has not CMakeLists.txt
 
 if(COMMAND cmake_policy)
@@ -104,29 +99,25 @@ SET(ENABLE_UNIT_TESTS    FALSE   CACHE BOOL   "Turn this ON to generate Chrono::
 # the compiler, generator, platform, etc....
 # Set a default build type if none was specified
 
-if(MSVC)
+IF(MSVC OR XCODE_VERSION)
 	SET(CMAKE_CONFIGURATION_TYPES Release CACHE STRING "Choose the type of build.")
-	SET_PROPERTY(CACHE CMAKE_CONFIGURATION_TYPES PROPERTY STRINGS Debug Release)
+	SET_PROPERTY(CACHE CMAKE_CONFIGURATION_TYPES PROPERTY STRINGS Debug Release MinSizeRel RelWithDebInfo)
 	file( COPY ${CMAKE_SOURCE_DIR}/demos/data/ DESTINATION ${CMAKE_BINARY_DIR}/bin/data/ PATTERN .svn EXCLUDE)
 	SET(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 	mark_as_advanced(FORCE CMAKE_BUILD_TYPE)
 	mark_as_advanced(CLEAR CMAKE_CONFIGURATION_TYPES)
 	SET(CPACK_BUILD_TYPE ${CMAKE_CONFIGURATION_TYPES})
-ELSEIF(XCODE_VERSION)
-	SET(CMAKE_CONFIGURATION_TYPES Release CACHE STRING "Choose the type of build.")
-	SET_PROPERTY(CACHE CMAKE_CONFIGURATION_TYPES PROPERTY STRINGS Debug Release RelWithDebInfo)
-	file( COPY ${CMAKE_SOURCE_DIR}/demos/data/ DESTINATION ${CMAKE_BINARY_DIR}/bin/data/ PATTERN .svn EXCLUDE)
-	SET(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
-	mark_as_advanced(FORCE CMAKE_BUILD_TYPE)
-	mark_as_advanced(CLEAR CMAKE_CONFIGURATION_TYPES)
-	SET(CPACK_BUILD_TYPE ${CMAKE_CONFIGURATION_TYPES})
-	set(CMAKE_XCODE_ATTRIBUTE_GCC_VERSION "com.apple.compilers.llvmgcc42")
 ELSE()
 	SET(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build.")
 	SET_PROPERTY(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS Debug Release MinSizeRel RelWithDebInfo)
 	file( COPY ${CMAKE_SOURCE_DIR}/demos/data/ DESTINATION ${CMAKE_BINARY_DIR}/data/ PATTERN .svn EXCLUDE)
 	SET(CPACK_BUILD_TYPE ${CMAKE_BUILD_TYPE})
 ENDIF()
+
+if(XCODE_VERSION)
+	set(CMAKE_XCODE_ATTRIBUTE_GCC_VERSION "com.apple.compilers.llvmgcc42")
+endif()
+
 #-----------------------------------------------------------------------------
 SET(CH_COMPILER " " CACHE STRING "Compiler Type" FORCE)
 
@@ -149,8 +140,6 @@ ENDIF()
 #set(CH_COMPILER "${DETECTED_CH_COMPILER}" CACHE STRING "Set Compiler Type, Re-Run configure after changing")
 #set(CH_COMPILER_VALUES "COMPILER_MSVC;COMPILER_GCC;COMPILER_MSVC_X64;COMPILER_GCC_X64")
 #set_property(CACHE CH_COMPILER PROPERTY STRINGS ${CH_COMPILER_VALUES})
-
-set(CH_OS "${CMAKE_SYSTEM_NAME}" CACHE STRING "Set OS, Re-Run configure after changing")
 
 #-----------------------------------------------------------------------------
 # Generate configuration.h file
@@ -180,8 +169,6 @@ IF (ENABLE_OPENMP)
   ENDIF(OPENMP_FOUND)
 ELSE()
   UNSET(OPENMP_FOUND)
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
-  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pthread")
 ENDIF()
 
 SET(CPACK_SYSTEM_NAME "${CMAKE_SYSTEM_NAME}-${CMAKE_SYSTEM_PROCESSOR}")
@@ -199,26 +186,23 @@ IF(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
 	IF (MSVC)
 		ADD_DEFINITIONS( "-D_CRT_SECURE_NO_DEPRECATE" )  # avoids deprecation warnings
 		ADD_DEFINITIONS( "-D_SCL_SECURE_NO_DEPRECATE" )  # avoids deprecation warnings
+		ADD_DEFINITIONS( "-DNOMINMAX" ) # do not use MSVC's min/max macros
+		ADD_DEFINITIONS( "-MP" ) # perform parallel builds
 	ENDIF(MSVC)
-	IF ("${CH_COMPILER}" STREQUAL "COMPILER_MSVC")
-		SET (CH_BUILDFLAGS "-DWIN32; -DNOMINMAX; -MP")
-		SET (CH_LINKERFLAG_SHARED "/FORCE:MULTIPLE")
-	ELSEIF ("${CH_COMPILER}" STREQUAL "COMPILER_MSVC_X64")
-		SET (CH_BUILDFLAGS "-DWIN64; -D_WIN64; -DNOMINMAX; -MP")
-		SET (CH_LINKERFLAG_SHARED "/FORCE:MULTIPLE")
-	ELSEIF ("${CH_COMPILER}" STREQUAL "COMPILER_GCC")
-		SET (CH_BUILDFLAGS "-DWIN32 -D_MINGW -D_WINDOWS")
+	IF ("${CH_COMPILER}" STREQUAL "COMPILER_GCC")
+		SET (CH_BUILDFLAGS "-D_MINGW -D_WINDOWS")
 		SET (CH_LINKERFLAG_EXE "-Wl,--enable-runtime-pseudo-reloc")
 		SET (CH_LINKERFLAG_SHARED "-Wl,--export-all-symbols -Wl,--enable-auto-import -Wl,--enable-runtime-pseudo-reloc")
 	ELSEIF ("${CH_COMPILER}" STREQUAL "COMPILER_GCC_X64")
-		SET (CH_BUILDFLAGS "-DWIN64 -D_MINGW -D_WINDOWS -m64")
+		SET (CH_BUILDFLAGS "-D_MINGW -D_WINDOWS -m64")
 		SET (CH_LINKERFLAG_EXE "-Wl,--enable-runtime-pseudo-reloc")
 		SET (CH_LINKERFLAG_SHARED "-Wl,--export-all-symbols -Wl,--enable-auto-import -Wl,--enable-runtime-pseudo-reloc")
 	ENDIF()
 ENDIF()
 
 find_package(Threads)
-set(CH_LINKERFLAG_SHARED "${CMAKE_THREAD_LIBS_INIT} ${CH_LINKERFLAG_SHARED}")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_THREAD_LIBS_INIT}")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${CMAKE_THREAD_LIBS_INIT}")
 
 #-----------------------------------------------------------------------------
 # Some global  C++ definitions and includes that are used
@@ -226,8 +210,9 @@ set(CH_LINKERFLAG_SHARED "${CMAKE_THREAD_LIBS_INIT} ${CH_LINKERFLAG_SHARED}")
 #
 # Definitions that are used by ALL targets:
 
-SET(CMAKE_CXX_FLAGS_DEBUG   "${CMAKE_CXX_FLAGS_DEBUG}   ${CH_BUILDFLAGS} -D_DEBUG -DDEBUG")
-SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${CH_BUILDFLAGS} -DNDEBUG -DNODEBUG")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CH_BUILDFLAGS}")
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -D_DEBUG -DDEBUG")
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -DNDEBUG")
 
 ADD_DEFINITIONS( "-DBP_USE_FIXEDPOINT_INT_32" )   # for Bullet to use 32 bit math
 
@@ -930,6 +915,7 @@ IF (BUILD_CH_SDK)
 		collision/bullet/BulletCollision/CollisionDispatch/btConvex2dConvex2dAlgorithm.cpp
 		collision/bullet/BulletCollision/CollisionDispatch/btInternalEdgeUtility.cpp
 		collision/bullet/BulletCollision/CollisionShapes/btBarrelShape.cpp
+		collision/bullet/BulletCollision/CollisionShapes/bt2DShape.cpp
 		collision/bullet/BulletCollision/CollisionShapes/btBoxShape.cpp
 		collision/bullet/BulletCollision/CollisionShapes/btTriangleMeshShape.cpp
 		collision/bullet/BulletCollision/CollisionShapes/btBvhTriangleMeshShape.cpp
