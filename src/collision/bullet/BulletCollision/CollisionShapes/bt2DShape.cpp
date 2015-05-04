@@ -14,7 +14,7 @@ subject to the following restrictions:
 3. This notice may not be removed or altered from any source distribution.
 */
 
-#define NOMINMAX
+//#define NOMINMAX
 #include <algorithm>
 
 #include "bt2DShape.h"
@@ -106,7 +106,7 @@ void bt2DarcShape::getAabb(const btTransform& t,btVector3& aabbMin,btVector3& aa
 
 ////////////////////////////////////////////////
 
-bt2DsegmentShape::bt2DsegmentShape(btVector3 mP1, btVector3 mP2)
+bt2DsegmentShape::bt2DsegmentShape(const btVector3& mP1, const btVector3& mP2)
 {
 	P1 = mP1;
 	P2 = mP2;
@@ -145,9 +145,9 @@ void	bt2DsegmentShape::calculateLocalInertia(btScalar mass,btVector3& inertia) c
 
 	btVector3 halfExtents;
 
-	halfExtents.setValue((hlen), 
-						 (hlen),
-						 (hlen));
+	halfExtents.setValue((btScalar)(hlen), 
+						 (btScalar)(hlen),
+						 (btScalar)(hlen));
 
 	btScalar margin = CONVEX_DISTANCE_MARGIN;
 
