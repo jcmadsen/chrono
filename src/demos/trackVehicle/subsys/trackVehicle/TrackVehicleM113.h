@@ -105,10 +105,10 @@ class CH_SUBSYS_API TrackVehicleM113 : public ChTrackVehicle {
     double GetStepsize() const { return m_stepsize; }
 
     /// number of track chain systems attached to the vehicle
-    int GetNum_TrackSystems() const { return m_num_tracks; }
+    size_t GetNum_TrackSystems() const { return m_num_tracks; }
 
     /// drive gear sprocket speed
-    virtual double GetSprocketSpeed(const size_t idx) const { assert(idx < m_num_tracks); return [&](){return m_TrackSystems[idx]->GetDriveGear()->GetBody()->GetWvel_loc().z; }(); }
+    virtual double GetSprocketSpeed(const size_t idx) const { assert(idx < m_num_tracks); return m_TrackSystems[idx]->GetDriveGear()->GetBody()->GetWvel_loc().z; }
 
   private:
     /// create files with headers for all specified output data types.
@@ -126,12 +126,19 @@ class CH_SUBSYS_API TrackVehicleM113 : public ChTrackVehicle {
 
     // filename for each subsystem when writing time domain data
     std::string m_filename_DBG_CHASSIS;                     // vehicle data (chassis motion, driver inputs)
-    std::vector<std::string> m_filename_DBG_GEAR;           // gear body filenames
-    std::vector<std::string> m_filename_DBG_IDLER;          // idler body filenames
-    std::vector<std::string> m_filename_GCV;                // write to this file, gear constraint violation
-    std::vector<std::string> m_filename_ICV;                // write to this file, idler constraint violation
-    std::vector<std::vector<std::string> > m_filename_WCV;  // write to this file, bogie wheel constraint violation
-    size_t m_cnt_Log_to_file;                               // how many times was Log_to_file called?
+    // filename for each subsystem when writing time domain data
+    std::vector<std::string> m_filename_DBG_FIRSTSHOE;          // write to this file, first shoe/pin info
+    std::vector<std::string> m_filename_DBG_shoeGear;           // info about gear/shoe contact
+    std::vector<std::string> m_filename_DBG_GEAR;               // write to this file, gear body
+    std::vector<std::string> m_filename_DBG_GEAR_CONTACT;       // specific info about collisions with gear
+    std::vector<std::string> m_filename_DBG_IDLER;              // to to this file, idler body
+    std::vector<std::string> m_filename_GCV;                    // write to this file, gear constraint violation
+    std::vector<std::string> m_filename_ICV;                    // write to this file, idler constraint violation
+    std::vector<std::string> m_filename_RCV;       // write to this file, roller constraint violation
+    std::vector<std::string>m_filename_DBG_PTRAIN;             // write to this file, ptrain info
+    std::vector<std::string> m_filename_DBG_COLLISIONCALLBACK;  // write collision callback info to file
+    std::vector<std::string> m_filename_DBG_ALL_CONTACTS;       // write to a new file each time step, with this base name.
+    size_t m_cnt_Log_to_file;                      // how many times was Log_to_file called?
 
     // std::string m_filename_DBG_ALL_CONTACTS;  // write to a new file each time step, with this base name.
     // std::string m_filename_DBG_FIRSTSHOE;  // write to this file, first shoe/pin info
