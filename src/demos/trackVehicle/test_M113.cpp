@@ -83,11 +83,13 @@ const double ramp_slope = 1.0 / (tEnd - tStart);
 // #define CONSOLE_SYSTEM_INFO  // display the system heirarchy in console
 #define CONSOLE_TIMING  // timers for each render and simulation step, log to console
 
-// Supported:
-// DBG_FIRSTSHOE | DBG_GEAR | DBG_IDLER | DBG_CHASSIS;
+// for each subsystem, decide what type of data to save
+int debug_type = DBG_BODY | DBG_CONSTRAINTS | DBG_CONTACTS;
+// vehicle subsystems and objects to save data for
 int what_to_save = DBG_FIRSTSHOE | DBG_GEAR | DBG_IDLER | DBG_CHASSIS;
+// vehicle subsystems and objects to write data to console
 int what_to_console = DBG_FIRSTSHOE | DBG_GEAR | DBG_IDLER | DBG_CHASSIS;
-// int what_to_console = DBG_ALL_CONTACTS;
+
 const double save_step_size = 5e-3;    // Time interval for writing data to file, don't exceed 1 kHz.
 const double console_step_size = 1.0;  // time interval for writing data to console
 const std::string save_filename = "M113";
@@ -195,7 +197,7 @@ int main(int argc, char* argv[]) {
 
 // if writing an output file, setup what debugInformation we want added each step data is saved.
 #ifdef WRITE_OUTPUT
-    vehicle.Setup_log_to_file(what_to_save, save_filename, save_outDir);
+    vehicle.Setup_logger(what_to_save, debug_type, save_filename, save_outDir);
 #endif
 
     /*

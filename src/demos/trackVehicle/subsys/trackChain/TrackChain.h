@@ -25,6 +25,9 @@
 #include "physics/ChBody.h"
 #include "physics/ChBodyAuxRef.h"
 
+// to report contact data
+#include "subsys/collision/TrackCollisionCallback.h"
+
 #include "ModelDefs.h"
 
 namespace chrono {
@@ -75,12 +78,20 @@ class CH_SUBSYS_API TrackChain : public ChShared {
     /// handle to the shoe body
     ChSharedPtr<ChBody> GetShoeBody(size_t track_idx) const;
 
-    // get list to track chain body list
+    /// get list to track chain body list
     const std::vector<ChSharedPtr<ChBody> >& GetShoeBody() const;
+
+    /// number of track shoes created/initialized
+    size_t Get_numShoes() const { return m_numShoes; }
 
     /// reaction force on pin constraint, relative coords
     const ChVector<> GetPinReactForce(size_t pin_idx);
     const ChVector<> GetPinReactTorque(size_t pin_idx);
+
+    // accessors to geometry
+    const std::string& getMeshName() const { return m_meshName; }
+    const std::string& getMeshFile() const { return m_meshFile; }
+    const std::string& getCollisionFilename() const { return m_collisionFile; }
 
     /// turn on damping friction in the shoe pins
     void Set_pin_friction(
@@ -88,11 +99,27 @@ class CH_SUBSYS_API TrackChain : public ChShared {
         bool use_custom_damper = false,  ///< use a non-constant damper modulus
         double damping_C_nonlin = 0);    ///< nonlinear portion of damper, used if use_custom_damper = true
 
-    // accessors
-    /// number of track shoes created/initialized
-    size_t Get_numShoes() const { return m_numShoes; }
+    /// write the header for saving data to file
+    void write_header(const std::string& filename, DebugType type);
 
-  private:
+    /// write the data at time t
+    void write_data(const double t, const ChSharedPtr<ChBody> chassis, DebugType type);
+
+    // helper functions, for GUI output for certain reaction forces
+    // following variables are populated when ChTrackVehicle::reportShoeGearContact() is called
+    // absolute pos of the persistent contact point
+    const ChVector<>& Get_SG_Persistent_PosAbs(int idx) const { return m_SG_PosAbs[idx]; }
+
+    // normal force abs. vector of the persistent contact point
+    const ChVector<>& Get_SG_Persistent_Fn(int idx) const { return m_SG_Fn[idx]; }
+
+    // abs. pos. of all shoe-gear contacts found
+    const std::vector<ChVector<> >& Get_SG_PosAbs_all() const { return m_SG_ContactPos_all; }
+
+    // abs. normal force of all sh oe-gear contacts
+    const std::vector<ChVector<> >& Get_SG_Fn_all() const { return m_SG_ContactFn_all; }
+
+  protected:
     // private functions
 
     /// add visualization assets to the last added body
@@ -150,10 +177,18 @@ class CH_SUBSYS_API TrackChain : public ChShared {
                             const ChVector<>& end_seg_pos,
                             const ChVector<>& seg_norm_axis);
 
-    // private functions
-    const std::string& getMeshName() const { return m_meshName; }
-    const std::string& getMeshFile() const { return m_meshFile; }
-    const std::string& getCollisionFilename() const { return m_collisionFile; }
+    /// for a given shoe body name, scan all collisions and report collision time data.
+    /// SG_info = (num_contacts, t_persist, t_persist_max)
+    ///  Force_mag_info = (Fn, Ft, 0)
+    /// PosRel, VRel = relative pos, vel of contact point, relative to gear c-sys
+    /// returns # of contacts between the gear and shoe body
+    int reportShoeGearContact(ChSystem* system,
+                              const std::string& shoe_name,
+                              std::vector<ChVector<> >& SG_info,
+                              std::vector<ChVector<> >& Force_mag_info,
+                              std::vector<ChVector<> >& PosRel_contact,
+                              std::vector<ChVector<> >& VRel_contact,
+                              std::vector<ChVector<> >& NormDirRel_contact);
 
     // private variables
     std::vector<ChSharedPtr<ChBody> > m_shoes;  ///< handle to track shoes
@@ -180,6 +215,26 @@ class CH_SUBSYS_API TrackChain : public ChShared {
     // helper variable
     ChVector<> m_start_loc_bar;  ///< where to create the first shoe, chassis c-sys
     bool m_aligned_with_seg;  ///< when building track chain, was last shoe created exactly aligned with the envelope?
+
+    // filenames for writing time domain data
+    std::string m_filename_DBG_BODY;      // write to this file, first shoe/pin body info
+    std::string m_filename_DBG_CONTACTS;  // write to this file, shoe/gear contact info
+    std::string m_filename_DBG_CV;        // write to this file
+
+    // *********  History dependent Variables
+    // for debugging step to step persistent contact data.
+    // Usually need to resize these vectors upon construction, for the # of pts to follow
+    double m_SG_numContacts;
+    std::vector<ChVector<> > m_SG_info;
+    std::vector<bool> m_SG_is_persistentContact_set;
+    std::vector<ChVector<> > m_SG_PosRel;
+    std::vector<ChVector<> > m_SG_PosAbs;  // contact point, abs. coords
+    std::vector<ChVector<> > m_SG_Fn;      // contact normal force, abs. coords
+
+    // ******** non-history dependent list of contact info
+    // DONT need to resize these vectors.
+    std::vector<ChVector<> > m_SG_ContactPos_all;  // list of all position of contact, abs. coords
+    std::vector<ChVector<> > m_SG_ContactFn_all;   // list of all contact normal forces, abs. coords
 
     // static values
     static const ChVector<> m_COM;  // location of COM, relative to REF (e.g, geomtric center)

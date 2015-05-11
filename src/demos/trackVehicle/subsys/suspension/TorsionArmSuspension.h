@@ -87,14 +87,11 @@ class CH_SUBSYS_API TorsionArmSuspension : public ChShared {
 
     double GetWheelRadius() const { return m_wheelRadius; }
 
-    // log constraint violations of any bilateral constraints
-    void LogConstraintViolations();
-
-    /// write constraint violations to ostream, which will be written to the output file
-    void SaveConstraintViolations(std::stringstream& ss);
-
     /// write headers for the output data file to the input ostream
-    const std::string getFileHeader_ConstraintViolations(size_t idx) const;
+    void write_header(const std::string& filename, DebugType type);
+
+    /// write constraint violation of wheel rev. constraint
+    void write_data(double t, DebugType type);
 
   private:
     // private functions
@@ -137,6 +134,11 @@ class CH_SUBSYS_API TorsionArmSuspension : public ChShared {
     CollisionType::Enum m_collide;
     const size_t m_chainSys_idx;  ///< if there are multiple chain systems
     // (e.g., on the M113, the subsystem knows which it is a part of for collision family purposes)
+
+    // output filenames
+    std::string m_filename_DBG_BODY;      // write idler body info
+    std::string m_filename_DBG_CV;        // write idler constraint violation
+    std::string m_filename_DBG_CONTACTS;  // write idler contact info
 
     const std::string m_meshName;  ///< name of the mesh, if any
     const std::string m_meshFile;  ///< filename of the mesh, if any

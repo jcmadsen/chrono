@@ -39,22 +39,20 @@ const ChQuaternion<> TrackSystemM113::m_gearRot(QUNIT);
 const int TrackSystemM113::m_numSuspensions = 5;
 
 TrackSystemM113::TrackSystemM113(const std::string& name,
-  const size_t track_idx,
-  const double tensioner_preload,
-  const double omega_max)
+                                 const size_t track_idx,
+                                 const double tensioner_preload,
+                                 const double omega_max)
     : m_track_idx(track_idx), m_name(name), m_idler_preload(tensioner_preload) {
     // FILE* fp = fopen(filename.c_str(), "r");
     // char readBuffer[65536];
     // fclose(fp);
 
-    Create(track_idx,
-      omega_max);
+    Create(track_idx, omega_max);
 }
 
 // Create: 1) load/set the subsystem data, resize vectors 2) BuildSubsystems()
 // TODO: replace hard-coded junk with JSON input files for each subsystem
-void TrackSystemM113::Create(const size_t track_idx,
-  const double omega_max) {
+void TrackSystemM113::Create(const size_t track_idx, const double omega_max) {
     /*
 
     // read idler info
@@ -120,20 +118,18 @@ void TrackSystemM113::BuildSubsystems(const double omega_max) {
     std::stringstream gearName;
     gearName << "drive gear " << m_track_idx;
     // build one of each of the following subsystems. VisualizationType and CollisionType defaults are PRIMITIVES
-    m_driveGear = ChSharedPtr<DriveGearMotion>(new DriveGearMotion(
-        gearName.str(), VisualizationType::Mesh,
-        // VisualizationType::Primitives,
-        //  CollisionType::Primitives,
-        CollisionType::CallbackFunction, m_track_idx, 436.7 / 5.0,
-        ChVector<>(12.22 / 5.0, 12.22 / 5.0, 13.87 / 5.0),
-        omega_max));
+    m_driveGear =
+        ChSharedPtr<DriveGearMotion>(new DriveGearMotion(gearName.str(), VisualizationType::Mesh,
+                                                         // VisualizationType::Primitives,
+                                                         //  CollisionType::Primitives,
+                                                         CollisionType::CallbackFunction, m_track_idx, 436.7 / 5.0,
+                                                         ChVector<>(12.22 / 5.0, 12.22 / 5.0, 13.87 / 5.0), omega_max));
 
     std::stringstream idlerName;
     idlerName << "idler " << m_track_idx;
     m_idler = ChSharedPtr<IdlerSimple>(new IdlerSimple(idlerName.str(), VisualizationType::Mesh,
                                                        CollisionType::Primitives, m_track_idx, 429.6 / 5.0,
-                                                       ChVector<>(12.55 / 5.0, 12.55 / 5.0, 14.7 / 5.0),
-                                                       4e4, 2e3));
+                                                       ChVector<>(12.55 / 5.0, 12.55 / 5.0, 14.7 / 5.0), 4e4, 2e3));
 
     std::stringstream chainname;
     chainname << "chain " << m_track_idx;
@@ -237,6 +233,140 @@ void TrackSystemM113::Update(double time, double throttle) {
 
 const ChVector<> TrackSystemM113::Get_idler_spring_react() {
     return m_idler->m_shock->Get_react_force();
+}
+
+void TrackSystemM113::write_subsys_headers(int what_subsys, int debug_type, const std::string& filename) {
+    m_log_subsys = what_subsys;
+    m_debug_type = debug_type;
+    // write headers for each debug type
+    if (m_debug_type & DBG_BODY) {
+        // TrackChain subsystem, body info is a single shoe in the chain.
+        if (m_log_subsys & DBG_FIRSTSHOE) {
+            // Shoe 0 : S0, Pin0: P0
+            std::stringstream ss_fs;
+            ss_fs << filename << "_Side" << m_track_idx << "_shoe0.csv";
+            GetTrackChain()->write_header(ss_fs.str(), DBG_BODY);
+        }
+        if (m_log_subsys & DBG_GEAR) {
+            // filename
+            std::stringstream ss_gf;
+            ss_gf << filename << "_Side" << m_track_idx << "_gear.csv";
+            GetDriveGear()->write_header(ss_gf.str(), DBG_BODY);
+        }
+        if (m_log_subsys & DBG_IDLER) {
+            // idler filename
+            std::stringstream ss_i;
+            ss_i << filename << "_Side" << m_track_idx << "_idler.csv";
+            GetIdler()->write_header(ss_i.str(), DBG_BODY);
+        }
+        if (m_log_subsys & DBG_SUSPENSION) {
+            // wheel body info
+            for (int wheel = 0; wheel < m_numSuspensions; wheel++) {
+                std::stringstream ss;
+                ss << filename << "_Side" << m_track_idx << "_wheel" << wheel << ".csv";
+                GetSuspension(wheel)->write_header(ss.str(), DBG_BODY);
+            }
+        }
+    }
+
+    // write the data for each subsystem's constraint violation
+    if (m_debug_type & DBG_CONSTRAINTS) {
+        if (m_log_subsys & DBG_FIRSTSHOE) {
+            // filename, first shoe CV w/ to adjoining shoes
+            std::stringstream ss_shoeCV;
+            ss_shoeCV << filename << "_side" << m_track_idx << "_shoe0CV.csv";
+            GetTrackChain()->write_header(ss_shoeCV.str(), DBG_CONSTRAINTS);
+        }
+        if (m_log_subsys & DBG_GEAR) {
+            // filename, gear CV
+            std::stringstream ss_gcv;
+            ss_gcv << filename << "_side" << m_track_idx << "_GearCV.csv";
+            GetDriveGear()->write_header(ss_gcv.str(), DBG_CONSTRAINTS);
+        }
+        if (m_log_subsys & DBG_IDLER) {
+            // filename, idler CV
+            std::stringstream ss_iCV;
+            ss_iCV << filename << "_Side" << m_track_idx << "_idlerCV.csv";
+            GetIdler()->write_header(ss_iCV.str(), DBG_CONSTRAINTS);
+        }
+        if (m_log_subsys & DBG_SUSPENSION) {
+            // violations of the roller revolute joints on torsion arm suspension
+            for (int roller = 0; roller < Get_NumWheels(); roller++) {
+                // filename, roller CV
+                std::stringstream ss_rCV;
+                ss_rCV << filename << "_Side" << m_track_idx << "_roller" << roller << "CV.csv";
+                GetSuspension(roller)->write_header(ss_rCV.str(), DBG_CONSTRAINTS);
+            }
+        }
+    }
+
+    if (m_debug_type & DBG_CONTACTS) {
+        if (m_log_subsys & DBG_FIRSTSHOE) {
+            // report the contact with the gear in a second file
+            std::stringstream ss;
+            ss << filename << "_Side" << m_track_idx << "_shoe0GearContact.csv";
+            GetTrackChain()->write_header(ss.str(), DBG_CONTACTS);
+        }
+        if (m_log_subsys & DBG_GEAR) {
+            // report on some specific collision info
+            std::stringstream ss;
+            ss << filename << "_Side" << m_track_idx << "_gearContact.csv";
+            GetDriveGear()->write_header(ss.str(), DBG_CONTACTS);
+        }
+        if (m_log_subsys & DBG_IDLER) {
+            // todo, idler contact info
+        }
+        if (m_log_subsys & DBG_SUSPENSION) {
+            // todo, suspension wheel contact info
+        }
+    }
+}
+
+void TrackSystemM113::write_subsys_data(const double t, const ChSharedPtr<ChBody> chassis) {
+    // write headers for each debug type
+    if (m_debug_type & DBG_BODY) {
+        if (m_log_subsys & DBG_FIRSTSHOE) {
+            GetTrackChain()->write_data(t, chassis, DBG_BODY);
+        }
+        if (m_log_subsys & DBG_GEAR) {
+            // write to body data file,
+            // second file, for the specific contact info
+            GetDriveGear()->write_data(t, chassis->GetSystem(), DBG_BODY);
+        }
+        if (m_log_subsys & DBG_IDLER) {
+            // write body and tensioner data
+            GetIdler()->write_data(t, DBG_BODY);
+        }
+        if (m_log_subsys & DBG_SUSPENSION)
+            for (int wheel = 0; wheel < m_numSuspensions; wheel++) {
+                GetSuspension(wheel)->write_data(t, DBG_BODY);
+            }
+    }
+    if (m_debug_type & DBG_CONSTRAINTS) {
+        // constraint violation for specified subsystems
+        if (m_log_subsys & DBG_FIRSTSHOE) {
+            // write constraint violation between this and adjacent shoes
+            GetTrackChain()->write_data(t, chassis, DBG_CONSTRAINTS);
+        }
+        if (m_log_subsys & DBG_GEAR) {
+            // write constraint violation for gear revolute constraint
+            GetDriveGear()->write_data(t, chassis->GetSystem(), DBG_CONSTRAINTS);
+        }
+        if (m_log_subsys & DBG_IDLER) {
+            // write CV for idler constraint (2 DOFS, 4 constrained vars)
+            GetIdler()->write_data(t, DBG_CONSTRAINTS);
+        }
+        if (m_log_subsys & DBG_SUSPENSION) {
+            // write CV for wheel on each suspension
+            for (int wheel = 0; wheel < m_numSuspensions; wheel++) {
+                GetSuspension(wheel)->write_data(t, DBG_CONSTRAINTS);
+            }
+        }
+    }
+
+    if (m_debug_type & DBG_CONTACTS) {
+        // todo
+    }
 }
 
 }  // end namespace chrono

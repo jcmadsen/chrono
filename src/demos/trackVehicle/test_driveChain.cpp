@@ -94,14 +94,19 @@ double rampMax = 0.5;
 double rampSlope = rampMax / 3.0;  // ramp up over 3 seconds
 
 // ***** write to console or a file
-// #define WRITE_OUTPUT         // write output data to file
-// #define CONSOLE_DEBUG_INFO   // log output data to console
+#define WRITE_OUTPUT         // write output data to file
+#define CONSOLE_DEBUG_INFO   // log output data to console
 // #define CONSOLE_SYSTEM_INFO  // display the system heirarchy in console
 #define CONSOLE_TIMING  // timers for each render and simulation step, log to console
 
+// for each subsystem, decide what type of data to save
+int debug_type = DBG_BODY | DBG_CONTACTS; // | DEBUG_CONSTRAINTS
+// vehicle subsystems and objects to save data for
 int what_to_save = DBG_FIRSTSHOE | DBG_GEAR | DBG_COLLISIONCALLBACK | DBG_PTRAIN;  // | DBG_IDLER  | DBG_CONSTRAINTS;
-int what_to_console = DBG_PTRAIN | DBG_GEAR;  // DBG_COLLISIONCALLBACK | DBG_CONSTRAINTS | DBG_IDLER | DBG_FIRSTSHOE;
-// int what_to_console = DBG_ALL_CONTACTS;
+// vehicle subsystems and objects to write data to console
+int what_to_console = DBG_PTRAIN | DBG_GEAR;  // DBG_COLLISIONCALLBACK | DBG_IDLER | DBG_FIRSTSHOE;
+
+
 double save_step_size = 1e-3;    // Time interval for writing data to file, don't exceed 1 kHz.
 double console_step_size = 1.0;  // time interval for writing data to console
 const std::string save_filename = "driveChain_CC";
@@ -158,7 +163,7 @@ int main(int argc, char* argv[]) {
 
 // if writing an output file, setup what debugInformation we want added each step data is saved.
 #ifdef WRITE_OUTPUT
-    chainSystem.Setup_log_to_file(what_to_save, save_filename, save_outDir);
+    chainSystem.Setup_logger(what_to_save, debug_type, save_filename, save_outDir);
 #endif
 
     if (autopilot)

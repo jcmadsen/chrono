@@ -333,32 +333,51 @@ double IdlerSimple::Get_SpringReact_Deform_dt() const {
     return spr_react_C;
 }
 
-void IdlerSimple::LogConstraintViolations() {
-    // idler joint has 2 pos and 1 rot
-    ChMatrix<>* C = m_idler_joint->GetC();
-    GetLog() << " -- joint name: " << m_idler_joint->GetName();
-    for (int row = 0; row < C->GetRows(); row++) {
-        GetLog() << "  " << C->GetElement(row, 0) << "  ";
+// ---------------------------------
+// write to file functions
+// --------------------------------
+void IdlerSimple::write_header(const std::string& filename, DebugType type) {
+    if (type & DBG_BODY) {
+        m_filename_DBG_BODY = filename;
+        ChStreamOutAsciiFile ofile(m_filename_DBG_BODY.c_str());
+        // headers
+        ofile << "time,x,y,z,Vx,Vy,Vz,Wx,Wy,Wz,F_tensioner,F_k,F_c\n";
     }
-
-    GetLog() << "\n";
+    if (type & DBG_CONTACTS) {
+        // todo
+    }
+    if (type & DBG_CONSTRAINTS) {
+        m_filename_DBG_CV = filename;
+        ChStreamOutAsciiFile ofile(m_filename_DBG_CV.c_str());
+        // headers
+        ofile << "time,y,z,rx,ry\n";
+    }
 }
 
-void IdlerSimple::SaveConstraintViolations(std::stringstream& ss) {
-    // idler joint will have y and z rxn forces, x and y rxn torques
-    ChMatrix<>* C = m_idler_joint->GetC();
-    for (int row = 0; row < C->GetRows(); row++) {
-        ss << "," << C->GetElement(row, 0);
+void IdlerSimple::write_data(const double t, DebugType type) {
+    if (type & DBG_BODY) {
+        std::stringstream ss_id;
+        ChSharedPtr<ChBody> ib = GetBody();
+        // time,x,y,z,Vx,Vy,Vz,Wx,Wy,Wz,F_tensioner,F_k,F_c
+        ss_id << t << "," << ib->GetPos() << "," << ib->GetPos_dt() << "," << ib->GetWvel_loc() << ","
+              << GetSpringForce() << "," << Get_SpringReact_Deform() << "," << Get_SpringReact_Deform_dt() << "\n";
+        ChStreamOutAsciiFile ofile(m_filename_DBG_BODY.c_str(), std::ios::app);
+        ofile << ss_id.str().c_str();
     }
-    ss << "\n";
-}
-
-const std::string IdlerSimple::getFileHeader_ConstraintViolations() const {
-    // idler has x-translational and z-rot DOFs
-    // y, z reaction Forces, x,y reaction torques
-    std::stringstream ss;
-    ss << "time,y,z,rx,ry\n";
-    return ss.str();
+    if (type & DBG_CONTACTS) {
+        // todo
+    }
+    if (type & DBG_CONSTRAINTS) {
+        std::stringstream ss;
+        // idler joint will have y and z rxn forces, x and y rxn torques
+        ChMatrix<>* C = m_idler_joint->GetC();
+        for (int row = 0; row < C->GetRows(); row++) {
+            ss << "," << C->GetElement(row, 0);
+        }
+        ss << "\n";
+        ChStreamOutAsciiFile ofile(m_filename_DBG_CV.c_str(), std::ios::app);
+        ofile << ss.str().c_str();
+    }
 }
 
 }  // end namespace chrono

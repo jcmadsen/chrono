@@ -367,6 +367,7 @@ void TorsionArmSuspension::AddCollisionGeometry(VehicleSide side,
     m_wheel->GetCollisionModel()->BuildModel();
 }
 
+/*
 void TorsionArmSuspension::LogConstraintViolations() {
     // 2 revolute joints
     ChMatrix<>* C = m_armChassis_rev->GetC();
@@ -383,26 +384,68 @@ void TorsionArmSuspension::LogConstraintViolations() {
 
     GetLog() << "\n";
 }
+*/
 
-void TorsionArmSuspension::SaveConstraintViolations(std::stringstream& ss) {
-    // 2 revolute joints
-    ChMatrix<>* C = m_armChassis_rev->GetC();
-    for (int row = 0; row < C->GetRows(); row++) {
-        ss << "," << C->GetElement(row, 0);
-    }
 
-    ChMatrix<>* C2 = m_armWheel_rev->GetC();
-    for (int j = 0; j < C2->GetRows(); j++) {
-        ss << "," << C2->GetElement(j, 0);
+
+/// write headers for the output data file to the input ostream
+void TorsionArmSuspension::write_header(const std::string& filename,
+    DebugType type)
+{
+    if (type & DBG_BODY)
+    {
+        m_filename_DBG_BODY = filename;
+        ChStreamOutAsciiFile ofile(m_filename_DBG_BODY.c_str());
+        // headers
+        ofile << "time,x,y,z,Vx,Vy,Vz,Wx,Wy,Wz\n";
     }
-    ss << "\n";
+    if (type & DBG_CONTACTS)
+    {
+
+    }
+    if (type & DBG_CONSTRAINTS)
+    {
+        m_filename_DBG_CV = filename;
+        ChStreamOutAsciiFile ofile(filename.c_str());
+        // headers
+        ofile << "time,x1,y1,z1,rx1,ry1,x2,y2,z2,rx2,ry2\n";
+        
+    }
 }
 
-const std::string TorsionArmSuspension::getFileHeader_ConstraintViolations(size_t idx) const {
-    // two revolute joints
-    std::stringstream ss;
-    ss << "time,x1,y1,z1,rx1,ry1,x2,y2,z2,rx2,ry2\n";
-    return ss.str();
+/// write constraint violation of wheel rev. constraint
+void TorsionArmSuspension::write_data(double t, DebugType type)
+{
+    if (type & DBG_BODY)
+    {
+        std::stringstream ss;
+        ChSharedPtr<ChBody> body = GetWheelBody();
+        // time,x,y,z,Vx,Vy,Vz,Wx,Wy,Wz
+        ss << t << "," << body->GetPos() << "," << body->GetPos_dt() << "," << body->GetWvel_loc() << "\n";
+        ChStreamOutAsciiFile ofile(m_filename_DBG_BODY.c_str(), std::ios::app);
+        ofile << ss.str().c_str();
+    }
+    if (type & DBG_CONTACTS)
+    {
+        //todo
+    }
+    if (type & DBG_CONSTRAINTS)
+    {
+        std::stringstream ss;
+        ChMatrix<>* C = m_armChassis_rev->GetC();
+        for (int row = 0; row < C->GetRows(); row++) {
+            ss << "," << C->GetElement(row, 0);
+        }
+
+        C = m_armWheel_rev->GetC();
+        for (int row = 0; row < C->GetRows(); row++) {
+            ss << "," << C->GetElement(row, 0);
+        }
+        ss << "\n";
+        ChStreamOutAsciiFile ofile(m_filename_DBG_CV.c_str(), std::ios::app);
+        ofile << ss.str().c_str();
+    }
 }
+
 
 }  // end namespace chrono

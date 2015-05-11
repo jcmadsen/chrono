@@ -65,15 +65,13 @@ class CH_SUBSYS_API DriveGearMotion : public ChShared {
     /// when represented as a cylinder shape
     double GetRadius() const { return m_radius; }
 
-    // log constraint violations to console
-    void LogConstraintViolations();
+    /// write headers for drive gear for the specified output type
+    void write_header(const std::string& filename,
+        DebugType type);
 
-    /// write constraint violations to ostream, which will be written to the output file
-    void SaveConstraintViolations(std::stringstream& ss);
-
-    /// write headers for the output data file to the input ostream
-    //  Gear Constraint Violation, (x,y,z,rx,ry)
-    const std::string getFileHeader_ConstraintViolations(size_t idx) const;
+    /// write data this step for the specified output type
+    void write_data(const double t, ChSystem* system,
+        DebugType type);
 
   private:
     // private functions
@@ -108,6 +106,11 @@ class CH_SUBSYS_API DriveGearMotion : public ChShared {
     const double m_mass;
     const double m_maxOmega;
 
+    // output filenames
+    std::string m_filename_DBG_BODY; // write idler body info
+    std::string m_filename_DBG_CV;  // write idler constraint violation
+    std::string m_filename_DBG_CONTACTS;   // write idler contact info
+
     const std::string m_meshName;
     const std::string m_meshFile;
 
@@ -115,6 +118,13 @@ class CH_SUBSYS_API DriveGearMotion : public ChShared {
     const double m_radius;
     const double m_width;
     const double m_widthGap;  // inner distance between cydliners
+
+protected:
+    /// info set is: (max, avg, stdev = sigma) for x,y,z vector data.
+    /// returns total number of contacts with the gear this step.
+    int reportGearContact(const ChSharedPtr<ChBody> which_gear,
+        ChSystem* system,
+        ChVector<>& Fn_info, ChVector<>& Ft_info);
 };
 
 }  // end namespace chrono

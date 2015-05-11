@@ -86,8 +86,6 @@ class CH_SUBSYS_API TrackVehicle : public ChTrackVehicle {
     /// number of track chain systems attached to the vehicle
     int GetNum_TrackSystems() const { return m_num_tracks; }
 
-    // not really relevant, since it's a static system
-    // ChCoordsys<> GetLocalDriverCoordsys() const { return m_driverCsys; }
 
   private:
     // private variables

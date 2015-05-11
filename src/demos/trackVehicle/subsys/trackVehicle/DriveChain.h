@@ -80,8 +80,10 @@ class CH_SUBSYS_API DriveChain : public ChTrackVehicle {
 
     /// setup class to save the log to a file for python postprocessing.
     /// Usage: call after construction & Initialize(), else no data is saved.
-    virtual void Setup_log_to_file(int what, const std::string& out_filename, const std::string& data_dirname);
-
+    virtual void Setup_logger(int what_subsys,  /// which vehicle objects (e.g. subsystems) to save data for?
+                              int debug_type,   /// data types: _BODY, _CONSTRAINTS, _CONTACTS
+                              const std::string& out_filename,
+                              const std::string& data_dirname = "data_test");
     // ---------------------------------------------------------------------------
     // Accessors
     virtual double GetShoePinDamping() const { return m_pin_damping; }
@@ -108,54 +110,24 @@ class CH_SUBSYS_API DriveChain : public ChTrackVehicle {
     double GetVehicleSpeed() const { return 0; }
     int GetNum_Engines() const { return 1; }
 
+    // helper functions
     // following variables are populated when DriveChain::reportShoeGearContact() is called
     // absolute pos of the persistent contact point
-    const ChVector<>& Get_SG_Persistent_PosAbs(int idx) const { return m_SG_PosAbs[idx]; }
+    const ChVector<>& Get_SG_Persistent_PosAbs(int idx) const { return m_chain->Get_SG_Persistent_PosAbs(idx); }
 
     // normal force abs. vector of the persistent contact point
-    const ChVector<>& Get_SG_Persistent_Fn(int idx) const { return m_SG_Fn[idx]; }
+    const ChVector<>& Get_SG_Persistent_Fn(int idx) const { return m_chain->Get_SG_Persistent_Fn(idx); }
 
     // abs. pos. of all shoe-gear contacts found
-    const std::vector<ChVector<> >& Get_SG_PosAbs_all() const { return m_SG_ContactPos_all; }
+    const std::vector<ChVector<> >& Get_SG_PosAbs_all() const { return m_chain->Get_SG_PosAbs_all(); }
 
     // abs. normal force of all sh oe-gear contacts
-    const std::vector<ChVector<> >& Get_SG_Fn_all() const { return m_SG_ContactFn_all; }
+    const std::vector<ChVector<> >& Get_SG_Fn_all() const { return m_chain->Get_SG_Fn_all(); }
 
   protected:
     /// create files with headers for all specified output data types.
     /// File format is .csv, for easy reading into python pandas scripts for data analysis
     void create_fileHeaders(int what);
-
-    /// info set is: (max, avg, stdev = sigma) for x,y,z vector data.
-    /// returns total number of contacts with the gear this step.
-    int reportGearContact(ChVector<>& Fn_info, ChVector<>& Ft_info);
-
-    /// for a given shoe body name, scan all collisions and report collision time data.
-    /// SG_info = (num_contacts, t_persist, t_persist_max)
-    ///  Force_mag_info = (Fn, Ft, 0)
-    /// PosRel, VRel = relative pos, vel of contact point, relative to gear c-sys
-    /// returns # of contacts between the gear and shoe body
-    int reportShoeGearContact(const std::string& shoe_name,
-                              std::vector<ChVector<> >& SG_info,
-                              std::vector<ChVector<> >& Force_mag_info,
-                              std::vector<ChVector<> >& PosRel_contact,
-                              std::vector<ChVector<> >& VRel_contact,
-                              std::vector<ChVector<> >& NormDirRel_contact);
-
-    // *********  History dependent Variables
-    // for debugging step to step persistent contact data.
-    // Usually need to resize these vectors upon construction, for the # of pts to follow
-    double m_SG_numContacts;
-    std::vector<ChVector<> > m_SG_info;
-    std::vector<bool> m_SG_is_persistentContact_set;
-    std::vector<ChVector<> > m_SG_PosRel;
-    std::vector<ChVector<> > m_SG_PosAbs;  // contact point, abs. coords
-    std::vector<ChVector<> > m_SG_Fn;      // contact normal force, abs. coords
-
-    // ******** non-history dependent list of contact info
-    // DONT need to resize these vectors.
-    std::vector<ChVector<> > m_SG_ContactPos_all;  // list of all position of contact, abs. coords
-    std::vector<ChVector<> > m_SG_ContactFn_all;   // list of all contact normal forces, abs. coords
 
     // private variables
     // <ChBodyAuxRef> m_chassis   in base class
