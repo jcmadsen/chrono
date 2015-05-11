@@ -1328,8 +1328,9 @@ void TrackChain::Write_data(const double t, const ChSharedPtr<ChBody> chassis, D
         std::stringstream ss;
         // time,x,y,z,xBar,yBar,zBar,vx,vy,vz,ax,ay,az,wx,wy,wz,fx,fy,fz
         ChSharedPtr<ChBody> shoe = GetShoeBody(0);
+        ChFrame<> parent_rot(ChVector<>(), chassis->GetA());
         ss << t << "," << shoe->GetPos() << ","
-           << chassis->GetFrame_COG_to_abs().TransformPointParentToLocal(shoe->GetPos() - chassis->GetPos()) << ","
+           << parent_rot.TransformParentToLocal(shoe->GetPos() - chassis->GetPos()) << ","
            << shoe->GetPos_dt() << "," << shoe->GetPos_dtdt() << "," << shoe->GetWvel_loc() << ","
            << GetPinReactForce(0) << "," << GetPinReactTorque(0) << "\n";
         // open the file for appending, write the data.

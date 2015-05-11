@@ -338,7 +338,7 @@ void TrackVehicleM113::create_fileHeaders() {
 
     GetLog() << " ------ Output Data ------------ \n\n";
 
-    if (m_log_what_to_file & DBG_CHASSIS && m_log_debug_type == DBG_BODY) {
+    if (m_log_what_to_file & DBG_CHASSIS && m_log_debug_type & DBG_BODY) {
         m_filename_DBG_CHASSIS = m_log_file_name + "_chassis.csv";
         ChStreamOutAsciiFile ofileDBG_CHASSIS(m_filename_DBG_CHASSIS.c_str());
         std::stringstream ss_c;

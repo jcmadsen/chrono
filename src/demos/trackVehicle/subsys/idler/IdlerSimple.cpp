@@ -369,6 +369,7 @@ void IdlerSimple::Write_data(const double t, DebugType type) {
     }
     if (type & DBG_CONSTRAINTS) {
         std::stringstream ss;
+        ss << t;
         // idler joint will have y and z rxn forces, x and y rxn torques
         ChMatrix<>* C = m_idler_joint->GetC();
         for (int row = 0; row < C->GetRows(); row++) {

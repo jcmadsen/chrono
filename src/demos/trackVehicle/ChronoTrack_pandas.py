@@ -241,6 +241,22 @@ class ChronoTrack_pandas:
         axRHS.legend(loc ='lower right')
         axarr[1].legend(loc='upper left')
         axarr[0].set_title('powertrain')
+    
+    # plot shoe body x-y position relative to the TrackChain parent c-sys    
+    def plot_trajectory(self, tmin = -1, tmax = -1):
+         # a plot for the shoe body,
+        fig, axarr = plt.subplots(1)
+        
+        inDat = ['xRel','yRel']
+        DF = pd.DataFrame(self._getDFhandle('shoe0'), columns=inDat)
+        
+        # create x-y rel pos plot
+        DF.plot(ax = axarr, linewidth = 1.5, x = 'xRel', y='yRel')
+        
+        # labels
+        axarr.set_xlabel('Shoe Relative x-Pos')
+        axarr.set_ylabel('Shoe Relative y-Pos')
+        axarr.grid(True)
         
     # plot shoe 0 body info, and pin 0 force/torque, with an optional time interval
     def plot_shoe(self, tmin = -1, tmax = -1):

@@ -408,7 +408,7 @@ void DriveGearMotion::Write_header(const std::string& filename, DebugType type) 
         m_filename_DBG_CV = filename;
         ChStreamOutAsciiFile ofile(m_filename_DBG_CV.c_str());
         // headers
-        ofile << "time,x,y,z,rx,ry\n";
+        ofile << "time,x,y,z,rx,ry,rz\n";
     }
 }
 
@@ -437,6 +437,7 @@ void DriveGearMotion::Write_data(const double t, ChSystem* system, DebugType typ
     }
     if (type & DBG_CONSTRAINTS) {
         std::stringstream ss;
+        ss << t;
         ChMatrix<>* C = m_revolute->GetC();
         for (int row = 0; row < C->GetRows(); row++) {
             ss << "," << C->GetElement(row, 0);

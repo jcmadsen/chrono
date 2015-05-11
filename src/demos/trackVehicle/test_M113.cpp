@@ -83,8 +83,8 @@ const double ramp_slope = 1.0 / (tEnd - tStart);
 // #define CONSOLE_SYSTEM_INFO  // display the system heirarchy in console
 #define CONSOLE_TIMING  // timers for each render and simulation step, log to console
 
-// for each subsystem, decide what type of data to save
-int debug_type = DBG_BODY | DBG_CONSTRAINTS | DBG_CONTACTS;
+// for each subsystem, decide what TYPE of data to save
+int debug_type = DBG_BODY | DBG_CONSTRAINTS; //  | DBG_CONTACTS;
 // vehicle subsystems and objects to save data for
 int what_to_save = DBG_FIRSTSHOE | DBG_GEAR | DBG_IDLER | DBG_CHASSIS;
 // vehicle subsystems and objects to write data to console
@@ -96,7 +96,7 @@ const std::string save_filename = "M113";
 const std::string save_outDir = "../outdata_M113";
 
 // ***** flat ground size and COG location
-const ChVector<> groundSize(60.0, 1.0, 80.0);
+const ChVector<> groundSize(100.0, 1.0, 100.0);
 const ChVector<> groundPos(0, -1.0, 0);
 double mu = 0.67;  // dry friction coef.
 
@@ -377,13 +377,13 @@ int main(int argc, char* argv[]) {
 
 #ifdef CONSOLE_TIMING
             GetLog() << "\n --------- TIMING -------- : time: " << vehicle.GetSystem()->GetChTime()
-                     << "\n total render time: " << total_render_time
+                     << "\n total render time (ms): " << total_render_time
                      << ",  % of total: " << 100. * total_render_time / total_step_time
-                     << "\n total compute time: " << total_step_time << "\n Avg. time per step "
+                     << "\n total compute time (sec): " << total_step_time/1000.0 << "\n Avg. time per step (ms): "
                      << time_since_last_output * vehicle.GetSystem()->GetStep() / save_steps
-                     << "\n overall avg. time/step: " << total_step_time / step_number
-                     << "    for a stepsize: " << vehicle.GetSystem()->GetStep()
-                     << "\n RTR : " << total_step_time / vehicle.GetSystem()->GetChTime();
+                     << "\n overall avg. time/step (ms): " << total_step_time / step_number
+                     << "    for a stepsize (ms): " << vehicle.GetSystem()->GetStep() * 1000.0
+                     << "\n RTR : " << 1000*total_step_time / vehicle.GetSystem()->GetChTime();
             time_since_last_output = 0;
 #endif
         }

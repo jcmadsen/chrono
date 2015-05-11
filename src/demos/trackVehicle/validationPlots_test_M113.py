@@ -78,7 +78,7 @@ if __name__ == '__main__':
  
  
     # construct the panda class for the DriveChain, file list and list of legend
-    Chain = CT.ChronoTrack_pandas(data_files, handle_list)
+    M113_Chain0 = CT.ChronoTrack_pandas(data_files, handle_list)
     
     # set the time limits. tmin = -1 will plot the entire time range
     tmin = 1.0
@@ -86,38 +86,41 @@ if __name__ == '__main__':
     
     
     #0) plot the chassis
-    Chain.plot_chassis(tmin, tmax)    
+    M113_Chain0.plot_chassis(tmin, tmax)    
     
     # 1) plot the gear body info
-    Chain.plot_gear(tmin, tmax)
+    M113_Chain0.plot_gear(tmin, tmax)
     
     
     # 2) plot idler body info, tensioner force
-    Chain.plot_idler(tmin,tmax)
+    M113_Chain0.plot_idler(tmin,tmax)
 
     '''
     # 3) plot powertrain info
-    Chain.plot_ptrain()    
+    M113_Chain0.plot_ptrain()    
     '''
     
     # 4) plot shoe 0 body info, and pin 0 force/torque
-    Chain.plot_shoe(tmin,tmax)
+    M113_Chain0.plot_shoe(tmin,tmax)
     
     '''
     # 5) plot gear Constraint Violations
-    Chain.plot_gearCV(tmin,tmax)
+    M113_Chain0.plot_gearCV(tmin,tmax)
     
     # 6) plot idler Constraint Violations
-    Chain.plot_idlerCV(tmin,tmax)
+    M113_Chain0.plot_idlerCV(tmin,tmax)
     
     # 7) plot roller Constraint Violations
-    Chain.plot_rollerCV(tmin,tmax)
+    M113_Chain0.plot_rollerCV(tmin,tmax)
     
     # 8) from the contact report callback function, gear contact info
-    Chain.plot_gearContactInfo(tmin,tmax)
+    M113_Chain0.plot_gearContactInfo(tmin,tmax)
 
     # 9)  from shoe-gear report callback function, contact info
-    Chain.plot_shoeGearContactInfo(tmin,tmax)
+    M113_Chain0.plot_shoeGearContactInfo(tmin,tmax)
     '''
+    
+    # 10) track shoe trajectory: rel-X vs. rel-Y
+    M113_Chain0.plot_trajectory(tmin,tmax)
 
     py.show()
