@@ -76,26 +76,29 @@ class CH_SUBSYS_API TrackSystemM113 : public ChShared {
     }
 
     // subsystem relative to TrackSystemM113 coords
-    const ChVector<>& Get_gearPosRel() const { return m_gearPosRel; }
+    const ChVector<>& Get_GearPosRel() const { return m_gearPosRel; }
 
     // subsystem relative to TrackSystemM113 coords
-    const ChVector<>& Get_idlerPosRel() const { return m_idlerPosRel; }
+    const ChVector<>& Get_IdlerPosRel() const { return m_idlerPosRel; }
+
+    // subsystem relative to TrackSystem coords
+    const ChVector<>& Get_SuspensionPosRel(size_t idx = 0) const {
+        assert(idx < m_numSuspensions);
+        return m_suspensionLocs[idx];
+    }
 
     /// get the reaction force vector from the spring in the idler subsystem
-    const ChVector<> Get_idler_spring_react();
+    const ChVector<> Get_Idler_spring_react();
 
     /// get the number of bogie wheels
     size_t Get_NumWheels() const { return m_numSuspensions; }
 
     /// write the headers specified for all children subsystems
-    void write_subsys_headers(int what_subys,
-        int debug_type,
-        const std::string& filename);
+    void Write_subsys_headers(int what_subys, int debug_type, const std::string& filename);
 
     /// write the data at time t
-    void write_subsys_data(const double t,
-        const ChSharedPtr<ChBody> chassis);
- 
+    void Write_subsys_data(const double t, const ChSharedPtr<ChBody> chassis);
+
   private:
     // private functions
     void BuildSubsystems(const double omega_max);
@@ -120,7 +123,7 @@ class CH_SUBSYS_API TrackSystemM113 : public ChShared {
     // filename for each subsystem when writing time domain data
     int m_log_subsys;
     int m_debug_type;
-    
+
     // hard-coded in TrackSystemM113.cpp, for now
     // idler
     static const ChVector<> m_idlerPos;  // relative to TrackSystemM113 _REF c-sys

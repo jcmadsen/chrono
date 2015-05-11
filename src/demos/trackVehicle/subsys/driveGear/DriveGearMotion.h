@@ -66,11 +66,11 @@ class CH_SUBSYS_API DriveGearMotion : public ChShared {
     double GetRadius() const { return m_radius; }
 
     /// write headers for drive gear for the specified output type
-    void write_header(const std::string& filename,
+    void Write_header(const std::string& filename,
         DebugType type);
 
     /// write data this step for the specified output type
-    void write_data(const double t, ChSystem* system,
+    void Write_data(const double t, ChSystem* system,
         DebugType type);
 
   private:

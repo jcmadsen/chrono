@@ -183,8 +183,8 @@ int main(int argc, char* argv[]) {
     // Create the tracked vehicle and the ground/environment
 
     // The vehicle inherits ChSystem. Input chassis visual and collision type
-    TrackVehicleM113 vehicle("M113 model for validation", VisualizationType::None, CollisionType::None, 5489.2 / 5.0,
-                             ChVector<>(1786.9 / 5.0, 10449.7 / 5.0, 10721.2 / 5.0), pin_damping_coef,
+    TrackVehicleM113 vehicle("M113 model for validation", VisualizationType::None, CollisionType::None, 5489.2,
+                             ChVector<>(1786.9, 10449.7, 10721.2), pin_damping_coef,
                              tensioner_preload,
                              omega_max);
 

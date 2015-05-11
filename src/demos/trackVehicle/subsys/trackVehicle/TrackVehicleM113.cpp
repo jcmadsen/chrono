@@ -284,7 +284,7 @@ void TrackVehicleM113::Log_to_file() {
 
         // output data for each trackChain system
         for (size_t chain_id = 0; chain_id < m_num_tracks; chain_id++) {
-            m_TrackSystems[chain_id]->write_subsys_data(t, m_chassis);
+            m_TrackSystems[chain_id]->Write_subsys_data(t, m_chassis);
         }
 
         if (m_log_what_to_file & DBG_PTRAIN) {
@@ -363,7 +363,7 @@ void TrackVehicleM113::create_fileHeaders() {
     // create headers for all the subsystems in each chain system
     for (size_t chain_id = 0; chain_id < m_num_tracks; chain_id++) {
         // don't forget to provide the pointer to the custom collision callback ptr
-        m_TrackSystems[chain_id]->write_subsys_headers(m_log_what_to_file, m_log_debug_type, m_log_file_name);
+        m_TrackSystems[chain_id]->Write_subsys_headers(m_log_what_to_file, m_log_debug_type, m_log_file_name);
     }
 }
 

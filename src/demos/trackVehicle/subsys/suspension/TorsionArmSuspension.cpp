@@ -389,7 +389,7 @@ void TorsionArmSuspension::LogConstraintViolations() {
 
 
 /// write headers for the output data file to the input ostream
-void TorsionArmSuspension::write_header(const std::string& filename,
+void TorsionArmSuspension::Write_header(const std::string& filename,
     DebugType type)
 {
     if (type & DBG_BODY)
@@ -414,7 +414,7 @@ void TorsionArmSuspension::write_header(const std::string& filename,
 }
 
 /// write constraint violation of wheel rev. constraint
-void TorsionArmSuspension::write_data(double t, DebugType type)
+void TorsionArmSuspension::Write_data(double t, DebugType type)
 {
     if (type & DBG_BODY)
     {

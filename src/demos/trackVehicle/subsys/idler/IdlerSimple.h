@@ -78,11 +78,11 @@ class CH_SUBSYS_API IdlerSimple : public ChShared {
     void LogConstraintViolations();
 
     /// write headers for the body
-    void write_header(const std::string& filename,
+    void Write_header(const std::string& filename,
         DebugType type);
   
     /// write idler body data
-    void write_data(const double t,
+    void Write_data(const double t,
         DebugType type);
 
   private:

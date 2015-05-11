@@ -394,11 +394,11 @@ void TrackChain::AddVisualization(size_t track_idx, bool custom_texture, const s
         case VisualizationType::Mesh: {
             // mesh for visualization only.
             geometry::ChTriangleMeshConnected trimesh;
-            trimesh.LoadWavefrontMesh(getMeshFile(), false, false);
+            trimesh.LoadWavefrontMesh(GetMeshFile(), false, false);
 
             ChSharedPtr<ChTriangleMeshShape> trimesh_shape(new ChTriangleMeshShape);
             trimesh_shape->SetMesh(trimesh);
-            trimesh_shape->SetName(getMeshName());
+            trimesh_shape->SetName(GetMeshName());
             m_shoes[track_idx]->AddAsset(trimesh_shape);
 
             // add a color to the shoes
@@ -1297,7 +1297,7 @@ int TrackChain::reportShoeGearContact(ChSystem* system,
 }
 
 /// write the header for the chain system
-void TrackChain::write_header(const std::string& filename, DebugType type) {
+void TrackChain::Write_header(const std::string& filename, DebugType type) {
     if (type & DBG_BODY) {
         m_filename_DBG_BODY = filename;
         ChStreamOutAsciiFile ofileDBG_FIRSTSHOE(m_filename_DBG_BODY.c_str());
@@ -1323,7 +1323,7 @@ void TrackChain::write_header(const std::string& filename, DebugType type) {
 }
 
 /// write the data at time t
-void TrackChain::write_data(const double t, const ChSharedPtr<ChBody> chassis, DebugType type) {
+void TrackChain::Write_data(const double t, const ChSharedPtr<ChBody> chassis, DebugType type) {
     if (type & DBG_BODY) {
         std::stringstream ss;
         // time,x,y,z,xBar,yBar,zBar,vx,vy,vz,ax,ay,az,wx,wy,wz,fx,fy,fz

@@ -388,7 +388,7 @@ double DriveGearMotion::clamp(double val, double min_val, double max_val) {
     return val;
 }
 
-void DriveGearMotion::write_header(const std::string& filename, DebugType type) {
+void DriveGearMotion::Write_header(const std::string& filename, DebugType type) {
     if (type & DBG_BODY) {
         m_filename_DBG_BODY = filename;
         ChStreamOutAsciiFile ofile(m_filename_DBG_BODY.c_str());
@@ -412,7 +412,7 @@ void DriveGearMotion::write_header(const std::string& filename, DebugType type) 
     }
 }
 
-void DriveGearMotion::write_data(const double t, ChSystem* system, DebugType type) {
+void DriveGearMotion::Write_data(const double t, ChSystem* system, DebugType type) {
     if (type & DBG_BODY) {
         std::stringstream ss_g;
         ChSharedPtr<ChBody> gb = GetBody();

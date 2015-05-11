@@ -88,10 +88,10 @@ class CH_SUBSYS_API TorsionArmSuspension : public ChShared {
     double GetWheelRadius() const { return m_wheelRadius; }
 
     /// write headers for the output data file to the input ostream
-    void write_header(const std::string& filename, DebugType type);
+    void Write_header(const std::string& filename, DebugType type);
 
     /// write constraint violation of wheel rev. constraint
-    void write_data(double t, DebugType type);
+    void Write_data(double t, DebugType type);
 
   private:
     // private functions

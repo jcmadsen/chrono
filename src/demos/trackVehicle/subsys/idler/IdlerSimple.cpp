@@ -336,7 +336,7 @@ double IdlerSimple::Get_SpringReact_Deform_dt() const {
 // ---------------------------------
 // write to file functions
 // --------------------------------
-void IdlerSimple::write_header(const std::string& filename, DebugType type) {
+void IdlerSimple::Write_header(const std::string& filename, DebugType type) {
     if (type & DBG_BODY) {
         m_filename_DBG_BODY = filename;
         ChStreamOutAsciiFile ofile(m_filename_DBG_BODY.c_str());
@@ -354,7 +354,7 @@ void IdlerSimple::write_header(const std::string& filename, DebugType type) {
     }
 }
 
-void IdlerSimple::write_data(const double t, DebugType type) {
+void IdlerSimple::Write_data(const double t, DebugType type) {
     if (type & DBG_BODY) {
         std::stringstream ss_id;
         ChSharedPtr<ChBody> ib = GetBody();

@@ -82,16 +82,16 @@ class CH_SUBSYS_API TrackChain : public ChShared {
     const std::vector<ChSharedPtr<ChBody> >& GetShoeBody() const;
 
     /// number of track shoes created/initialized
-    size_t Get_numShoes() const { return m_numShoes; }
+    size_t GetNumShoes() const { return m_numShoes; }
 
     /// reaction force on pin constraint, relative coords
     const ChVector<> GetPinReactForce(size_t pin_idx);
     const ChVector<> GetPinReactTorque(size_t pin_idx);
 
     // accessors to geometry
-    const std::string& getMeshName() const { return m_meshName; }
-    const std::string& getMeshFile() const { return m_meshFile; }
-    const std::string& getCollisionFilename() const { return m_collisionFile; }
+    const std::string& GetMeshName() const { return m_meshName; }
+    const std::string& GetMeshFile() const { return m_meshFile; }
+    const std::string& GetCollisionFilename() const { return m_collisionFile; }
 
     /// turn on damping friction in the shoe pins
     void Set_pin_friction(
@@ -100,10 +100,10 @@ class CH_SUBSYS_API TrackChain : public ChShared {
         double damping_C_nonlin = 0);    ///< nonlinear portion of damper, used if use_custom_damper = true
 
     /// write the header for saving data to file
-    void write_header(const std::string& filename, DebugType type);
+    void Write_header(const std::string& filename, DebugType type);
 
     /// write the data at time t
-    void write_data(const double t, const ChSharedPtr<ChBody> chassis, DebugType type);
+    void Write_data(const double t, const ChSharedPtr<ChBody> chassis, DebugType type);
 
     // helper functions, for GUI output for certain reaction forces
     // following variables are populated when ChTrackVehicle::reportShoeGearContact() is called
