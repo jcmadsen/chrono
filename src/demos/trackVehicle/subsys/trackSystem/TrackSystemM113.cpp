@@ -128,16 +128,19 @@ void TrackSystemM113::BuildSubsystems(const double omega_max) {
     std::stringstream idlerName;
     idlerName << "idler " << m_track_idx;
     m_idler = ChSharedPtr<IdlerSimple>(new IdlerSimple(idlerName.str(), VisualizationType::Mesh,
-                                                       CollisionType::Primitives, m_track_idx, 429.6,
-                                                       ChVector<>(12.55, 12.55, 14.7), 4e4, 2e3));
+                                                       CollisionType::Primitives, m_track_idx, 
+                                                       429.6,   // idler mass
+                                                       ChVector<>(12.55, 12.55, 14.7),  // idler Ixx
+                                                       4e4, 2e3));  // tensioner spring K, C
 
     std::stringstream chainname;
     chainname << "chain " << m_track_idx;
     m_chain = ChSharedPtr<TrackChain>(new TrackChain(chainname.str(),
                                                      // VisualizationType::Primitives,
                                                      VisualizationType::CompoundPrimitives, CollisionType::Primitives,
-                                                     m_track_idx, 18.02,
-                                                     ChVector<>(0.22, 0.25, 0.04)));
+                                                     m_track_idx, 
+                                                     18.02, // shoe mass
+                                                     ChVector<>(0.22, 0.25, 0.04)));    // shoe Ixx
     // CollisionType::CompoundPrimitives) );
 
     // build suspension/road wheel subsystems
@@ -146,8 +149,11 @@ void TrackSystemM113::BuildSubsystems(const double omega_max) {
         susp_name << "suspension " << i << ", chain " << m_track_idx;
         m_suspensions[i] = ChSharedPtr<TorsionArmSuspension>(
             new TorsionArmSuspension(susp_name.str(), VisualizationType::Mesh, CollisionType::Primitives, m_track_idx,
-                                     561.1, ChVector<>(19.82, 19.82, 26.06), 75.26,
-                                     ChVector<>(0.77, 0.37, 0.77), 5e3, 1e2, 3e2));
+                                     561.1, // wheel mass
+                                     ChVector<>(19.82, 19.82, 26.06),   // wheel Ixx
+                                     75.26, // arm mass
+                                     ChVector<>(0.77, 0.37, 0.77),  // arm Ixx
+                                     1e5, 1.5e3, 1000)); //  5e3, 1e2, 3e2));   // K, C, preload
     }
 }
 

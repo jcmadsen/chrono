@@ -78,17 +78,9 @@ TrackVehicleM113::TrackVehicleM113(const std::string& name,
     // add visualization assets to the chassis
     AddVisualization();
 
-    // resize vectors for the number of track systems
-    // m_TrackSystems.resize(m_num_tracks);
-    // m_TrackSystem_locs.resize(m_num_tracks);
-
     // Right and Left track System relative locations, respectively
     m_TrackSystem_locs.push_back(m_trackSys_L);
     m_TrackSystem_locs.push_back(m_trackSys_R);
-
-    // two drive Gears, like a 2WD driven vehicle.
-    // m_drivelines.resize(m_num_engines);
-    // m_ptrains.resize(m_num_engines); // done by base vehicle class
 
     // create track systems
     for (int i = 0; i < m_num_tracks; i++) {
@@ -104,7 +96,6 @@ TrackVehicleM113::TrackVehicleM113(const std::string& name,
         dl_ss << "driveline " << j;
         std::stringstream pt_ss;
         pt_ss << "powertrain " << j;
-        // m_drivelines.push_back(ChSharedPtr<TrackDriveline>(new TrackDriveline(dl_ss.str() ) ) );
         m_ptrains.push_back(ChSharedPtr<TrackPowertrain>(new TrackPowertrain(pt_ss.str())));
     }
 
@@ -189,34 +180,6 @@ const ChSharedPtr<TrackPowertrain> TrackVehicleM113::GetPowertrain(size_t idx) c
     assert(idx < m_num_engines);
     return m_ptrains[idx];
 }
-
-/*
-// Log constraint violations
-void TrackVehicleM113::LogConstraintViolations() {
-    GetLog().SetNumFormat("%16.4e");
-
-    GetLog() << " \n\n  Constraint Violations \n";
-    // log constraint violation on each chain system
-    for (size_t chain_id = 0; chain_id < m_num_tracks; chain_id++) {
-        GetLog() << "\n  ******************************** \n track system #: " << chain_id << "\n";
-        // Report constraint violations for the gear revolute joint
-        GetLog() << "\n\n---- Gear constraint violations\n";
-        m_TrackSystems[chain_id]->GetDriveGear()->LogConstraintViolations();
-
-        GetLog() << "\n\n---- Idler constraint violations\n";
-        m_TrackSystems[chain_id]->GetIdler()->LogConstraintViolations();
-
-        // violations of the bogie revolute joints in the suspensions
-        for (size_t susp_id = 0; susp_id < m_TrackSystems[chain_id]->Get_NumWheels(); susp_id++) {
-            GetLog() << "\n\n---- Suspension #: " << susp_id << " constrain violations\n";
-            m_TrackSystems[chain_id]->GetSuspension(susp_id)->LogConstraintViolations();
-        }
-
-        // TODO: track chain inter-shoe revolute constraint violation
-    }
-    GetLog().SetNumFormat("%g");
-}
-*/
 
 // write output, console functions
 
