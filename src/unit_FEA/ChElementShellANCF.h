@@ -14,7 +14,7 @@
 #define CHELEMENTSHELLANCF_H
 
 
-#include "ChElementBeam.h"
+#include "ChElementShell.h"
 #include "ChShellSection.h"
 #include "ChNodeFEAxyzD.h"
 #include "core/ChQuadrature.h"
@@ -59,6 +59,8 @@ public:
 
 	virtual ChSharedPtr<ChNodeFEAbase> GetNodeN(int n) {return nodes[n];}
 
+                /// Set the nodes. Consider the nodes arranged counterclockwise, 
+                /// looking the element from top (when D vectors are pointing to you)
 	virtual void SetNodes(  ChSharedPtr<ChNodeFEAxyzD> nodeA, 
                             ChSharedPtr<ChNodeFEAxyzD> nodeB,
                             ChSharedPtr<ChNodeFEAxyzD> nodeC,
@@ -114,13 +116,14 @@ public:
 
 				/// Fills the N shape function matrix with the
 				/// values of shape functions at parametric coordinates 'x,y'.
-				/// Note, xi=0..1, yi=0..1.
+				/// Note, xi=0..1, yi=0..1.  
+                /// Note, xi is in the'length' direction, i.e. from node 1 to 2.
 	virtual void ShapeFunctions(ChMatrix<>& N, double xi,  double yi)
 				{
-                    // ***TODO***
-					// N(0) = // ***TODO***
-					// N(1) = // ***TODO***
-					// ....
+					N(0) = 0.25 * (1-xi) * (1-yi);
+					N(1) = 0.25 * (1+xi) * (1-yi);
+					N(2) = 0.25 * (1+xi) * (1+yi);
+                    N(3) = 0.25 * (1-xi) * (1+yi);
 				};
 
 				/// Fills the N shape function derivatives matrix with the
@@ -315,7 +318,34 @@ public:
 					//rot = ...
 				}
 
+                    /// Gets the absolute xyz position of a point on the shell,
+                    /// at parametric coordinates 'u' and 'v'.
+                    /// Note, u=-1..+1 , v= -1..+1.
+                    /// Note, 'displ' is the displ.state of nodes, ex. get it as GetField()
+                    /// Results are corotated.
+    virtual void EvaluateSectionPoint(const double u,
+                                      const double v,
+                                      const ChMatrix<>& displ,
+                                      ChVector<>& point)
+                {
+                    ChVector<> u_displ;
+					
+					ChMatrixNM<double,1,4> N;
 
+					double xi = (u+1.0)*0.5; // because ShapeFunctions() works in 0..1 range
+                    double yi = (v+1.0)*0.5; // because ShapeFunctions() works in 0..1 range
+
+					this->ShapeFunctions(N, xi,yi);
+					
+					ChVector<> pA = this->nodes[0]->GetPos();
+					ChVector<> pB = this->nodes[1]->GetPos();
+					ChVector<> pC = this->nodes[2]->GetPos();
+					ChVector<> pD = this->nodes[3]->GetPos();
+
+					point.x = N(0)*pA.x + N(1)*pB.x + N(2)*pC.x + N(3)*pD.x;
+                    point.y = N(0)*pA.y + N(1)*pB.y + N(2)*pC.y + N(3)*pD.y;
+                    point.z = N(0)*pA.z + N(1)*pB.z + N(2)*pC.z + N(3)*pD.z;
+                }
 
 
 			//

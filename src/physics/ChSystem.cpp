@@ -53,8 +53,6 @@
 #include "timestepper/ChTimestepper.h"
 #include "timestepper/ChStaticAnalysis.h"
 
-#include "core/ChMemory.h"  // must be last include (memory leak debugger). In .cpp only.
-
 using namespace chrono::collision;
 
 namespace chrono {
@@ -382,7 +380,7 @@ void ChSystem::Copy(ChSystem* source) {
     SetLcpSolverType(GetLcpSolverType());
     parallel_thread_number = source->parallel_thread_number;
     use_sleeping = source->use_sleeping;
- 
+
 
     collision_callback = source->collision_callback;
     collisionpoint_callback = source->collisionpoint_callback;
@@ -637,28 +635,28 @@ void ChSystem::ChangeCollisionSystem(ChCollisionSystem* newcollsystem) {
 int ChSystem::SetScriptForStartFile(char* mfile) {
     if (!this->scriptEngine)
         return 0;
-    strcpy(this->scriptForStartFile, mfile);
+    strncpy(this->scriptForStartFile, mfile, sizeof(this->scriptForStartFile)-1);
     this->scriptForStart = this->scriptEngine->CreateScript();
     return this->scriptEngine->FileToScript(*this->scriptForStart, mfile);
 }
 int ChSystem::SetScriptForUpdateFile(char* mfile) {
     if (!this->scriptEngine)
         return 0;
-    strcpy(this->scriptForUpdateFile, mfile);
+    strncpy(this->scriptForUpdateFile, mfile, sizeof(this->scriptForUpdateFile)-1);
     this->scriptForUpdate = this->scriptEngine->CreateScript();
     return this->scriptEngine->FileToScript(*this->scriptForUpdate, mfile);
 }
 int ChSystem::SetScriptForStepFile(char* mfile) {
     if (!this->scriptEngine)
         return 0;
-    strcpy(this->scriptForStepFile, mfile);
+    strncpy(this->scriptForStepFile, mfile, sizeof(this->scriptForStepFile)-1);
     this->scriptForStep = this->scriptEngine->CreateScript();
     return this->scriptEngine->FileToScript(*this->scriptForStep, mfile);
 }
 int ChSystem::SetScriptFor3DStepFile(char* mfile) {
     if (!this->scriptEngine)
         return 0;
-    strcpy(this->scriptFor3DStepFile, mfile);
+    strncpy(this->scriptFor3DStepFile, mfile, sizeof(this->scriptFor3DStepFile)-1);
     this->scriptFor3DStep = this->scriptEngine->CreateScript();
     return this->scriptEngine->FileToScript(*this->scriptFor3DStep, mfile);
 }
@@ -908,7 +906,7 @@ void ChSystem::RemoveAllBodies() {
         Bpointer->RemoveRef();
     }
     bodylist.clear();
-};
+}
 
 void ChSystem::RemoveAllLinks() {
     for (unsigned int ip = 0; ip < linklist.size(); ++ip)  // ITERATE on links
@@ -921,7 +919,7 @@ void ChSystem::RemoveAllLinks() {
         Lpointer->RemoveRef();
     }
     linklist.clear();
-};
+}
 
 void ChSystem::RemoveAllOtherPhysicsItems() {
     for (unsigned int ip = 0; ip < otherphysicslist.size(); ++ip)  // ITERATE on other physics
@@ -937,7 +935,7 @@ void ChSystem::RemoveAllOtherPhysicsItems() {
         PHpointer->RemoveRef();
     }
     otherphysicslist.clear();
-};
+}
 
 void ChSystem::RemoveAllProbes() {
     for (unsigned int ip = 0; ip < probelist.size(); ++ip)  // ITERATE on probes
@@ -947,7 +945,7 @@ void ChSystem::RemoveAllProbes() {
         Ppointer->RemoveRef();
     }
     probelist.clear();
-};
+}
 
 void ChSystem::RemoveAllControls() {
     for (unsigned int ip = 0; ip < controlslist.size(); ++ip)  // ITERATE on controls
@@ -958,7 +956,7 @@ void ChSystem::RemoveAllControls() {
         Cpointer->RemoveRef();
     }
     controlslist.clear();
-};
+}
 
 ChSharedPtr<ChBody> ChSystem::SearchBody(const char* m_name) {
     ChBody* mbody =
@@ -2016,7 +2014,7 @@ void ChSystem::LoadResidual_CqL(ChVectorDynamic<>& R,        ///< result: the R 
         if (Lpointer->IsActive())
             Lpointer->IntLoadResidual_CqL(Lpointer->GetOffset_L(), R, L, c);
     }
-    this->contact_container->IntLoadResidual_CqL(contact_container->GetOffset_L(), R, L, c); 
+    this->contact_container->IntLoadResidual_CqL(contact_container->GetOffset_L(), R, L, c);
 }
 
 /// Increment a vector Qc with the term C:
@@ -2043,7 +2041,7 @@ void ChSystem::LoadConstraint_C(ChVectorDynamic<>& Qc,  ///< result: the Qc resi
         if (Lpointer->IsActive())
             Lpointer->IntLoadConstraint_C(Lpointer->GetOffset_L(), Qc, c, mdo_clamp, mclam);
     }
-    this->contact_container->IntLoadConstraint_C(contact_container->GetOffset_L(), Qc, c, mdo_clamp, mclam); 
+    this->contact_container->IntLoadConstraint_C(contact_container->GetOffset_L(), Qc, c, mdo_clamp, mclam);
 }
 
 /// Increment a vector Qc with the term Ct = partial derivative dC/dt:
@@ -3434,10 +3432,10 @@ ChSharedPtr<ChBody> ChSystem::IteratorBodies::operator*() {
 }
 ChSystem::IteratorBodies ChSystem::IterBeginBodies() {
     return (IteratorBodies(this->bodylist.begin()));
-};
+}
 ChSystem::IteratorBodies ChSystem::IterEndBodies() {
     return (IteratorBodies(this->bodylist.end()));
-};
+}
 
 //////////////////////////////////////////////////////////////////
 
@@ -3462,10 +3460,10 @@ ChSharedPtr<ChLink> ChSystem::IteratorLinks::operator*() {
 }
 ChSystem::IteratorLinks ChSystem::IterBeginLinks() {
     return (IteratorLinks(this->linklist.begin()));
-};
+}
 ChSystem::IteratorLinks ChSystem::IterEndLinks() {
     return (IteratorLinks(this->linklist.end()));
-};
+}
 
 //////////////////////////////////////////////////////////////////
 
@@ -3491,10 +3489,10 @@ ChSharedPtr<ChPhysicsItem> ChSystem::IteratorOtherPhysicsItems::operator*() {
 }
 ChSystem::IteratorOtherPhysicsItems ChSystem::IterBeginOtherPhysicsItems() {
     return (IteratorOtherPhysicsItems(this->otherphysicslist.begin()));
-};
+}
 ChSystem::IteratorOtherPhysicsItems ChSystem::IterEndOtherPhysicsItems() {
     return (IteratorOtherPhysicsItems(this->otherphysicslist.end()));
-};
+}
 
 //////////////////////////////////////////////////////////////////
 
@@ -3637,10 +3635,10 @@ ChSharedPtr<ChPhysicsItem> ChSystem::IteratorPhysicsItems::operator*() {
 }
 ChSystem::IteratorPhysicsItems ChSystem::IterBeginPhysicsItems() {
     return (IteratorPhysicsItems(this));
-};
+}
 ChSystem::IteratorPhysicsItems ChSystem::IterEndPhysicsItems() {
     return (IteratorPhysicsItems());
-};
+}
 
 }  // END_OF_NAMESPACE____
 

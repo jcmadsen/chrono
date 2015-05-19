@@ -34,8 +34,6 @@
 #include "ChLcpConstraintThree.h"
 #include "ChLcpVariables.h"
 
-#include "core/ChMemory.h"  // must be after system's include (memory leak debugger).
-
 namespace chrono {
 
 ///  This class is inherited by the base ChLcpConstraintThree(),
@@ -246,7 +244,7 @@ class ChApi ChLcpConstraintThreeGeneric : public ChLcpConstraintThree {
             storage.PasteMatrixFloat(Cq_a, insrow, variables_a->GetOffset());
         if (variables_b->IsActive())
             storage.PasteMatrixFloat(Cq_b, insrow, variables_b->GetOffset());
-        if (variables_b->IsActive())
+        if (variables_c->IsActive())
             storage.PasteMatrixFloat(Cq_c, insrow, variables_c->GetOffset());
     }
     virtual void Build_CqT(ChSparseMatrix& storage, int inscol) {
@@ -272,7 +270,5 @@ class ChApi ChLcpConstraintThreeGeneric : public ChLcpConstraintThree {
 };
 
 }  // END_OF_NAMESPACE____
-
-#include "core/ChMemorynomgr.h"  // back to default new/delete/malloc/calloc etc. Avoid conflicts with system libs.
 
 #endif

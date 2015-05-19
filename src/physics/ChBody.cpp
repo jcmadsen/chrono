@@ -23,8 +23,6 @@
 #include "collision/ChCModelBulletBody.h"
 #include "core/ChLinearAlgebra.h"
 
-#include "core/ChMemory.h"  // must be last include (memory leak debugger). In .cpp only.
-
 namespace chrono {
 
 using namespace collision;
@@ -620,7 +618,7 @@ void ChBody::RemoveAllForces() {
         HIER_FORCE_NEXT
     }
     forcelist.clear();
-};
+}
 
 void ChBody::RemoveAllMarkers() {
     HIER_MARKER_INIT
@@ -631,7 +629,7 @@ void ChBody::RemoveAllMarkers() {
     }
 
     marklist.clear();
-};
+}
 
 ChSharedPtr<ChMarker> ChBody::SearchMarker(const char* m_name) {
     ChMarker* mmark =
