@@ -80,20 +80,19 @@ endif()
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 #-----------------------------------------------------------------------------
-# OPTIONS AND USER SETTINGS
-# These cached variables will be shown in the GUI of CMake as
-# flags that you can turn ON/OFF to enable/disable the compilation
-# of some part of the entire project.
-# Switching off some unit might be useful in case you do not want to
-# install extra libraries/software that could be needed (for instance
-# to compile the MPI unit you must have the MPICH libraries and headers
-# installed on your system).
+# Enable CTest
 
-set(BUILD_CH_SDK         TRUE    CACHE BOOL   "Turn this ON to generate the Chrono::Engine main library.")
-set(BUILD_DEMOS          TRUE    CACHE BOOL   "Turn this ON to generate Chrono::Engine demos")
-set(ENABLE_UNIT_TESTS    FALSE   CACHE BOOL   "Turn this ON to generate Chrono::Engine unit tests")
+enable_testing()
+include(CTest)
+
+#-----------------------------------------------------------------------------
+# Optionally enable building the demo programs
+
+include(CMakeDependentOption)
+option(BUILD_DEMOS "Build demo programs" ON)
 
 
+#-----------------------------------------------------------------------------
 # Also, some variables that were used in previous makefile system (some
 # of them could be set automatically because CMake should recognize automatically
 # the compiler, generator, platform, etc....
@@ -142,46 +141,67 @@ endif()
 #set_property(CACHE CH_COMPILER PROPERTY STRINGS ${CH_COMPILER_VALUES})
 
 #-----------------------------------------------------------------------------
-# Generate configuration.h file
-# This way platform and system specific settings can be added to the
-# configuration.h file
-#
-#CONFIGURE_FILE(
-#  "${CH_CHRONOSRC}/core/configuration.h.in"
-#  "${CH_CHRONOSRC}/core/configuration.h"
-#  @ONLY
-#)
-
-
-#-----------------------------------------------------------------------------
-# Find the Chrono::Engine headers and related stuff contained
-# in its SDK, and setup related variables
+# Specify locations of executables and libraries
 
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
 set(LIBRARY_OUTPUT_PATH ${PROJECT_BINARY_DIR}/lib)
+
+#-----------------------------------------------------------------------------
+# Enable C++11 support
+
+find_package(ModernCXX)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_CXX11_STANDARD_COMPILE_OPTION}")
+
+#-----------------------------------------------------------------------------
+# Threads and OpenMP support
 
 set(THREADS_PREFER_PTHREAD_FLAG TRUE)
 find_package(Threads)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_THREAD_LIBS_INIT}")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${CMAKE_THREAD_LIBS_INIT}")
 
-set(ENABLE_OPENMP          TRUE    CACHE BOOL   "Turn this ON to enable OpenMP")
-if(ENABLE_OPENMP)
-    find_package("OpenMP")
-    if(OPENMP_FOUND)
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
-    endif(OPENMP_FOUND)
-else()
-    unset(OPENMP_FOUND)
+# We always look for OpenMP (which is required for the PARALLEL unit).
+# However, we allow the user to optionally disable OpenMP support in the
+# main ChronoEngine library, regardless on whether or not OpenMP is found.
+
+find_package("OpenMP")
+
+# Determine OpenMP version. Prepare substitution variables that can be used in
+# generating configuration header files.
+
+if(OPENMP_FOUND)
+  include(CheckOpenMPVersion)
+  message(STATUS "OpenMP version: ${OMP_VERSION}")
+  set(CHRONO_OMP_FOUND "#define CHRONO_OMP_FOUND")
+  set(CHRONO_OMP_VERSION "#define CHRONO_OMP_VERSION \"${OMP_VERSION}\"")
+  if(OMP_20)
+    set(CHRONO_OMP_20 "#define CHRONO_OMP_20")
+  else()
+    set(CHRONO_OMP_20 "")
+  endif()
+  if(OMP_30)
+    set(CHRONO_OMP_30 "#define CHRONO_OMP_30")
+  else()
+    set(CHRONO_OMP_30 "")
+  endif()
+  if(OMP_40)
+    set(CHRONO_OMP_40 "#define CHRONO_OMP_40")
+  else()
+    set(CHRONO_OMP_40 "")
+  endif()
 endif()
 
-# Enable C++11 support
-option(ENABLE_CXX11 "Enable C++11 support" OFF)
-if(ENABLE_CXX11)
-    find_package(ModernCXX)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_CXX11_STANDARD_COMPILE_OPTION}")
+# Provide an option (dependent on OPENMP_FOUND) for the user to disable OpenMP
+# support in the main ChronoEngine library.
+cmake_dependent_option(ENABLE_OPENMP "Enable OpenMP support in Chrono::Engine" ON
+                       "OPENMP_FOUND" OFF)
+
+if(ENABLE_OPENMP)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
 endif()
+
+#-----------------------------------------------------------------------------
 
 set(CPACK_SYSTEM_NAME "${CMAKE_SYSTEM_NAME}-${CMAKE_SYSTEM_PROCESSOR}")
 if(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
@@ -192,7 +212,7 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
     endif()
 endif()
 
-
+#-----------------------------------------------------------------------------
 
 if(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
     if(MSVC)
@@ -236,7 +256,6 @@ set(CH_INCLUDES ${CH_INCLUDES} "${CMAKE_SOURCE_DIR}/collision/convexdecompositio
 include_directories( ${CH_INCLUDES} )
 
 
-if(BUILD_CH_SDK)
 
     #-----------------------------------------------------------------------------
     #
@@ -247,6 +266,8 @@ if(BUILD_CH_SDK)
     # here (in one of the following group lists) and re-run the CMake.
     # You can add both .cpp and .h, only the .cpp will be compiled.
     #
+
+    message(STATUS "==== Chrono Engine core module ====")
 
     # Set version string and Git commit hash.
     configure_file("${CMAKE_CURRENT_SOURCE_DIR}/core/ChVersion.h.in" "${CMAKE_CURRENT_BINARY_DIR}/core/ChVersion.h" @ONLY)
@@ -299,6 +320,7 @@ if(BUILD_CH_SDK)
         core/ChWrapHashmap.h
         core/ChDistribution.h
         core/ChQuadrature.h
+		core/ChTemplateExpressions.h
         )
 
     list(APPEND ChronoEngine_core_SOURCES "${CMAKE_CURRENT_BINARY_DIR}/core/ChVersion.h")
@@ -306,6 +328,22 @@ if(BUILD_CH_SDK)
     source_group(core FILES
         ${ChronoEngine_core_SOURCES}
         ${ChronoEngine_core_HEADERS}
+        )
+
+
+		
+    set(ChronoEngine_serialization_SOURCES
+        )
+    set(ChronoEngine_serialization_HEADERS
+        serialization/ChArchive.h
+		serialization/ChArchiveBinary.h
+		serialization/ChArchiveAsciiDump.h
+		serialization/ChArchiveJSON.h
+        )
+
+    source_group(serialization FILES
+        ${ChronoEngine_serialization_SOURCES}
+        ${ChronoEngine_serialization_HEADERS}
         )
 
     set(ChronoEngine_physics_SOURCES
@@ -353,7 +391,6 @@ if(BUILD_CH_SDK)
         physics/ChSolvmin.cpp
         physics/ChProbe.cpp
         physics/ChControls.cpp
-        physics/ChIntegrator.cpp
         physics/ChController.cpp
         physics/ChIterative.cpp
         physics/ChRef.cpp
@@ -393,6 +430,7 @@ if(BUILD_CH_SDK)
         physics/ChContactContainerDEM.cpp
         physics/ChContactDEM.cpp
         physics/ChMaterialSurfaceDEM.cpp
+		physics/ChMaterialSurface.cpp
         physics/ChContinuumMaterial.cpp
         )
     set(ChronoEngine_physics_HEADERS
@@ -420,7 +458,6 @@ if(BUILD_CH_SDK)
         physics/ChHistory.h
         physics/ChIndexedNodes.h
         physics/ChIndexedParticles.h
-        physics/ChIntegrator.h
         physics/ChIterative.h
         physics/ChLimit.h
         physics/ChLinkBase.h
@@ -458,7 +495,6 @@ if(BUILD_CH_SDK)
         physics/ChMaterialSurfaceDEM.h
         physics/ChMatterSPH.h
         physics/ChNlsolver.h
-        physics/ChVariablesInterface.h
         physics/ChNodeBase.h
         physics/ChNodeXYZ.h
         physics/ChObject.h
@@ -510,9 +546,13 @@ if(BUILD_CH_SDK)
         geometry/ChCCylinder.cpp
         geometry/ChCCapsule.cpp
         geometry/ChCLine.cpp
+		geometry/ChCLineArc.cpp
+		geometry/ChCLineSegment.cpp
+		geometry/ChCLinePath.cpp
         geometry/ChCLineCam.cpp
         geometry/ChCLinePoly.cpp
         geometry/ChCTriangle.cpp
+		geometry/ChCTriangleMeshSoup.cpp
         geometry/ChCTriangleMeshConnected.cpp
         geometry/ChCRoundedBox.cpp
         geometry/ChCRoundedCylinder.cpp
@@ -560,6 +600,7 @@ if(BUILD_CH_SDK)
         assets/ChTexture.cpp
         assets/ChCamera.cpp
         assets/ChAssetLevel.cpp
+		assets/ChColor.cpp
         assets/ChGlyphs.cpp
         assets/ChColorAsset.cpp
         assets/ChRoundedCylinderShape.cpp
@@ -1082,6 +1123,8 @@ if(BUILD_CH_SDK)
     set(ChronoEngine_FILES
         ${ChronoEngine_core_SOURCES}
         ${ChronoEngine_core_HEADERS}
+		${ChronoEngine_serialization_SOURCES}
+        ${ChronoEngine_serialization_HEADERS}
         ${ChronoEngine_physics_SOURCES}
         ${ChronoEngine_physics_HEADERS}
         ${ChronoEngine_lcp_SOURCES}
@@ -1139,7 +1182,8 @@ if(BUILD_CH_SDK)
     #    COMMAND ${CMAKE_COMMAND} -E remove_directory ${PROJECT_BINARY_DIR}/data/.svn
     #)
 
-endif(BUILD_CH_SDK)
+
+#------------------------------------------------------------
 
 
 if(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
@@ -1188,26 +1232,30 @@ install(DIRECTORY ${CMAKE_SOURCE_DIR}/
     )
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/core/ChVersion.h" DESTINATION include/chrono/core)
 
-#
+#------------------------------------------------------------
 # Propagates the CMake build to other directories
-#
+#------------------------------------------------------------
+
+# Add directories to build various optional modules.  Each module is supposed
+# to provide an option for enabling that particular module.
 
 add_subdirectory(unit_MATLAB)
-# add_subdirectory(unit_MPI)
-# add_subdirectory(unit_GPU)
-#add_subdirectory(unit_JS)
 add_subdirectory(unit_CASCADE)
-# add_subdirectory(unit_OPENGL)
 add_subdirectory(unit_IRRLICHT)
 add_subdirectory(unit_POSTPROCESS)
 add_subdirectory(unit_COSIMULATION)
 add_subdirectory(unit_FEA)
 add_subdirectory(unit_PYTHON)
-#
-# Demo Files
-#
-add_subdirectory(demos)
-add_subdirectory(unit_TESTING)
+add_subdirectory(unit_PARALLEL)
 
+# Add directories for demo programs and unit test programs.
+
+if(BUILD_DEMOS)
+  add_subdirectory(demos)
+endif()
+
+if(BUILD_TESTING)
+  add_subdirectory(unit_TESTING)
+endif()
 
 include(CPack)
