@@ -30,7 +30,7 @@
 #include "physics/ChSystem.h"
 #include "physics/ChGlobal.h"
 #include "physics/ChBodyAuxRef.h"
-#include "physics/ChContactContainer.h"
+#include "physics/ChContactContainerDVI.h"
 #include "physics/ChProximityContainerBase.h"
 
 #include "lcp/ChLcpSystemDescriptor.h"
@@ -44,12 +44,12 @@
 #include "lcp/ChLcpIterativeBB.h"
 #include "lcp/ChLcpIterativePCG.h"
 #include "lcp/ChLcpIterativeAPGD.h"
-#include "lcp/ChLcpSolverDEM.h"
+//#include "lcp/ChLcpSolverDEM.h"
 #include "parallel/ChOpenMP.h"
 
 #include "core/ChTimer.h"
 #include "collision/ChCCollisionSystemBullet.h"
-#include "collision/ChCModelBulletBody.h"
+#include "collision/ChCModelBullet.h"
 #include "timestepper/ChTimestepper.h"
 #include "timestepper/ChStaticAnalysis.h"
 
@@ -255,7 +255,8 @@ ChSystem::ChSystem(unsigned int max_objects, double scene_size, bool init_sys) {
     this->contact_container = 0;
     // default contact container
     if (init_sys) {
-        this->contact_container = new ChContactContainer();
+        this->contact_container = new ChContactContainerDVI();
+        this->contact_container->SetSystem(this);
     }
     collision_system = 0;
     // default GPU collision engine
@@ -451,7 +452,8 @@ void ChSystem::SetLcpSolverType(eCh_lcpSolver mval) {
     LCP_descriptor = new ChLcpSystemDescriptor;
     LCP_descriptor->SetNumThreads(parallel_thread_number);
 
-    contact_container = new ChContactContainer;
+    this->contact_container = new ChContactContainerDVI();
+    this->contact_container->SetSystem(this);
 
     switch (mval) {
         case LCP_ITERATIVE_SOR:
@@ -614,6 +616,7 @@ void ChSystem::ChangeContactContainer(ChContactContainerBase* newcontainer) {
     if (this->contact_container)
         delete (this->contact_container);
     this->contact_container = newcontainer;
+    this->contact_container->SetSystem(this);
 }
 
 void ChSystem::ChangeCollisionSystem(ChCollisionSystem* newcollsystem) {
@@ -849,7 +852,7 @@ void ChSystem::RemoveOtherPhysicsItem(ChSharedPtr<ChPhysicsItem> mitem) {
 }
 
 void ChSystem::Add(ChSharedPtr<ChPhysicsItem> newitem) {
-    if (newitem.IsType<ChBody>())  // old was: (typeid(*newitem.get_ptr())==typeid(ChBody))
+    if (newitem.IsType<ChBody>()) // (typeid(*newitem.get_ptr())==typeid(ChBody)) // if (newitem.IsType<ChBody>()) sends ChBody descendants in ChBody list: this is bad for ChConveyor
     {
         AddBody(newitem.DynamicCastTo<ChBody>());
     } else if (newitem.IsType<ChLink>()) {
@@ -858,8 +861,24 @@ void ChSystem::Add(ChSharedPtr<ChPhysicsItem> newitem) {
         AddOtherPhysicsItem(newitem);
 }
 
+void ChSystem::AddBatch(ChSharedPtr<ChPhysicsItem> newitem) {
+    // the following is a openMP critical section:
+    #pragma omp critical
+    {
+        this->batch_to_insert.push_back(newitem);
+        newitem->SetSystem(this);
+    }
+}
+void ChSystem::FlushBatch() {
+    for (int i=0; i<  this->batch_to_insert.size(); ++i) {
+        batch_to_insert[i]->SetSystem(0);
+        this->Add(batch_to_insert[i]);
+    }
+    batch_to_insert.clear();
+}
+
 void ChSystem::Remove(ChSharedPtr<ChPhysicsItem> newitem) {
-    if (newitem.IsType<ChBody>())  // old was: (typeid(*newitem.get_ptr())==typeid(ChBody))
+    if (newitem.IsType<ChBody>()) // (typeid(*newitem.get_ptr())==typeid(ChBody)) // if (newitem.IsType<ChBody>()) sends ChBody descendants in ChBody list: this is bad for ChConveyor
     {
         RemoveBody(newitem.DynamicCastTo<ChBody>());
     } else if (newitem.IsType<ChLink>()) {
@@ -1177,12 +1196,8 @@ void ChSystem::WakeUpSleepingBodies() {
             ) {
             if (!(modA && modB))
                 return true;
-            ChBody* b1 = 0;
-            ChBody* b2 = 0;
-            if (ChModelBulletBody* mmboA = dynamic_cast<ChModelBulletBody*>(modA))
-                b1 = mmboA->GetBody();
-            if (ChModelBulletBody* mmboB = dynamic_cast<ChModelBulletBody*>(modB))
-                b2 = mmboB->GetBody();
+            ChBody* b1 = dynamic_cast<ChBody*>(modA->GetContactable());
+            ChBody* b2 = dynamic_cast<ChBody*>(modB->GetContactable());
             if (!(b1 && b2))
                 return true;
             bool sleep1 = b1->GetSleeping();
@@ -1256,6 +1271,9 @@ void ChSystem::Setup() {
     nlinks = 0;
     nphysicsitems = 0;
 
+    // Any item being queued for insertion in system's lists? add it.
+    this->FlushBatch();
+
     for (unsigned int ip = 0; ip < bodylist.size(); ++ip)  // ITERATE on bodies
     {
         ChBody* Bpointer = bodylist[ip];
@@ -1275,9 +1293,9 @@ void ChSystem::Setup() {
 
             ncoords   += Bpointer->GetDOF();
             ncoords_w += Bpointer->GetDOF_w();
-            //ndoc_w    += Bpointer->GetDOC();   // unneeded since ChBody introduces no constraints
-            //ndoc_w_C  += Bpointer->GetDOC_c(); // unneeded since ChBody introduces no constraints
-            //ndoc_w_D  += Bpointer->GetDOC_d(); // unneeded since ChBody introduces no constraints
+            ndoc_w    += Bpointer->GetDOC();   // unneeded since ChBody introduces no constraints
+            ndoc_w_C  += Bpointer->GetDOC_c(); // unneeded since ChBody introduces no constraints
+            ndoc_w_D  += Bpointer->GetDOC_d(); // unneeded since ChBody introduces no constraints
         }
     }
 

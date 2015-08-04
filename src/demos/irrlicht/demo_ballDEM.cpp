@@ -24,8 +24,6 @@
 #include "physics/ChSystemDEM.h"
 #include "physics/ChContactContainerDEM.h"
 
-#include "collision/ChCModelBulletBody.h"
-
 #include "lcp/ChLcpSolverDEM.h"
 
 #include "unit_IRRLICHT/ChIrrApp.h"
@@ -88,6 +86,10 @@ int main(int argc, char* argv[]) {
     application.AddTypicalSky();
     application.AddTypicalLights();
     application.AddTypicalCamera(core::vector3df(0, 3, -6));
+    
+    // This means that contactforces will be shown in Irrlicht application
+    application.SetSymbolscale(1e-4);
+    application.SetContactsDrawMode(ChIrrTools::eCh_ContactsDrawMode::CONTACT_FORCES);
 
     // Create a material (will be used by both objects)
     ChSharedPtr<ChMaterialSurfaceDEM> material;
@@ -103,6 +105,7 @@ int main(int argc, char* argv[]) {
     ball->SetPos(pos);
     ball->SetRot(rot);
     ball->SetPos_dt(init_vel);
+ball->SetWvel_par(ChVector<>(0,0,3));
     ball->SetBodyFixed(false);
     ball->SetMaterialSurface(material);
 

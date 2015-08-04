@@ -26,7 +26,7 @@
 #include "physics/ChSystem.h"
 #include "physics/ChGlobal.h"
 
-#include "collision/ChCModelBulletParticle.h"
+#include "collision/ChCModelBullet.h"
 #include "core/ChLinearAlgebra.h"
 
 namespace chrono {
@@ -44,7 +44,9 @@ ChClassRegister<ChParticlesClones> a_registration_ChParticlesClones;
 /// CLASS FOR A PARTICLE
 
 ChAparticle::ChAparticle() {
-    this->collision_model = new ChModelBulletParticle;
+    this->collision_model = new ChModelBullet;
+    this->collision_model->SetContactable(this);
+    this->container = 0;
     this->UserForce = VNULL;
     this->UserTorque = VNULL;
 }
@@ -54,11 +56,11 @@ ChAparticle::~ChAparticle() {
 }
 
 ChAparticle::ChAparticle(const ChAparticle& other) : ChParticleBase(other) {
-    this->collision_model = new ChModelBulletParticle;
+    this->collision_model = new ChModelBullet;
     this->collision_model->AddCopyOfAnotherModel(other.collision_model);
-    ((ChModelBulletParticle*)collision_model)
-        ->SetParticle(((ChModelBulletParticle*)other.collision_model)->GetParticles(),
-                      ((ChModelBulletParticle*)other.collision_model)->GetParticleId());
+    this->collision_model->SetContactable(this);
+
+    this->container = other.container;
     this->UserForce = other.UserForce;
     this->UserTorque = other.UserTorque;
     this->variables = other.variables;
@@ -73,15 +75,89 @@ ChAparticle& ChAparticle::operator=(const ChAparticle& other) {
 
     this->collision_model->ClearModel();
     this->collision_model->AddCopyOfAnotherModel(other.collision_model);
-    ((ChModelBulletParticle*)collision_model)
-        ->SetParticle(((ChModelBulletParticle*)other.collision_model)->GetParticles(),
-                      ((ChModelBulletParticle*)other.collision_model)->GetParticleId());
+    this->collision_model->SetContactable(this);
+
+    this->container = other.container;
     this->UserForce = other.UserForce;
     this->UserTorque = other.UserTorque;
     this->variables = other.variables;
 
     return *this;
 }
+
+ChSharedPtr<ChMaterialSurfaceBase>& ChAparticle::GetMaterialSurfaceBase()
+{
+    return container->GetMaterialSurfaceBase();
+}
+
+
+ChVector<> ChAparticle::GetContactPointSpeed(const ChVector<>& abs_point) {
+    ChVector<> m_p1_loc = this->TransformPointParentToLocal(abs_point);
+    return this->PointSpeedLocalToParent(m_p1_loc);
+}
+
+
+
+void ChAparticle::ContactForceLoadResidual_F(const ChVector<>& F, const ChVector<>& abs_point, 
+                                ChVectorDynamic<>& R) {
+    ChVector<> m_p1_loc = this->TransformPointParentToLocal(abs_point);
+    ChVector<> force1_loc = this->TransformDirectionParentToLocal(F);
+    ChVector<> torque1_loc = Vcross(m_p1_loc, force1_loc);
+    R.PasteSumVector(F , this->Variables().GetOffset() + 0, 0); //***TODO*** implement this->NodeGetOffset_w()
+    R.PasteSumVector(torque1_loc , this->Variables().GetOffset() + 3, 0); //***TODO*** implement this->NodeGetOffset_w()
+}
+
+void ChAparticle::ComputeJacobianForContactPart(const ChVector<>& abs_point, ChMatrix33<>& contact_plane, 
+            type_constraint_tuple& jacobian_tuple_N, 
+            type_constraint_tuple& jacobian_tuple_U, 
+            type_constraint_tuple& jacobian_tuple_V, 
+            bool second) {
+    ChVector<> m_p1_loc = this->TransformPointParentToLocal(abs_point);
+    ChMatrix33<> Jx1, Jr1;
+    ChMatrix33<> Ps1, Jtemp;
+    Ps1.Set_X_matrix(m_p1_loc);
+
+    Jx1.CopyFromMatrixT(contact_plane);
+    if (!second)
+        Jx1.MatrNeg();
+
+    Jtemp.MatrMultiply(this->GetA(), Ps1);
+    Jr1.MatrTMultiply(contact_plane, Jtemp);
+    if (second)
+        Jr1.MatrNeg();
+
+    jacobian_tuple_N.Get_Cq()->PasteClippedMatrix(&Jx1, 0, 0, 1, 3, 0, 0);
+    jacobian_tuple_U.Get_Cq()->PasteClippedMatrix(&Jx1, 1, 0, 1, 3, 0, 0);
+    jacobian_tuple_V.Get_Cq()->PasteClippedMatrix(&Jx1, 2, 0, 1, 3, 0, 0);
+    jacobian_tuple_N.Get_Cq()->PasteClippedMatrix(&Jr1, 0, 0, 1, 3, 0, 3);
+    jacobian_tuple_U.Get_Cq()->PasteClippedMatrix(&Jr1, 1, 0, 1, 3, 0, 3);
+    jacobian_tuple_V.Get_Cq()->PasteClippedMatrix(&Jr1, 2, 0, 1, 3, 0, 3);
+}
+
+void ChAparticle::ComputeJacobianForRollingContactPart(const ChVector<>& abs_point, ChMatrix33<>& contact_plane, 
+            type_constraint_tuple& jacobian_tuple_N, 
+            type_constraint_tuple& jacobian_tuple_U, 
+            type_constraint_tuple& jacobian_tuple_V, 
+            bool second) {
+    ChMatrix33<> Jx1, Jr1;
+
+    Jr1.MatrTMultiply(contact_plane, this->GetA());
+    if (!second)
+        Jr1.MatrNeg();
+    
+    jacobian_tuple_N.Get_Cq()->PasteClippedMatrix(&Jx1, 0, 0, 1, 3, 0, 0);
+    jacobian_tuple_U.Get_Cq()->PasteClippedMatrix(&Jx1, 1, 0, 1, 3, 0, 0);
+    jacobian_tuple_V.Get_Cq()->PasteClippedMatrix(&Jx1, 2, 0, 1, 3, 0, 0);
+    jacobian_tuple_N.Get_Cq()->PasteClippedMatrix(&Jr1, 0, 0, 1, 3, 0, 3);
+    jacobian_tuple_U.Get_Cq()->PasteClippedMatrix(&Jr1, 1, 0, 1, 3, 0, 3);
+    jacobian_tuple_V.Get_Cq()->PasteClippedMatrix(&Jr1, 2, 0, 1, 3, 0, 3);
+}
+
+ChPhysicsItem* ChAparticle::GetPhysicsItem()
+{
+    return container;
+}
+
 
 //////////////////////////////////////
 //////////////////////////////////////
@@ -97,12 +173,13 @@ ChParticlesClones::ChParticlesClones() {
     this->SetInertiaXX(ChVector<double>(1.0, 1.0, 1.0));
     this->SetInertiaXY(ChVector<double>(0, 0, 0));
 
-    particle_collision_model = new ChModelBulletParticle();
-    ((ChModelBulletParticle*)particle_collision_model)->SetParticle(this, 9999999);
+    particle_collision_model = new ChModelBullet();
+    particle_collision_model->SetContactable(0);
 
     this->particles.clear();
     // this->ResizeNparticles(num_particles); // caused memory corruption.. why?
 
+    // default DVI material
     matsurface = ChSharedPtr<ChMaterialSurface>(new ChMaterialSurface);
 
     SetIdentifier(GetUniqueIntID());  // mark with unique ID
@@ -165,9 +242,12 @@ void ChParticlesClones::ResizeNparticles(int newsize) {
     for (unsigned int j = 0; j < particles.size(); j++) {
         this->particles[j] = new ChAparticle;
 
+        this->particles[j]->SetContainer(this);
+
         this->particles[j]->variables.SetSharedMass(&this->particle_mass);
         this->particles[j]->variables.SetUserData((void*)this);  // UserData unuseful in future cuda solver?
-        ((ChModelBulletParticle*)this->particles[j]->collision_model)->SetParticle(this, j);
+        
+        this->particles[j]->collision_model->SetContactable(this->particles[j]);
         // this->particles[j]->collision_model->ClearModel();
         this->particles[j]->collision_model->AddCopyOfAnotherModel(this->particle_collision_model);
         this->particles[j]->collision_model->BuildModel();
@@ -180,11 +260,14 @@ void ChParticlesClones::AddParticle(ChCoordsys<double> initial_state) {
     ChAparticle* newp = new ChAparticle;
     newp->SetCoord(initial_state);
 
+    newp->SetContainer(this);
+
     this->particles.push_back(newp);
 
     newp->variables.SetSharedMass(&this->particle_mass);
     newp->variables.SetUserData((void*)this);  // UserData unuseful in future cuda solver?
-    ((ChModelBulletParticle*)newp->collision_model)->SetParticle(this, (unsigned int)particles.size() - 1);
+    
+    newp->collision_model->SetContactable(newp);
     // newp->collision_model->ClearModel(); // wasn't already added to system, no need to remove
     newp->collision_model->AddCopyOfAnotherModel(this->particle_collision_model);
     newp->collision_model->BuildModel();  // will also add to system, if collision is on.

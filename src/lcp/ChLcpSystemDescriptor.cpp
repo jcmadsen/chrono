@@ -23,13 +23,13 @@
 ///////////////////////////////////////////////////
 
 #include "ChLcpSystemDescriptor.h"
-#include "ChLcpConstraintTwoFrictionT.h"
-#include "ChLcpConstraintTwoRollingN.h"
-#include "ChLcpConstraintTwoRollingT.h"
+#include "ChLcpConstraintTwoTuplesContactN.h"
+#include "ChLcpConstraintTwoTuplesFrictionT.h"
 
 namespace chrono {
 
 #define CH_SPINLOCK_HASHSIZE 203
+
 
 ChLcpSystemDescriptor::ChLcpSystemDescriptor() {
     vconstraints.clear();
@@ -114,9 +114,9 @@ void ChLcpSystemDescriptor::UpdateCountsAndOffsets() {
     freeze_count = true;
 }
 
-void ChLcpSystemDescriptor::ConvertToMatrixForm(ChSparseMatrix* Cq,
-                                                ChSparseMatrix* M,
-                                                ChSparseMatrix* E,
+void ChLcpSystemDescriptor::ConvertToMatrixForm(ChSparseMatrixBase* Cq,
+                                                ChSparseMatrixBase* M,
+												ChSparseMatrixBase* E,
                                                 ChMatrix<>* Fvector,
                                                 ChMatrix<>* Bvector,
                                                 ChMatrix<>* Frict,
@@ -131,7 +131,7 @@ void ChLcpSystemDescriptor::ConvertToMatrixForm(ChSparseMatrix* Cq,
     for (unsigned int ic = 0; ic < mconstraints.size(); ic++) {
         if (mconstraints[ic]->IsActive())
             if (!((mconstraints[ic]->GetMode() == CONSTRAINT_FRIC) && only_bilaterals))
-                if (!((dynamic_cast<ChLcpConstraintTwoFrictionT*>(mconstraints[ic])) && skip_contacts_uv)) {
+                if (!((dynamic_cast<ChLcpConstraintTwoTuplesFrictionTall*>(mconstraints[ic])) && skip_contacts_uv)) {
                     mn_c++;
                 }
     }
@@ -182,7 +182,7 @@ void ChLcpSystemDescriptor::ConvertToMatrixForm(ChSparseMatrix* Cq,
     for (unsigned int ic = 0; ic < mconstraints.size(); ic++) {
         if (mconstraints[ic]->IsActive())
             if (!((mconstraints[ic]->GetMode() == CONSTRAINT_FRIC) && only_bilaterals))
-                if (!((dynamic_cast<ChLcpConstraintTwoFrictionT*>(mconstraints[ic])) && skip_contacts_uv)) {
+                if (!((dynamic_cast<ChLcpConstraintTwoTuplesFrictionTall*>(mconstraints[ic])) && skip_contacts_uv)) {
                     if (Cq)
                         mconstraints[ic]->Build_Cq(*Cq, s_c);  // .. fills Cq
                     if (E)
@@ -192,12 +192,12 @@ void ChLcpSystemDescriptor::ConvertToMatrixForm(ChSparseMatrix* Cq,
                     if (Frict)                                          // .. fills vector of friction coefficients
                     {
                         (*Frict)(s_c) = -2;  // mark with -2 flag for bilaterals (default)
-                        if (ChLcpConstraintTwoContactN* mcon =
-                                dynamic_cast<ChLcpConstraintTwoContactN*>(mconstraints[ic]))
+                        if (ChLcpConstraintTwoTuplesContactNall* mcon =
+                                dynamic_cast<ChLcpConstraintTwoTuplesContactNall*>(mconstraints[ic]))
                             (*Frict)(s_c) =
                                 mcon->GetFrictionCoefficient();  // friction coeff only in row of normal component
-                        if (ChLcpConstraintTwoFrictionT* mcon =
-                                dynamic_cast<ChLcpConstraintTwoFrictionT*>(mconstraints[ic]))
+                        if (ChLcpConstraintTwoTuplesFrictionTall* mcon =
+                                dynamic_cast<ChLcpConstraintTwoTuplesFrictionTall*>(mconstraints[ic]))
                             (*Frict)(s_c) = -1;  // mark with -1 flag for rows of tangential components
                     }
                     s_c++;
@@ -205,16 +205,89 @@ void ChLcpSystemDescriptor::ConvertToMatrixForm(ChSparseMatrix* Cq,
     }
 }
 
-void ChLcpSystemDescriptor::BuildMatrices(ChSparseMatrix* Cq,
-                                          ChSparseMatrix* M,
+	
+
+void ChLcpSystemDescriptor::ConvertToMatrixForm(ChSparseMatrixBase* Z,
+												ChMatrix<>* rhs,
+												bool only_bilaterals,
+												bool skip_contacts_uv)
+{
+    std::vector<ChLcpConstraint*>& mconstraints = this->GetConstraintsList();
+    std::vector<ChLcpVariables*>& mvariables = this->GetVariablesList();
+
+    // Count bilateral and other constraints.. (if wanted, bilaterals only)
+
+    int mn_c = 0;
+    for (unsigned int ic = 0; ic < mconstraints.size(); ic++) {
+        if (mconstraints[ic]->IsActive())
+            if (!((mconstraints[ic]->GetMode() == CONSTRAINT_FRIC) && only_bilaterals))
+            if (!((dynamic_cast<ChLcpConstraintTwoTuplesFrictionTall*>(mconstraints[ic])) && skip_contacts_uv)) {
+                    mn_c++;
+                }
+    }
+
+    // Count active variables, by scanning through all variable blocks,
+    // and set offsets
+
+    n_q = this->CountActiveVariables();
+
+    // Reset and resize (if needed) auxiliary vectors
+
+    if (Z)
+        Z->Reset(n_q + mn_c, n_q + mn_c);
+
+    if (rhs)
+        rhs->Reset(n_q + mn_c, 1);
+
+    // Fills Z and rhs with masses and inertias, fills rhs with 'f'
+    int s_q = 0;
+    for (unsigned int iv = 0; iv < mvariables.size(); iv++) {
+        if (mvariables[iv]->IsActive()) {
+            if (Z)
+                mvariables[iv]->Build_M(*Z, s_q, s_q);  // .. fills  Z with masses and inertias in the upper left corner
+            if (rhs)
+                rhs->PasteMatrix(&vvariables[iv]->Get_fb(), s_q, 0);  // .. fills 'rhs' with 'f' in the upper section
+            s_q += mvariables[iv]->Get_ndof();
+        }
+    }
+
+    // If some stiffness / hessian matrix has been added, add it to the sparse Z
+    int s_k = 0;
+    for (unsigned int ik = 0; ik < this->vstiffness.size(); ik++) {
+        if (Z)
+            this->vstiffness[ik]->Build_K(*Z, true); // add K matrix in the upper left corner of Z
+    }
+
+    // Fills Z and rhs by looping on constraints
+    int s_c = 0;
+    for (unsigned int ic = 0; ic < mconstraints.size(); ic++) {
+        if (mconstraints[ic]->IsActive())
+            if (!((mconstraints[ic]->GetMode() == CONSTRAINT_FRIC) && only_bilaterals))
+                if (!((dynamic_cast<ChLcpConstraintTwoTuplesFrictionTall*>(mconstraints[ic])) && skip_contacts_uv)) {
+                    if (Z) {
+                        mconstraints[ic]->Build_Cq(*Z, n_q + s_c);   // .. fills Z with constraints (lower left corner)
+                        mconstraints[ic]->Build_CqT(*Z, n_q + s_c);  // .. fills Z with constraints (upper right corner)
+                        Z->SetElement(
+                            n_q + s_c, n_q + s_c,
+                            mconstraints[ic]->Get_cfm_i());  // .. fills Z with -E ( = cfm ) (lower right corner)
+                    }
+                    if (rhs)
+                        (*rhs)(n_q + s_c) =
+                            -(mconstraints[ic]->Get_b_i());  // .. fills 'rhs' with '-b' in the lower section
+
+                    s_c++;
+                }
+    }
+}
+
+void ChLcpSystemDescriptor::BuildMatrices(ChSparseMatrixBase* Cq,
+                                          ChSparseMatrixBase* M,
                                           bool only_bilaterals,
                                           bool skip_contacts_uv) {
     this->ConvertToMatrixForm(Cq, M, 0, 0, 0, 0, only_bilaterals, skip_contacts_uv);
 }
-void ChLcpSystemDescriptor::BuildVectors(ChSparseMatrix* f,
-                                         ChSparseMatrix* b,
-                                         bool only_bilaterals,
-                                         bool skip_contacts_uv) {
+
+void ChLcpSystemDescriptor::BuildVectors(ChMatrix<>* f, ChMatrix<>* b, bool only_bilaterals, bool skip_contacts_uv) {
     this->ConvertToMatrixForm(0, 0, 0, f, b, 0, only_bilaterals, skip_contacts_uv);
 }
 

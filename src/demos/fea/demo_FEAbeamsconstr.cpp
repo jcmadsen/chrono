@@ -28,6 +28,8 @@
 #include "unit_MATLAB/ChMatlabEngine.h"
 #include "unit_MATLAB/ChLcpMatlabSolver.h"
 
+#include "unit_MKL/ChLcpMklSolver.h"
+
 // Remember to use the namespace 'chrono' because all classes
 // of Chrono::Engine belong to this namespace and its children...
 
@@ -244,7 +246,7 @@ int main(int argc, char* argv[]) {
 
         ChSharedPtr<ChVisualizationFEAmesh> mvisualizebeamA(new ChVisualizationFEAmesh(*(my_mesh.get_ptr())));
         mvisualizebeamA->SetFEMdataType(ChVisualizationFEAmesh::E_PLOT_ELEM_BEAM_MX);
-        mvisualizebeamA->SetColorscaleMinMax(-5000, 5000);
+        mvisualizebeamA->SetColorscaleMinMax(-500, 500);
         mvisualizebeamA->SetSmoothFaces(true);
         mvisualizebeamA->SetWireframe(false);
         my_mesh->AddAsset(mvisualizebeamA);
@@ -273,6 +275,10 @@ int main(int argc, char* argv[]) {
         // THE SOFT-REAL-TIME CYCLE
         //
 
+        // Use a solver that can handle stiffnss matrices:
+
+        //***TEST***
+        /*
         my_system.SetLcpSolverType(
             ChSystem::LCP_ITERATIVE_MINRES);     // <- NEEDED because other solvers can't handle stiffness matrices
         my_system.SetIterLCPwarmStarting(true);  // this helps a lot to speedup convergence in this class of problems
@@ -282,15 +288,20 @@ int main(int argc, char* argv[]) {
         chrono::ChLcpIterativeMINRES* msolver = (chrono::ChLcpIterativeMINRES*)my_system.GetLcpSolverSpeed();
         msolver->SetVerbose(true);
         msolver->SetDiagonalPreconditioning(false);
-
-        // my_system.SetLcpSolverType(ChSystem::LCP_SIMPLEX);
+        */
 
         //***TEST***
-        ChMatlabEngine matlab_engine;
+        /*ChMatlabEngine matlab_engine;
         ChLcpMatlabSolver* matlab_solver_stab = new ChLcpMatlabSolver(matlab_engine);
         ChLcpMatlabSolver* matlab_solver_speed = new ChLcpMatlabSolver(matlab_engine);
         my_system.ChangeLcpSolverStab(matlab_solver_stab);
-        my_system.ChangeLcpSolverSpeed(matlab_solver_speed);
+        my_system.ChangeLcpSolverSpeed(matlab_solver_speed);*/
+		
+		//***TEST***
+		ChLcpMklSolver* mkl_solver_stab = new ChLcpMklSolver;
+		ChLcpMklSolver* mkl_solver_speed = new ChLcpMklSolver;
+		my_system.ChangeLcpSolverStab(mkl_solver_stab);
+		my_system.ChangeLcpSolverSpeed(mkl_solver_speed);
 
         application.SetTimestep(0.0005);
         application.SetVideoframeSaveInterval(10);
@@ -333,7 +344,7 @@ int main(int argc, char* argv[]) {
         ChIrrApp application(&my_system, L"Statics of beam", core::dimension2d<u32>(800, 600), false, true);
 
         // Easy shortcuts to add camera, lights, logo and sky in Irrlicht scene:
-        application.AddTypicalLogo();
+        //application.AddTypicalLogo();
         application.AddTypicalSky();
         application.AddTypicalLights();
         application.AddTypicalCamera(core::vector3df(0.f, 0.6f, -1.f));
@@ -347,8 +358,8 @@ int main(int argc, char* argv[]) {
 
         // Attach a 'box' shape asset for visualization.
         ChSharedPtr<ChBoxShape> mboxtruss(new ChBoxShape);
-        mboxtruss->GetBoxGeometry().Pos = ChVector<>(-0.01, 0, 0.4);
-        mboxtruss->GetBoxGeometry().SetLengths(ChVector<>(0.02, 0.2, 0.8));
+        mboxtruss->GetBoxGeometry().Pos = ChVector<>(-0.01, -0.2, -0.25);
+        mboxtruss->GetBoxGeometry().SetLengths(ChVector<>(0.02, 0.5, 0.5));
         my_body_A->AddAsset(mboxtruss);
 
         // Create a FEM mesh, that is a container for groups
@@ -363,8 +374,8 @@ int main(int argc, char* argv[]) {
         loads(1) = -8.896;
         loads(2) = -13.345;
 
-        double z_spacing = -0.1;
-        double y_spacing = -0.2;
+        double z_spacing = -0.07;
+        double y_spacing = -0.14;
 
         std::vector<ChSharedPtr<ChNodeFEAxyzrot> > endnodes[3];
 
@@ -437,8 +448,8 @@ int main(int argc, char* argv[]) {
         // Do not forget AddAsset() at the end!
 
         ChSharedPtr<ChVisualizationFEAmesh> mvisualizebeamA(new ChVisualizationFEAmesh(*(my_mesh.get_ptr())));
-        mvisualizebeamA->SetFEMdataType(ChVisualizationFEAmesh::E_PLOT_ELEM_BEAM_MX);
-        mvisualizebeamA->SetColorscaleMinMax(-5000, 5000);
+        mvisualizebeamA->SetFEMdataType(ChVisualizationFEAmesh::E_PLOT_ELEM_BEAM_MY);
+        mvisualizebeamA->SetColorscaleMinMax(-0.001, 6);
         mvisualizebeamA->SetSmoothFaces(true);
         mvisualizebeamA->SetWireframe(false);
         my_mesh->AddAsset(mvisualizebeamA);
@@ -446,7 +457,7 @@ int main(int argc, char* argv[]) {
         ChSharedPtr<ChVisualizationFEAmesh> mvisualizebeamC(new ChVisualizationFEAmesh(*(my_mesh.get_ptr())));
         mvisualizebeamC->SetFEMglyphType(ChVisualizationFEAmesh::E_GLYPH_NODE_CSYS);
         mvisualizebeamC->SetFEMdataType(ChVisualizationFEAmesh::E_PLOT_NONE);
-        mvisualizebeamC->SetSymbolsThickness(0.006);
+        mvisualizebeamC->SetSymbolsThickness(0.02);
         mvisualizebeamC->SetSymbolsScale(0.01);
         mvisualizebeamC->SetZbufferHide(false);
         my_mesh->AddAsset(mvisualizebeamC);
@@ -467,6 +478,10 @@ int main(int argc, char* argv[]) {
         // THE SOFT-REAL-TIME CYCLE
         //
 
+        // Use a solver that can handle stiffness matrices:
+
+        //***TEST*** 
+        /*
         my_system.SetLcpSolverType(
             ChSystem::LCP_ITERATIVE_MINRES);     // <- NEEDED because other solvers can't handle stiffness matrices
         my_system.SetIterLCPwarmStarting(true);  // this helps a lot to speedup convergence in this class of problems
@@ -475,22 +490,26 @@ int main(int argc, char* argv[]) {
         my_system.SetTolForce(1e-12);
         chrono::ChLcpIterativeMINRES* msolver = (chrono::ChLcpIterativeMINRES*)my_system.GetLcpSolverSpeed();
         msolver->SetDiagonalPreconditioning(true);
+        */
 
-        // my_system.SetLcpSolverType(ChSystem::LCP_SIMPLEX);
-
-        //***TEST***
-        ChMatlabEngine matlab_engine;
-        ChLcpMatlabSolver* matlab_solver_stab = new ChLcpMatlabSolver(matlab_engine);
-        ChLcpMatlabSolver* matlab_solver_speed = new ChLcpMatlabSolver(matlab_engine);
-        my_system.ChangeLcpSolverStab(matlab_solver_stab);
-        my_system.ChangeLcpSolverSpeed(matlab_solver_speed);
+        ////***TEST***
+        //ChMatlabEngine matlab_engine;
+        //ChLcpMatlabSolver* matlab_solver_stab = new ChLcpMatlabSolver(matlab_engine);
+        //ChLcpMatlabSolver* matlab_solver_speed = new ChLcpMatlabSolver(matlab_engine);
+        //my_system.ChangeLcpSolverStab(matlab_solver_stab);
+        //my_system.ChangeLcpSolverSpeed(matlab_solver_speed);
+		
+		//***TEST***
+		ChLcpMklSolver* mkl_solver_stab = new ChLcpMklSolver;
+		ChLcpMklSolver* mkl_solver_speed = new ChLcpMklSolver;
+		my_system.ChangeLcpSolverStab(mkl_solver_stab);
+		my_system.ChangeLcpSolverSpeed(mkl_solver_speed);
 
         application.SetTimestep(0.001);
         application.SetVideoframeSaveInterval(10);
 
         // Perform nonlinear statics
         my_system.DoStaticNonlinear(20);
-        my_system.DoStaticNonlinear(10);  // just to be on the safe side :)
         application.SetPaused(true);
 
         // Output data
@@ -529,8 +548,14 @@ int main(int argc, char* argv[]) {
 
             application.DrawAll();
 
-            ChIrrTools::drawGrid(application.GetVideoDriver(), 0.05, 0.05, 20, 20,
-                                 ChCoordsys<>(VNULL, CH_C_PI_2, VECT_Z), video::SColor(50, 90, 90, 90), true);
+            ChIrrTools::drawGrid(application.GetVideoDriver(), 0.05, 0.05, 10, 10,
+                                 ChCoordsys<>(ChVector<>(0.25,-0.20, 0), 0, VECT_Y), video::SColor(50, 120, 120, 120), true);
+
+            ChIrrTools::drawGrid(application.GetVideoDriver(), 0.05, 0.05, 10, 10,
+                                 ChCoordsys<>(ChVector<>(0.25,-0.45, -0.25), CH_C_PI_2, VECT_X), video::SColor(50, 120, 120, 120), true);
+
+            ChIrrTools::drawGrid(application.GetVideoDriver(), 0.05, 0.05, 10, 10,
+                                 ChCoordsys<>(ChVector<>(0.001,-0.20, -0.25), CH_C_PI_2, VECT_Y), video::SColor(50, 160, 160, 160), true);
 
             application.DoStep();
 

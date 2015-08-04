@@ -26,7 +26,7 @@
 #include "physics/ChSystem.h"
 
 #include "physics/ChProximityContainerSPH.h"
-#include "collision/ChCModelBulletNode.h"
+#include "collision/ChCModelBullet.h"
 #include "core/ChLinearAlgebra.h"
 
 namespace chrono {
@@ -44,7 +44,9 @@ ChClassRegister<ChMatterSPH> a_registration_ChMatterSPH;
 /// CLASS FOR A SPH NODE
 
 ChNodeSPH::ChNodeSPH() {
-    this->collision_model = new ChModelBulletNode;
+    this->collision_model = new ChModelBullet;
+    this->collision_model->SetContactable(this);
+    this->container = 0;
 
     this->UserForce = VNULL;
     this->h_rad = 0.1;
@@ -60,12 +62,10 @@ ChNodeSPH::~ChNodeSPH() {
 }
 
 ChNodeSPH::ChNodeSPH(const ChNodeSPH& other) : ChNodeXYZ(other) {
-    this->collision_model = new ChModelBulletNode;
+    this->collision_model = new ChModelBullet;
+    this->collision_model->SetContactable(this);
     this->collision_model->AddSphere(other.coll_rad);
-    ((ChModelBulletNode*)collision_model)
-        ->SetNode(((ChModelBulletNode*)other.collision_model)->GetNodes(),
-                  ((ChModelBulletNode*)other.collision_model)->GetNodeId());
-
+    this->container =  other.container;
     this->UserForce = other.UserForce;
     this->SetKernelRadius(other.h_rad);
     this->SetCollisionRadius(other.coll_rad);
@@ -85,10 +85,8 @@ ChNodeSPH& ChNodeSPH::operator=(const ChNodeSPH& other) {
 
     this->collision_model->ClearModel();
     this->collision_model->AddSphere(other.coll_rad);
-    ((ChModelBulletNode*)collision_model)
-        ->SetNode(((ChModelBulletNode*)other.collision_model)->GetNodes(),
-                  ((ChModelBulletNode*)other.collision_model)->GetNodeId());
-
+    this->collision_model->SetContactable(this);
+    this->container =  other.container;
     this->UserForce = other.UserForce;
     this->SetKernelRadius(other.h_rad);
     this->SetCollisionRadius(other.coll_rad);
@@ -104,13 +102,45 @@ ChNodeSPH& ChNodeSPH::operator=(const ChNodeSPH& other) {
 void ChNodeSPH::SetKernelRadius(double mr) {
     h_rad = mr;
     double aabb_rad = h_rad / 2;  // to avoid too many pairs: bounding boxes hemisizes will sum..  __.__--*--
-    ((ChModelBulletNode*)this->collision_model)->SetSphereRadius(coll_rad, ChMax(0.0, aabb_rad - coll_rad));
+    ((ChModelBullet*)this->collision_model)->SetSphereRadius(coll_rad, ChMax(0.0, aabb_rad - coll_rad));
 }
 
 void ChNodeSPH::SetCollisionRadius(double mr) {
     coll_rad = mr;
     double aabb_rad = h_rad / 2;  // to avoid too many pairs: bounding boxes hemisizes will sum..  __.__--*--
-    ((ChModelBulletNode*)this->collision_model)->SetSphereRadius(coll_rad, ChMax(0.0, aabb_rad - coll_rad));
+    ((ChModelBullet*)this->collision_model)->SetSphereRadius(coll_rad, ChMax(0.0, aabb_rad - coll_rad));
+}
+
+void ChNodeSPH::ContactForceLoadResidual_F(const ChVector<>& F, const ChVector<>& abs_point, 
+                                    ChVectorDynamic<>& R) {
+    R.PasteSumVector(F, this->NodeGetOffset_w() + 0, 0);
+}
+
+void ChNodeSPH::ComputeJacobianForContactPart(const ChVector<>& abs_point, ChMatrix33<>& contact_plane, 
+            type_constraint_tuple& jacobian_tuple_N, 
+            type_constraint_tuple& jacobian_tuple_U, 
+            type_constraint_tuple& jacobian_tuple_V, 
+            bool second) {
+    ChMatrix33<> Jx1;
+
+    Jx1.CopyFromMatrixT(contact_plane);
+    if (!second)
+        Jx1.MatrNeg();
+
+    jacobian_tuple_N.Get_Cq()->PasteClippedMatrix(&Jx1, 0, 0, 1, 3, 0, 0);
+    jacobian_tuple_U.Get_Cq()->PasteClippedMatrix(&Jx1, 1, 0, 1, 3, 0, 0);
+    jacobian_tuple_V.Get_Cq()->PasteClippedMatrix(&Jx1, 2, 0, 1, 3, 0, 0);
+}
+
+
+ChSharedPtr<ChMaterialSurfaceBase>& ChNodeSPH::GetMaterialSurfaceBase()
+{
+    return container->GetMaterialSurfaceBase();
+}
+
+ChPhysicsItem* ChNodeSPH::GetPhysicsItem()
+{
+    return container;
 }
 
 //////////////////////////////////////
@@ -155,6 +185,9 @@ ChMatterSPH::ChMatterSPH() {
     this->nodes.clear();
 
     SetIdentifier(GetUniqueIntID());  // mark with unique ID
+
+    // default DVI material
+    matsurface = ChSharedPtr<ChMaterialSurface>(new ChMaterialSurface);
 }
 
 ChMatterSPH::~ChMatterSPH() {
@@ -169,6 +202,8 @@ void ChMatterSPH::Copy(ChMatterSPH* source) {
     do_collide = source->do_collide;
 
     this->material = source->material;
+
+    this->matsurface = source->matsurface;
 
     ResizeNnodes(source->GetNnodes());
 }
@@ -189,8 +224,10 @@ void ChMatterSPH::ResizeNnodes(int newsize) {
     for (unsigned int j = 0; j < nodes.size(); j++) {
         this->nodes[j] = ChSharedPtr<ChNodeSPH>(new ChNodeSPH);
 
+        this->nodes[j]->SetContainer(this);
+
         this->nodes[j]->variables.SetUserData((void*)this);  // UserData unuseful in future cuda solver?
-        ((ChModelBulletNode*)this->nodes[j]->collision_model)->SetNode(this, j);
+        //((ChModelBullet*)this->nodes[j]->collision_model)->SetContactable(this->nodes[j]);
         this->nodes[j]->collision_model->AddSphere(0.001);  //***TEST***
         this->nodes[j]->collision_model->BuildModel();
     }
@@ -201,12 +238,14 @@ void ChMatterSPH::ResizeNnodes(int newsize) {
 void ChMatterSPH::AddNode(ChVector<double> initial_state) {
     ChSharedPtr<ChNodeSPH> newp(new ChNodeSPH);
 
+    newp->SetContainer(this);
+    
     newp->SetPos(initial_state);
 
     this->nodes.push_back(newp);
-
+    
     newp->variables.SetUserData((void*)this);  // UserData unuseful in future cuda solver?
-    ((ChModelBulletNode*)newp->collision_model)->SetNode(this, (unsigned int)nodes.size() - 1);
+
     newp->collision_model->AddSphere(0.1);  //***TEST***
     newp->collision_model->BuildModel();    // will also add to system, if collision is on.
 }

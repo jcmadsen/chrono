@@ -30,6 +30,7 @@ SET(ChronoEngine_UNIT_FEA_SOURCES
 	ChElementTetra_10.cpp
 	ChElementHexa_8.cpp
 	ChElementHexa_20.cpp 
+	ChNodeFEAxyz.cpp
 	ChGaussIntegrationRule.cpp
 	ChGaussPoint.cpp
 	ChMesh.cpp  
@@ -41,6 +42,7 @@ SET(ChronoEngine_UNIT_FEA_SOURCES
 	ChLinkPointFrame.cpp
 	ChLinkDirFrame.cpp
 	ChLinkPointPoint.cpp
+	ChContactSurface.cpp
 	)
 SET(ChronoEngine_UNIT_FEA_HEADERS
 	ChApiFEA.h  
@@ -62,7 +64,8 @@ SET(ChronoEngine_UNIT_FEA_HEADERS
 	ChElementBar.h 
 	ChElementBeam.h
 	ChElementBeamEuler.h
-	ChElementBeamANCF.h 
+	ChElementBeamANCF.h
+	ChElementBrick.h 
 	ChElement3D.h
 	ChElementTetrahedron.h
 	ChElementTetra_4.h
@@ -82,6 +85,7 @@ SET(ChronoEngine_UNIT_FEA_HEADERS
 	ChLinkPointFrame.h
 	ChLinkDirFrame.h
 	ChLinkPointPoint.h
+	ChContactSurface.h
 	)
 #SET_SOURCE_FILES_PROPERTIES(ChronoEngine_UNIT_FEA_HEADERS PROPERTIES  HEADER_FILE_ONLY)
 SOURCE_GROUP(unit_FEA FILES 
