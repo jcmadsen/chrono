@@ -151,12 +151,13 @@ void TrackSystemM113::BuildSubsystems(const double omega_max) {
         std::stringstream susp_name;
         susp_name << "suspension " << i << ", chain " << m_track_idx;
         m_suspensions[i] = ChSharedPtr<TorsionArmSuspension>(
-            new TorsionArmSuspension(susp_name.str(), VisualizationType::Mesh, CollisionType::Primitives, m_track_idx,
+            new TorsionArmSuspension(susp_name.str(), VisualizationType::Mesh, CollisionType::Primitives,
+                                     m_track_idx, i,
                                      561.1,                            // wheel mass
                                      ChVector<>(19.82, 19.82, 26.06),  // wheel Ixx
                                      75.26,                            // arm mass
                                      ChVector<>(0.77, 0.37, 0.77),     // arm Ixx
-                                     1e6, 1.5e4, 0,                    //  5e3, 1e2, 3e2));   // K, C, preload
+                                     1e6, 1.5e4, 0,                   //  5e3, 1e2, 3e2));   // K, C, preload
                                      0.1));                            // mu
     }
 }

@@ -63,7 +63,7 @@ using namespace chrono;
 // User Settings
 // =============================================================================
 double pin_damping_coef = 0.1;  // inter-shoe rev. joint damping coef. [N-s/m]
-double tensioner_preload = 5e3;  // idler subsystem tensioner preload [N]
+double tensioner_preload = 5e4;  // idler subsystem tensioner preload [N]
 
 ChVector<> initLoc(0, 1.0, 0);
 ChQuaternion<> initRot(QUNIT);  
@@ -77,7 +77,7 @@ double end_time = 10;  // 99999
 // *****  Driver settings
 // Automated simulation controls, applies positive half a sine wave.
 // Otherwise, control throttle with W/S
-bool autopilot = false;
+bool autopilot = true;
 double tStart = 0.1;
 
 // when using a sine function for throttle control
@@ -99,12 +99,12 @@ int FPS = 80;                         // render Frames Per Second
 double render_step_size = 1.0 / FPS;  // Time increment for rendered frames
 
 // camera controls, either static or  GUI controlled chase camera:
-bool use_fixed_camera = false;
+bool use_fixed_camera = true;
 // static camera position, global c-sys. (Longitude, Vertical, Lateral)
-ChVector<> fixed_cameraPos(0.6, 1.2, 1.8);  // (0.15, 1.15, 1.5);    //
+ChVector<> fixed_cameraPos(1.0, 1.2, 2.8);  // (0.15, 1.15, 1.5);    //
 
 // Both cameras track this point, relative to the center of the gear
-ChVector<> trackPoint(-0.4, -0.2, 0.0);
+ChVector<> trackPoint(.4, -0.2, 0.0);
 
 // if chase cam enabled:
 double chaseDist = 3;
@@ -145,7 +145,7 @@ int main(int argc, char* argv[]) {
     // The drive chain inherits ChSystem. Specify the
     // collision type used by the gear here.
     DriveChain chainSystem("Justins driveChain system",
-        VisualizationType::None, CollisionType::None,
+        VisualizationType::Mesh, CollisionType::Mesh,
         pin_damping_coef, tensioner_preload,
         ChVector<>() );
 

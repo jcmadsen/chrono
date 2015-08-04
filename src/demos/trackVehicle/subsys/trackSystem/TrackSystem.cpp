@@ -38,8 +38,8 @@ const ChQuaternion<> TrackSystem::m_gearRot(QUNIT);
 // suspension
 const int TrackSystem::m_numSuspensions = 5;
 
-TrackSystem::TrackSystem(const std::string& name, int track_idx)
-    : m_track_idx(track_idx), m_name(name), m_idler_preload(0) {
+TrackSystem::TrackSystem(const std::string& name, int track_idx, const double idler_preload)
+    : m_track_idx(track_idx), m_name(name), m_idler_preload(idler_preload) {
     // FILE* fp = fopen(filename.c_str(), "r");
     // char readBuffer[65536];
     // fclose(fp);
@@ -62,8 +62,6 @@ void TrackSystem::Create(int track_idx) {
     m_idler_K = d["Idler"]["SpringK"].GetDouble();
     m_idler_C = d["Idler"]["SpringC"].GetDouble();
     */
-
-    m_idler_preload = 1e5;
 
     /*
 
@@ -142,7 +140,8 @@ void TrackSystem::BuildSubsystems() {
         std::stringstream susp_name;
         susp_name << "suspension " << i << ", chain " << m_track_idx;
         m_suspensions[i] = ChSharedPtr<TorsionArmSuspension>(
-            new TorsionArmSuspension(susp_name.str(), VisualizationType::Primitives, CollisionType::Primitives));
+            new TorsionArmSuspension(susp_name.str(), VisualizationType::Primitives, CollisionType::Primitives,
+            0, i ));
     }
 }
 

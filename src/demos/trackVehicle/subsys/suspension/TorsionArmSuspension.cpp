@@ -35,7 +35,8 @@ namespace chrono {
 TorsionArmSuspension::TorsionArmSuspension(const std::string& name,
                                            VisualizationType::Enum vis,
                                            CollisionType::Enum collide,
-                                           size_t chainSys_idx,
+                                           const size_t chainSys_idx,
+                                           const size_t susp_idx,
                                            double wheelMass,
                                            const ChVector<>& wheelIxx,
                                            double armMass,
@@ -67,6 +68,7 @@ TorsionArmSuspension::TorsionArmSuspension(const std::string& name,
       m_wheel_PosRel(wheel_pos_rel),
       m_armRadius(arm_radius),
       m_use_custom_spring(use_custom_spring),
+      m_susp_idx(susp_idx),
       m_meshFile(utils::GetModelDataFile("M113/Roller_XforwardYup.obj")),
       m_meshName("Road wheel") {
     // FILE* fp = fopen(filename.c_str(), "r");
@@ -205,7 +207,13 @@ void TorsionArmSuspension::AddVisualization() {
 
             // put a texture on the wheel
             ChSharedPtr<ChTexture> tex(new ChTexture);
-            tex->SetTextureFilename(GetChronoDataFile("bluwhite.png"));
+            if (m_susp_idx == 0) {
+                tex->SetTextureFilename(GetChronoDataFile("pinkwhite.png"));
+            }
+            else
+            {
+                tex->SetTextureFilename(GetChronoDataFile("bluwhite.png"));
+            }
             m_wheel->AddAsset(tex);
 
             // define the arm cylinder shape, link is along the y-axis

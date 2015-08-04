@@ -62,7 +62,7 @@ DriveChain::DriveChain(const std::string& name,
     AddVisualization();
 
     // create a single track system
-    m_TrackSystem = ChSharedPtr<TrackSystem>(new TrackSystem("Track system", 0));
+    m_TrackSystem = ChSharedPtr<TrackSystem>(new TrackSystem("Track system", 0, m_tensioner_preload));
    
     // create the powertrain
     m_ptrains.push_back(ChSharedPtr<TrackPowertrain>(new TrackPowertrain("Powertrain")));

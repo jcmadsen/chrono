@@ -36,7 +36,7 @@ class CH_SUBSYS_API TrackSystem : public ChShared {
 
   public:
     /// specify name and a unique track identifier
-    TrackSystem(const std::string& filename, int track_idx);
+    TrackSystem(const std::string& filename, const int track_idx, const double idler_preload);
 
     ~TrackSystem() {}
 

@@ -76,7 +76,7 @@ TrackVehicle::TrackVehicle(const std::string& name,
     for (int i = 0; i < m_num_tracks; i++) {
         std::stringstream t_ss;
         t_ss << "track chain " << i;
-        m_TrackSystems.push_back(ChSharedPtr<TrackSystem>(new TrackSystem(t_ss.str(), i)) );
+        m_TrackSystems.push_back(ChSharedPtr<TrackSystem>(new TrackSystem(t_ss.str(), i, m_tensioner_preload)) );
     }
 
     // create the powertrain and drivelines
