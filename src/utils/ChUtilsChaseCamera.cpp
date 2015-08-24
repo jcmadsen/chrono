@@ -19,13 +19,15 @@
 // - Track:  camera is fixed and tracks the body;
 // - Inside: camera is fixed at a given point on the body.
 //
+// Assumes Z up.
+//
 // TODO:
 // - relax current assumption that the body forward direction is in the positive
 //   X direction.
 //
 // =============================================================================
 
-#include "ChChaseCamera.h"
+#include "utils/ChUtilsChaseCamera.h"
 
 namespace chrono {
 namespace utils {
@@ -62,10 +64,7 @@ void ChChaseCamera::Initialize(const ChVector<>& ptOnChassis,
     m_height = chaseHeight;
     m_angle = 0;
 
-    // if(Z_up)
-    // ChVector<> localOffset(-chaseDist, 0, chaseHeight);
-    // else (Y_up)
-    ChVector<> localOffset(-chaseDist, chaseHeight, 0);
+    ChVector<> localOffset(-chaseDist, 0, chaseHeight);
     m_loc = m_chassis->GetFrame_REF_to_abs().TransformPointLocalToParent(ptOnChassis + localOffset);
     m_lastLoc = m_loc;
 }
@@ -111,6 +110,16 @@ void ChChaseCamera::Turn(int val) {
 }
 
 // -----------------------------------------------------------------------------
+// Set fixed camera position.
+// Note that this also forces the state to 'Track'
+// -----------------------------------------------------------------------------
+void ChChaseCamera::SetCameraPos(const ChVector<>& pos) {
+    m_loc = pos;
+    m_lastLoc = pos;
+    m_state = Track;
+}
+
+// -----------------------------------------------------------------------------
 // Return the camera location and the camera target (look at) location,
 // respectively.
 // Note that in Inside mode, in order to accomodate a narrow field of view, we
@@ -126,11 +135,6 @@ ChVector<> ChChaseCamera::GetCameraPos() const {
     }
 
     return (m_state == Track) ? m_lastLoc : m_loc;
-}
-
-void ChChaseCamera::SetCameraPos(const ChVector<>& pos) {
-    m_loc = pos;
-    m_lastLoc = pos;
 }
 
 ChVector<> ChChaseCamera::GetTargetPos() const {
@@ -175,15 +179,15 @@ ChVector<> ChChaseCamera::calcDeriv(const ChVector<>& loc) {
     if (m_state == Follow)
         uC2T = targetLoc - m_loc;
     else {
-        ChQuaternion<> rot = Q_from_AngAxis(m_angle, ChVector<>(0, 1, 0));
+        ChQuaternion<> rot = Q_from_AngAxis(m_angle, ChVector<>(0, 0, 1));
         uC2T = rot.Rotate(m_chassis->GetA().Get_A_Xaxis());
     }
 
-    uC2T.y = 0;
+    uC2T.z = 0;
     uC2T.Normalize();
 
     desCamLoc = targetLoc - m_mult * m_dist * uC2T;
-    desCamLoc.y = targetLoc.y + m_mult * m_height;
+    desCamLoc.z = targetLoc.z + m_mult * m_height;
 
     // Calculate the derivative vector (RHS of filter ODEs).
     ChVector<> deriv;

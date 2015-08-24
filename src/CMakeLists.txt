@@ -147,10 +147,17 @@ set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
 set(LIBRARY_OUTPUT_PATH ${PROJECT_BINARY_DIR}/lib)
 
 #-----------------------------------------------------------------------------
+# Compiler flags
+
+set(CH_C_FLAGS "")
+set(CH_CXX_FLAGS "")
+
+#-----------------------------------------------------------------------------
 # Enable C++11 support
 
 find_package(ModernCXX)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_CXX11_STANDARD_COMPILE_OPTION}")
+set(CH_CXX_FLAGS "${CH_CXX_FLAGS} ${CMAKE_CXX11_STANDARD_COMPILE_OPTION}")
 
 #-----------------------------------------------------------------------------
 # Threads and OpenMP support
@@ -159,6 +166,8 @@ set(THREADS_PREFER_PTHREAD_FLAG TRUE)
 find_package(Threads)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_THREAD_LIBS_INIT}")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${CMAKE_THREAD_LIBS_INIT}")
+set(CH_CXX_FLAGS "${CH_CXX_FLAGS} ${CMAKE_THREAD_LIBS_INIT}")
+set(CH_C_FLAGS "${CH_C_FLAGS} ${CMAKE_THREAD_LIBS_INIT}")
 
 # We always look for OpenMP (which is required for the PARALLEL unit).
 # However, we allow the user to optionally disable OpenMP support in the
@@ -199,6 +208,8 @@ cmake_dependent_option(ENABLE_OPENMP "Enable OpenMP support in Chrono::Engine" O
 if(ENABLE_OPENMP)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
+  set(CH_CXX_FLAGS "${CH_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+  set(CH_C_FLAGS "${CH_C_GLAGS} ${OpenMP_C_FLAGS}")
 endif()
 
 #-----------------------------------------------------------------------------
@@ -223,12 +234,14 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
     endif(MSVC)
 
     if(MINGW OR CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
-        set(CH_BUILDFLAGS "-D_MINGW -D_WINDOWS")
+        set(CH_CXX_FLAGS "${CH_CXX_FLAGS} -D_MINGW -D_WINDOWS")
+        set(CH_C_FLAGS "${CH_C_FLAGS} -D_MINGW -D_WINDOWS")
         set(CH_LINKERFLAG_EXE "-Wl,--enable-runtime-pseudo-reloc")
         set(CH_LINKERFLAG_SHARED "-Wl,--export-all-symbols -Wl,--enable-auto-import -Wl,--enable-runtime-pseudo-reloc")
 
         if(CMAKE_SIZEOF_VOID_P MATCHES 8)
-            set(CH_BUILDFLAGS "${CH_BUILDFLAGS} -m64")
+            set(CH_CXX_FLAGS "${CH_CXX_FLAGS} -m64")
+            set(CH_C_FLAGS "${CH_C_FLAGS} -m64")
         endif()
     endif()
 endif()
@@ -239,12 +252,14 @@ endif()
 #
 # Definitions that are used by ALL targets:
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CH_BUILDFLAGS}")
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -D_DEBUG -DDEBUG")
-set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -DNDEBUG")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CH_CXX_FLAGS}")
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} ${CH_CXX_FLAGS} -D_DEBUG -DDEBUG")
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${CH_CXX_FLAGS} -DNDEBUG")
+
 
 add_definitions( "-DBP_USE_FIXEDPOINT_INT_32" )   # for Bullet to use 32 bit math
 
+#-----------------------------------------------------------------------------
 # Includes that are used by ALL targets
 
 set(CH_INCLUDES "${CMAKE_SOURCE_DIR}")
@@ -1101,6 +1116,26 @@ include_directories( ${CH_INCLUDES} )
         )
     source_group(collision\\convexdecomp\\HACDv2 FILES  ${ChronoEngine_collision_convexdecompHACDv2_SOURCES})
 
+    set(ChronoEngine_utils_SOURCES
+        utils/ChUtilsCreators.cpp
+        utils/ChUtilsGenerators.cpp
+        utils/ChUtilsInputOutput.cpp
+        utils/ChUtilsChaseCamera.cpp
+    )
+
+    set(ChronoEngine_utils_HEADERS
+        utils/ChUtilsGeometry.h
+        utils/ChUtilsCreators.h
+        utils/ChUtilsGenerators.h
+        utils/ChUtilsSamplers.h
+        utils/ChUtilsInputOutput.h
+        utils/ChUtilsChaseCamera.h
+    )
+
+    source_group(utils FILES
+        ${ChronoEngine_utils_SOURCES}
+        ${ChronoEngine_utils_HEADERS}
+        )
 
     # OK, now chain all the source groups for building the library,
     # creating a very long list of source files:
@@ -1140,6 +1175,8 @@ include_directories( ${CH_INCLUDES} )
         ${ChronoEngine_collision_bullet_HEADERS}
         ${ChronoEngine_collision_gimpact_SOURCES}
         ${ChronoEngine_collision_gimpact_HEADERS}
+        ${ChronoEngine_utils_SOURCES}
+        ${ChronoEngine_utils_HEADERS}
         )
 
 
@@ -1155,18 +1192,9 @@ include_directories( ${CH_INCLUDES} )
     endif()
 
     set_target_properties(ChronoEngine PROPERTIES
-        COMPILE_FLAGS "${CH_BUILDFLAGS}"
+        COMPILE_FLAGS "${CH_CXX_FLAGS}"
         LINK_FLAGS "${CH_LINKERFLAG_SHARED}"
         COMPILE_DEFINITIONS "CH_API_COMPILE")
-
-
-    #ADD_CUSTOM_COMMAND(
-    #    TARGET ChronoEngine
-    #    POST_BUILD
-    #    COMMAND ${CMAKE_COMMAND} -E copy_directory ${CH_CHRONODIR}/bin/data/ ${PROJECT_BINARY_DIR}/data
-    #    COMMAND ${CMAKE_COMMAND} -E remove_directory ${PROJECT_BINARY_DIR}/data/.svn
-    #)
-
 
 #------------------------------------------------------------
 
@@ -1203,19 +1231,23 @@ set(CPACK_SOURCE_STRIP_FILES "")
 install(TARGETS ChronoEngine
     RUNTIME DESTINATION bin
     LIBRARY DESTINATION lib
-    ARCHIVE DESTINATION lib
-    )
+    ARCHIVE DESTINATION lib)
 
+install(DIRECTORY ${CMAKE_SOURCE_DIR}/demos/data/
+    DESTINATION data 
+    PATTERN .svn EXCLUDE)
 
-install(DIRECTORY ${CMAKE_SOURCE_DIR}/demos/data/ DESTINATION data PATTERN .svn EXCLUDE)
-
-# Catchall, installs all header files, excluding optional units
+# Catchall, installs all header files, excluding optional units and the demo
+# and cmake directories.
 install(DIRECTORY ${CMAKE_SOURCE_DIR}/
     DESTINATION include/chrono
     FILES_MATCHING PATTERN "*.h"
     PATTERN "unit_*" EXCLUDE
-    )
-install(FILES "${CMAKE_CURRENT_BINARY_DIR}/core/ChVersion.h" DESTINATION include/chrono/core)
+    PATTERN "demos" EXCLUDE
+    PATTERN "cmake" EXCLUDE)
+
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/core/ChVersion.h"
+    DESTINATION include/chrono/core)
 
 #------------------------------------------------------------
 # Propagates the CMake build to other directories
@@ -1244,5 +1276,94 @@ endif()
 if(BUILD_TESTING)
   add_subdirectory(unit_TESTING)
 endif()
+
+#------------------------------------------------------------
+# Create Chrono configuration header
+#------------------------------------------------------------
+
+# Prepare substitution variables for the units that were enabled
+# TODO: the following tests should be more precise (we should test
+#       that a particular unit was successfully built, not just
+#       enabled)
+
+if(ENABLE_UNIT_CASCADE)
+  set(CHRONO_CASCADE "#define CHRONO_CASCADE")
+else()
+  set(CHRONO_CASCADE "#undef CHRONO_CASCADE")
+endif()
+
+if(ENABLE_UNIT_COSIMULATION)
+  set(CHRONO_COSIMULATION "#define CHRONO_COSIMULATION")
+else()
+  set(CHRONO_COSIMULATION "#undef CHRONO_COSIMULATION")
+endif()
+
+if(ENABLE_UNIT_FEA)
+  set(CHRONO_FEA "#define CHRONO_FEA")
+else()
+  set(CHRONO_FEA "#undef CHRONO_FEA")
+endif()
+
+if(ENABLE_UNIT_IRRLICHT)
+  set(CHRONO_IRRLICHT "#define CHRONO_IRRLICHT")
+else()
+  set(CHRONO_IRRLICHT "#undef CHRONO_IRRLICHT")
+endif()
+
+if(ENABLE_UNIT_MATLAB)
+  set(CHRONO_MATLAB "#define CHRONO_MATLAB")
+else()
+  set(CHRONO_MATLAB "#undef CHRONO_MATLAB")
+endif()
+
+if(ENABLE_UNIT_MKL)
+  set(CHRONO_MKL "#define CHRONO_MKL")
+else()
+  set(CHRONO_MKL "#undef CHRONO_MKL")
+endif()
+
+if(ENABLE_UNIT_PARALLEL)
+  set(CHRONO_PARALLEL "#define CHRONO_PARALLEL")
+else()
+  set(CHRONO_PARALLEL "#undef CHRONO_PARALLEL")
+endif()
+
+if(ENABLE_UNIT_POSTPROCESS)
+  set(CHRONO_POSTPROCESS "#define CHRONO_POSTPROCESS")
+else()
+  set(CHRONO_POSTPROCESS "#undef CHRONO_POSTPROCESS")
+endif()
+
+if(ENABLE_UNIT_PYTHON)
+  set(CHRONO_PYTHON "#define CHRONO_PYTHON")
+else()
+  set(CHRONO_PYTHON "#undef CHRONO_PYTHON")
+endif()
+
+if(ENABLE_UNIT_VEHICLE)
+  set(CHRONO_VEHICLE "#define CHRONO_VEHICLE")
+else()
+  set(CHRONO_VEHICLE "#undef CHRONO_VEHICLE")
+endif()
+
+configure_file(
+  ${PROJECT_SOURCE_DIR}/cmake/ChConfig.in
+  ${PROJECT_BINARY_DIR}/ChConfig.h
+  )
+
+
+#------------------------------------------------------------
+# Create the Chrono CMake project configuration file
+#------------------------------------------------------------
+
+configure_file(
+  "${CMAKE_CURRENT_SOURCE_DIR}/cmake/ChronoConfig.cmake.in"
+  "${CMAKE_CURRENT_BINARY_DIR}/ChronoConfig.cmake"
+  @ONLY)
+
+
+#------------------------------------------------------------
+# Use CPack
+#------------------------------------------------------------
 
 include(CPack)

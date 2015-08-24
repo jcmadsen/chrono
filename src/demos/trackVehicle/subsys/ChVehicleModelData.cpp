@@ -17,7 +17,7 @@
 // =============================================================================
 
 #include "physics/ChGlobal.h"
-#include "chrono_vehicle/ChVehicleModelData.h" 
+#include "subsys/ChVehicleModelData.h" 
 
 namespace chrono {
 namespace vehicle {

@@ -19,31 +19,30 @@
 // - Track:  camera is fixed and tracks the body;
 // - Inside: camera is fixed at a given point on the body.
 //
+// Assumes Z up.
+//
 // TODO:
 // - relax current assumption that the body forward direction is in the positive
 //   X direction.
 //
 // =============================================================================
 
-#ifndef CH_CHASECAMERA_H
-#define CH_CHASECAMERA_H
+#ifndef CH_UTILS_CHASECAMERA_H
+#define CH_UTILS_CHASECAMERA_H
 
+#include "core/ChApiCE.h"
 #include "physics/ChBody.h"
-
-#include "ChApiUtils.h"
 
 namespace chrono {
 namespace utils {
 
-class CH_UTILS_API ChChaseCamera {
+class ChApi ChChaseCamera {
   public:
     enum State { Chase, Follow, Track, Inside };
 
     ChChaseCamera(const ChSharedBodyPtr chassis);
     ~ChChaseCamera() {}
 
-    // offset camera laterally, if desired.
-    // Radu: will this break anything?
     void Initialize(const ChVector<>& ptOnChassis,
                     const ChCoordsys<>& driverCoordsys,
                     double chaseDist,
@@ -55,13 +54,14 @@ class CH_UTILS_API ChChaseCamera {
     void Turn(int val);
     void SetState(State s);
 
+    void SetCameraPos(const ChVector<>& pos);
+
     State GetState() const { return m_state; }
     const std::string& GetStateName() const { return m_stateNames[m_state]; }
 
     ChVector<> GetCameraPos() const;
     ChVector<> GetTargetPos() const;
 
-    void SetCameraPos(const ChVector<>& pos);
     void SetHorizGain(double g) { m_horizGain = g; }
     void SetVertGain(double g) { m_vertGain = g; }
 

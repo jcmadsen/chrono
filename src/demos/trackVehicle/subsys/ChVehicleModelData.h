@@ -12,30 +12,28 @@
 // Authors: Radu Serban
 // =============================================================================
 //
-// Global functions for accessing the ChronoT model data.
+// Global function for accessing the Chrono::Vehicle model data.
 //
 // =============================================================================
 
-#ifndef CH_UTILSGLOBAL_H
-#define CH_UTILSGLOBAL_H
+#ifndef CH_VEHICLE_MODELDATA_H
+#define CH_VEHICLE_MODELDATA_H
+
 
 #include <string>
-#include "ChApiUtils.h"
+
+#include "subsys/ChApiSubsys.h"
+
 
 namespace chrono {
-namespace utils {
-
-/// Set the path to the ChronoT model data directory (ATTENTION: not thread safe)
-CH_UTILS_API void SetModelDataPath(const std::string& path);
-
-/// Obtain the current path to the ChronoT model data directory (thread safe)
-CH_UTILS_API const std::string& GetModelDataPath();
+namespace vehicle {
 
 /// Obtain the complete path to the specified filename, given relative to the
-/// ChronoT model data directory (thread safe)
-CH_UTILS_API std::string GetModelDataFile(const std::string& filename);
+/// ChronoVehicle model data directory (thread safe)
+CH_SUBSYS_API std::string GetDataFile(const std::string& filename);
 
-}  // end namespace utils
-}  // end namespace chrono
+} // end namespace vehicle
+} // end namespace chrono
+
 
 #endif

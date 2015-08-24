@@ -165,18 +165,11 @@ SET(CV_UTILS_FILES
 
 IF (ENABLE_UNIT_IRRLICHT)
     SET(CVIRR_DRIVER_FILES
-        driver/ChChaseCamera.h
-        driver/ChChaseCamera.cpp
         driver/ChIrrGuiDriver.h
         driver/ChIrrGuiDriver.cpp
         driver/ChIrrGuiST.h
         driver/ChIrrGuiST.cpp
     )
-
-    # On Windows, disable warning C4275 
-    IF(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
-        SET(CH_BUILDFLAGS "${CH_BUILDFLAGS} /wd4275")
-    ENDIF()
 ELSE()
     SET(CVIRR_DRIVER_FILES "")
 ENDIF()
@@ -218,7 +211,7 @@ ADD_LIBRARY(ChronoEngine_Vehicle SHARED
 )
 
 SET_TARGET_PROPERTIES(ChronoEngine_Vehicle PROPERTIES
-    COMPILE_FLAGS "${CH_BUILDFLAGS}"
+    COMPILE_FLAGS "${CH_CXX_FLAGS}"
     LINK_FLAGS "${CH_LINKERFLAG_SHARED}"
     COMPILE_DEFINITIONS "CH_API_COMPILE_UNIT_VEHICLE"
 )
@@ -230,8 +223,11 @@ TARGET_LINK_LIBRARIES(ChronoEngine_Vehicle
 INSTALL(TARGETS ChronoEngine_Vehicle
     RUNTIME DESTINATION bin
     LIBRARY DESTINATION lib
-    ARCHIVE DESTINATION lib
-)
+    ARCHIVE DESTINATION lib)
+
+INSTALL(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/
+    DESTINATION include/chrono_vehicle
+    FILES_MATCHING PATTERN "*.h")
 
 # ----------------------------------------------------------------------------
 # ADD THE ChronoVehicle_Irrlicht LIBRARY
@@ -245,7 +241,7 @@ IF (ENABLE_UNIT_IRRLICHT)
   )
 
   SET_TARGET_PROPERTIES(ChronoEngine_VehicleIrrlicht PROPERTIES
-    COMPILE_FLAGS "${CH_BUILDFLAGS}"
+    COMPILE_FLAGS "${CH_CXX_FLAGS} ${CH_IRRLICHT_CXX_FLAGS}"
     LINK_FLAGS "${CH_LINKERFLAG_GPU}"
     COMPILE_DEFINITIONS "CH_API_COMPILE_UNIT_VEHICLE"
   )
@@ -260,8 +256,7 @@ IF (ENABLE_UNIT_IRRLICHT)
   INSTALL(TARGETS ChronoEngine_VehicleIrrlicht
     RUNTIME DESTINATION bin
     LIBRARY DESTINATION lib
-    ARCHIVE DESTINATION lib
-  )
+    ARCHIVE DESTINATION lib)
 
   # On Windows, copy the Irrklang DLL (if enabled)
   IF(${CMAKE_SYSTEM_NAME} MATCHES "Windows")

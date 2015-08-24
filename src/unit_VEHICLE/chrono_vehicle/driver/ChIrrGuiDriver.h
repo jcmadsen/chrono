@@ -33,9 +33,9 @@
 #include <vector>
 
 #include "physics/ChSystem.h"
-#include "unit_IRRLICHT/ChIrrApp.h"
+#include "utils/ChUtilsChaseCamera.h"
 
-#include "chrono_vehicle/driver/ChChaseCamera.h"
+#include "unit_IRRLICHT/ChIrrApp.h"
 
 #include "chrono_vehicle/ChApiVehicle.h"
 #include "chrono_vehicle/ChDriver.h"
@@ -44,7 +44,7 @@
 
 #include "chrono_vehicle/driver/ChDataDriver.h"
 
-#if IRRKLANG_ENABLED
+#ifdef CHRONO_IRRKLANG
 #include <irrKlang.h>
 #endif
 
@@ -111,7 +111,7 @@ private:
   ChVehicle&                m_car;
   ChPowertrain&             m_powertrain;
 
-  ChChaseCamera             m_camera;
+  utils::ChChaseCamera      m_camera;
 
   double m_stepsize;
 
@@ -129,7 +129,7 @@ private:
   double m_time_shift;
   ChSharedPtr<ChDataDriver> m_data_driver;
 
-#if IRRKLANG_ENABLED
+#ifdef CHRONO_IRRKLANG
   irrklang::ISoundEngine* m_sound_engine;   // Sound player
   irrklang::ISound*       m_car_sound;      // Sound
 #endif

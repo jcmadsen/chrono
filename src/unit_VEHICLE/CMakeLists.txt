@@ -59,6 +59,11 @@ SET(CH_VEHICLE_INCLUDES
 
 INCLUDE_DIRECTORIES(${CH_VEHICLE_INCLUDES})
 
+# ------------------------------------------------------------------------------
+# Make some variables visible from parent directory
+# ------------------------------------------------------------------------------
+
+SET(CH_VEHICLE_INCLUDES "${CH_VEHICLE_INCLUDES}" PARENT_SCOPE)
 
 # ----------------------------------------------------------------------------
 # Create configuration file
@@ -66,16 +71,10 @@ INCLUDE_DIRECTORIES(${CH_VEHICLE_INCLUDES})
 
 # Prepare replacement variables
 
-IF(ENABLE_UNIT_IRRLICHT)
-  SET(IRRLICHT_ENABLED "1")
-ELSE()
-  SET(IRRLICHT_ENABLED "0")
-ENDIF()
-
 IF(ENABLE_IRRKLANG)
-  SET(IRRKLANG_ENABLED "1")
+  SET(CHRONO_IRRKLANG "#define CHRONO_IRRKLANG")
 ELSE()
-  SET(IRRKLANG_ENABLED "0")
+  SET(CHRONO_IRRKLANG "#undef CHRONO_IRRKLANG")
 ENDIF()
 
 # Generate the configuration header file using substitution variables.
@@ -92,5 +91,4 @@ CONFIGURE_FILE(
 # ----------------------------------------------------------------------------
 
 ADD_SUBDIRECTORY(chrono_vehicle)
-ADD_SUBDIRECTORY(chrono_vehicle_utils)
 #ADD_SUBDIRECTORY(tests)

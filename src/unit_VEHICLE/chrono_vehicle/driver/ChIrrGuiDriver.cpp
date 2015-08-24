@@ -81,7 +81,7 @@ ChIrrGuiDriver::ChIrrGuiDriver(ChIrrApp&           app,
   camera->setPosition(core::vector3df((f32)cam_pos.x, (f32)cam_pos.y, (f32)cam_pos.z));
   camera->setTarget(core::vector3df((f32)cam_target.x, (f32)cam_target.y, (f32)cam_target.z));
 
-#if IRRKLANG_ENABLED
+#ifdef CHRONO_IRRKLANG
   m_sound_engine = 0;   // Sound player
   m_car_sound = 0;      // Sound
 
@@ -150,16 +150,16 @@ bool ChIrrGuiDriver::OnEvent(const SEvent& event)
 
     switch (event.KeyInput.Key) {
     case KEY_KEY_1:
-      m_camera.SetState(ChChaseCamera::Chase);
+      m_camera.SetState(utils::ChChaseCamera::Chase);
       return true;
     case KEY_KEY_2:
-      m_camera.SetState(ChChaseCamera::Follow);
+      m_camera.SetState(utils::ChChaseCamera::Follow);
       return true;
     case KEY_KEY_3:
-      m_camera.SetState(ChChaseCamera::Track);
+      m_camera.SetState(utils::ChChaseCamera::Track);
       return true;
     case KEY_KEY_4:
-      m_camera.SetState(ChChaseCamera::Inside);
+      m_camera.SetState(utils::ChChaseCamera::Inside);
       return true;
 
     case KEY_KEY_J:
@@ -270,7 +270,7 @@ void ChIrrGuiDriver::Advance(double step)
   camera->setPosition(core::vector3df((f32)cam_pos.x, (f32)cam_pos.y, (f32)cam_pos.z));
   camera->setTarget(core::vector3df((f32)cam_target.x, (f32)cam_target.y, (f32)cam_target.z));
 
-#if IRRKLANG_ENABLED
+#ifdef CHRONO_IRRKLANG
   static int stepsbetweensound = 0;
 
   // Update sound pitch
