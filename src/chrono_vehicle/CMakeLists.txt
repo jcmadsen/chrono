@@ -117,6 +117,8 @@ set(CV_SUSPENSION_FILES
     suspension/ChSolidAxle.cpp
     suspension/ChMultiLink.h
     suspension/ChMultiLink.cpp
+	suspension/ChMultiLinkStrut.h
+	suspension/ChMultiLinkStrut.cpp
     suspension/ChHendricksonPRIMAXX.h
     suspension/ChHendricksonPRIMAXX.cpp
 
@@ -128,6 +130,8 @@ set(CV_SUSPENSION_FILES
     suspension/SolidAxle.cpp
     suspension/MultiLink.h
     suspension/MultiLink.cpp
+	suspension/MultiLinkStrut.h
+	suspension/MultiLinkStrut.cpp
     suspension/HendricksonPRIMAXX.h
     suspension/HendricksonPRIMAXX.cpp
 )
