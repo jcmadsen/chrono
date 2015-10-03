@@ -15,7 +15,7 @@
 #include "assets/ChCylinderShape.h"
 #include "assets/ChColorAsset.h"
 
-#include "chrono_vehicle/suspension/ChMultiLinkStrutStrut.h"
+#include "chrono_vehicle/suspension/ChMultiLinkStrut.h"
 
 
 namespace chrono {
@@ -68,8 +68,6 @@ void ChMultiLinkStrut::Initialize(ChSharedPtr<ChBodyAuxRef>  chassis,
   // Transform all points to absolute frame and initialize left side.
   std::vector<ChVector<> > points_R(NUM_POINTS);
   std::vector<ChVector<> > points_L(NUM_POINTS);
-  std::vector<ChVector<> > dirs_R(NUM_DIRS);
-  std::vector<ChVector<> > dirs_L(NUM_DIRS);
 
   for (int i = 0; i < NUM_POINTS; i++) {
     ChVector<> rel_pos = getLocation(static_cast<PointId>(i));
@@ -78,23 +76,15 @@ void ChMultiLinkStrut::Initialize(ChSharedPtr<ChBodyAuxRef>  chassis,
     points_R[i] = suspension_to_abs.TransformLocalToParent(rel_pos);
   }
 
-  for (int i = 0; i < NUM_DIRS; i++) {
-    ChVector<> rel_dir = getDirection(static_cast<DirectionId>(i));
-    dirs_L[i] = suspension_to_abs.TransformDirectionLocalToParent(rel_dir);
-    rel_dir.y = -rel_dir.y;
-    dirs_R[i] = suspension_to_abs.TransformDirectionLocalToParent(rel_dir);
-  }
-
   // Initialize left and right sides.
-  InitializeSide(LEFT, chassis, tierod_body, points_L, dirs_L);
-  InitializeSide(RIGHT, chassis, tierod_body, points_R, dirs_R);
+  InitializeSide(LEFT, chassis, tierod_body_left, points_L);
+  InitializeSide(RIGHT, chassis, tierod_body_right, points_R);
 }
 
 void ChMultiLinkStrut::InitializeSide(ChVehicleSide                   side,
                                  ChSharedPtr<ChBodyAuxRef>       chassis,
                                  ChSharedPtr<ChBody>             tierod_body,
-                                 const std::vector<ChVector<> >& points,
-                                 const std::vector<ChVector<> >& dirs)
+                                 const std::vector<ChVector<> >& points)
 {
   std::string suffix = (side == LEFT) ? "_L" : "_R";
 
@@ -185,6 +175,34 @@ void ChMultiLinkStrut::InitializeSide(ChVehicleSide                   side,
   AddVisualizationTrailingLink(m_trailingLink[side], points[TL_C], points[SPRING_L], points[TL_U], getTrailingLinkRadius());
   chassis->GetSystem()->AddBody(m_trailingLink[side]);
 
+  // lower shock strut body
+  u = ChVector<>(1, 0, 0);
+  w = points[SHOCK_C] - points[SHOCK_L];
+  w.Normalize();
+  v = w % u;
+  v.Normalize();
+  u = v % w;
+  rot.Set_A_axis(u, v, w);
+
+  m_lowerStrut[side] = ChSharedBodyPtr(new ChBody(chassis->GetSystem()->GetContactMethod()));
+  m_lowerStrut[side]->SetNameString(m_name + "_lowerStrut" + suffix);
+  m_lowerStrut[side]->SetPos(points[LS_CM]);
+  m_lowerStrut[side]->SetRot(rot.Get_A_quaternion());
+  m_lowerStrut[side]->SetMass(getLowerStrutMass());
+  m_lowerStrut[side]->SetInertiaXX(getLowerStrutInertia());
+  AddVisualizationStrut(points[SHOCK_L], (points[SHOCK_L] + points[SHOCK_C]) / 2.0, getLowerStrutRadius());
+  chassis->GetSystem()->AddBody(m_lowerStrut[side]);
+
+  // upper strut body
+  m_upperStrut[side] = ChSharedBodyPtr(new ChBody(chassis->GetSystem()->GetContactMethod()));
+  m_upperStrut[side]->SetNameString(m_name + "_upperStrut" + suffix);
+  m_upperStrut[side]->SetPos(points[US_CM]);
+  m_upperStrut[side]->SetRot(rot.Get_A_quaternion());
+  m_upperStrut[side]->SetMass(getUpperStrutMass());
+  m_upperStrut[side]->SetInertiaXX(getUpperStrutInertia());
+  AddVisualizationStrut((points[SHOCK_L] + points[SHOCK_C] / 2.0), points[SHOCK_C], getUpperStrutRadius());
+  chassis->GetSystem()->AddBody(m_upperStrut[side]);
+
   // Create and initialize the revolute joint between upright and spindle.
   ChCoordsys<> rev_csys(points[SPINDLE], chassisRot * Q_from_AngAxis(CH_C_PI / 2.0, VECT_X));
 
@@ -222,15 +240,18 @@ void ChMultiLinkStrut::InitializeSide(ChVehicleSide                   side,
   chassis->GetSystem()->AddLink(m_sphericalLateralUpright[side]);
 
   // Create and initialize the universal joint between chassis and track rod.
-  u = dirs[UNIV_AXIS_CHASSIS_LAT];
-  v = dirs[UNIV_AXIS_LINK_LAT];
-  w = Vcross(u, v);
+  u = ChVector<>(1, 0, 0);
+  w = points[LAT_U] - points[LAT_C];
+  w.Normalize();
+  v = w % u;
+  v.Normalize();
+  u = v % w;
   rot.Set_A_axis(u, v, w);
 
-  m_universalLateralChassis[side] = ChSharedPtr<ChLinkUniversal>(new ChLinkUniversal);
-  m_universalLateralChassis[side]->SetNameString(m_name + "_universalLateralChassis" + suffix);
-  m_universalLateralChassis[side]->Initialize(m_lateral[side], chassis, ChFrame<>(points[LAT_C], rot.Get_A_quaternion()));
-  chassis->GetSystem()->AddLink(m_universalLateralChassis[side]);
+  m_hookeLateralChassis[side] = ChSharedPtr<ChLinkUniversal>(new ChLinkUniversal);
+  m_hookeLateralChassis[side]->SetNameString(m_name + "_universalLateralChassis" + suffix);
+  m_hookeLateralChassis[side]->Initialize(m_lateral[side], chassis, ChFrame<>(points[LAT_C], rot.Get_A_quaternion()));
+  chassis->GetSystem()->AddLink(m_hookeLateralChassis[side]);
 
   // Create and initialize the spherical joint between upright and trailing link.
   m_sphericalTLUpright[side] = ChSharedPtr<ChLinkLockSpherical>(new ChLinkLockSpherical);
@@ -239,34 +260,57 @@ void ChMultiLinkStrut::InitializeSide(ChVehicleSide                   side,
   chassis->GetSystem()->AddLink(m_sphericalTLUpright[side]);
 
   // Create and initialize the universal joint between chassis and trailing link.
-  u = dirs[UNIV_AXIS_CHASSIS_TL];
-  v = dirs[UNIV_AXIS_LINK_TL];
-  w = Vcross(u, v);
+  u = ChVector<>(1, 0, 0);
+  w = points[TL_U] - points[TL_C];
+  w.Normalize();
+  v = w % u;
+  v.Normalize();
+  u = v % w;
   rot.Set_A_axis(u, v, w);
 
-  m_universalTLChassis[side] = ChSharedPtr<ChLinkUniversal>(new ChLinkUniversal);
-  m_universalTLChassis[side]->SetNameString(m_name + "_universalTLChassis" + suffix);
-  m_universalTLChassis[side]->Initialize(m_trailingLink[side], chassis, ChFrame<>(points[TL_C], rot.Get_A_quaternion()));
-  chassis->GetSystem()->AddLink(m_universalTLChassis[side]);
+  m_hookeTLChassis[side] = ChSharedPtr<ChLinkUniversal>(new ChLinkUniversal);
+  m_hookeTLChassis[side]->SetNameString(m_name + "_universalTLChassis" + suffix);
+  m_hookeTLChassis[side]->Initialize(m_trailingLink[side], chassis, ChFrame<>(points[TL_C], rot.Get_A_quaternion()));
+  chassis->GetSystem()->AddLink(m_hookeTLChassis[side]);
 
-  // Create and initialize the tierod distance constraint between chassis and upright.
-  m_distTierod[side] = ChSharedPtr<ChLinkDistance>(new ChLinkDistance);
-  m_distTierod[side]->SetNameString(m_name + "_distTierod" + suffix);
-  m_distTierod[side]->Initialize(tierod_body, m_upright[side], false, points[TIEROD_C], points[TIEROD_U]);
-  chassis->GetSystem()->AddLink(m_distTierod[side]);
+  // Create and initialize the spring
+  m_spring[side] = ChSharedPtr<ChLinkSpringCB>(new ChLinkSpringCB);
+  m_spring[side]->SetNameString(m_name + "_spring" + suffix);
+  m_spring[side]->Initialize(chassis, m_trailingLink[side], false, points[SPRING_C], points[SPRING_L], false, getSpringRestLength());
+  m_spring[side]->Set_SpringCallback(getSpringForceCallback());
+  chassis->GetSystem()->AddLink(m_spring[side]);
 
-  // Create and initialize the spring/damper
+  // create the shock between the two struts
   m_shock[side] = ChSharedPtr<ChLinkSpringCB>(new ChLinkSpringCB);
   m_shock[side]->SetNameString(m_name + "_shock" + suffix);
   m_shock[side]->Initialize(chassis, m_trailingLink[side], false, points[SHOCK_C], points[SHOCK_L]);
   m_shock[side]->Set_SpringCallback(getShockForceCallback());
   chassis->GetSystem()->AddLink(m_shock[side]);
 
-  m_spring[side] = ChSharedPtr<ChLinkSpringCB>(new ChLinkSpringCB);
-  m_spring[side]->SetNameString(m_name + "_spring" + suffix);
-  m_spring[side]->Initialize(chassis, m_trailingLink[side], false, points[SPRING_C], points[SPRING_L], false, getSpringRestLength());
-  m_spring[side]->Set_SpringCallback(getSpringForceCallback());
-  chassis->GetSystem()->AddLink(m_spring[side]);
+  // constraint the lower shock strut to the trailing link
+  m_sphericalLowerStrut[side] = ChSharedPtr<ChLinkLockSpherical>(new ChLinkLockSpherical);
+  m_sphericalLowerStrut[side]->SetNameString(m_name + "_sphStrutTL" + suffix);
+  m_sphericalLowerStrut[side]->Initialize(m_lowerStrut[side], m_trailingLink[side], ChCoordsys<>(points[SHOCK_L], QUNIT));
+  chassis->GetSystem()->AddLink(m_sphericalLowerStrut[side]);
+
+  // constraint upper shock strut to the chassis
+  m_sphericalUpperStrut[side] = ChSharedPtr<ChLinkLockSpherical>(new ChLinkLockSpherical);
+  m_sphericalUpperStrut[side]->SetNameString(m_name + "_sphStrutChassis" + suffix);
+  m_sphericalUpperStrut[side]->Initialize(m_upperStrut[side], chassis, ChCoordsys<>(points[SHOCK_C], QUNIT));
+  chassis->GetSystem()->AddLink(m_sphericalUpperStrut[side]);
+
+  // prismatic joint between the two struts
+  w = points[SHOCK_C] - points[SHOCK_L];
+  w.Normalize();
+  u = ChVector<>(1, 0, 0);
+  v = w % u;
+  v.Normalize();
+  u = v % w;
+  rot.Set_A_axis(u, v, w);
+
+  m_prismaticStrut[side] = ChSharedPtr<ChLinkLockPrismatic>(new ChLinkLockPrismatic);
+  m_prismaticStrut[side]->SetNameString(m_name + "_prismaticStrut" + suffix);
+  m_prismaticStrut[side]->Initialize(m_upperStrut[side], m_lowerStrut[side], ChCoordsys<>((points[SHOCK_C] + points[SHOCK_L]) / 2.0, rot.Get_A_quaternion()));
 
   // Create and initialize the axle shaft and its connection to the spindle. Note that the
   // spindle rotates about the Y axis.
@@ -346,7 +390,7 @@ void ChMultiLinkStrut::LogConstraintViolations(ChVehicleSide side)
 
   // Universal joints
   {
-    ChMatrix<>* C = m_universalLateralChassis[side]->GetC();
+    ChMatrix<>* C = m_hookeLateralChassis[side]->GetC();
     GetLog() << "Lateral-Chassis universal  ";
     GetLog() << "  " << C->GetElement(0, 0) << "  ";
     GetLog() << "  " << C->GetElement(1, 0) << "  ";
@@ -354,17 +398,13 @@ void ChMultiLinkStrut::LogConstraintViolations(ChVehicleSide side)
     GetLog() << "  " << C->GetElement(3, 0) << "\n";
   }
   {
-    ChMatrix<>* C = m_universalTLChassis[side]->GetC();
+    ChMatrix<>* C = m_hookeTLChassis[side]->GetC();
     GetLog() << "TL-Chassis universal  ";
     GetLog() << "  " << C->GetElement(0, 0) << "  ";
     GetLog() << "  " << C->GetElement(1, 0) << "  ";
     GetLog() << "  " << C->GetElement(2, 0) << "  ";
     GetLog() << "  " << C->GetElement(3, 0) << "\n";
   }
-
-  // Distance constraint
-  GetLog() << "Tierod distance       ";
-  GetLog() << "  " << m_distTierod[side]->GetCurrentDistance() - m_distTierod[side]->GetImposedDistance() << "\n";
 
 }
 
@@ -519,6 +559,13 @@ void ChMultiLinkStrut::AddVisualizationSpindle(ChSharedBodyPtr spindle,
   cyl->GetCylinderGeometry().p2 = ChVector<>(0, -width / 2, 0);
   cyl->GetCylinderGeometry().rad = radius;
   spindle->AddAsset(cyl);
+}
+
+void ChMultiLinkStrut::AddVisualizationStrut(const ChVector<> pt_L,
+    const ChVector<> pt_U,
+    double radius){
+
+    // TODO
 }
 
 

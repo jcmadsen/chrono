@@ -135,6 +135,8 @@ protected:
     TL_CM,      ///< trailing link, center of mass
     SHOCK_C,    ///< shock, chassis
     SHOCK_L,    ///< shock, trailing link
+    LS_CM,      ///< lower strut center of mass
+    US_CM,      ///< upper strut center of mass
     SPRING_C,   ///< spring, chassis
     SPRING_L,   ///< spring, trailing link
     TIEROD_C,   ///< tierod, chassis
@@ -174,7 +176,7 @@ protected:
   /// inertia of lower strut
   virtual const ChVector<>& getLowerStrutInertia() const = 0;
   /// inertial of upper strut
-  virtual const CHVector<>& getUpperStrutInertia() const = 0;
+  virtual const ChVector<>& getUpperStrutInertia() const = 0;
   
   /// Return the inertia of the axle shaft.
   virtual double getAxleInertia() const = 0;
@@ -254,6 +256,9 @@ private:
   static void AddVisualizationSpindle(ChSharedBodyPtr spindle,
                                       double          radius,
                                       double          width);
+  static void AddVisualizationStrut(const ChVector<> pt_L,
+      const ChVector<> pt_U,
+      double radius);
 
   static const std::string  m_pointNames[NUM_POINTS];
 };

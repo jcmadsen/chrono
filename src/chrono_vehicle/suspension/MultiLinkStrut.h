@@ -27,13 +27,13 @@
 namespace chrono {
 
 
-class CH_VEHICLE_API MultiLink : public ChMultiLinkStrut
+class CH_VEHICLE_API MultiLinkStrut : public ChMultiLinkStrut
 {
 public:
 
-  MultiLink(const std::string& filename);
-  MultiLink(const rapidjson::Document& d);
-  ~MultiLink();
+  MultiLinkStrut(const std::string& filename);
+  MultiLinkStrut(const rapidjson::Document& d);
+  ~MultiLinkStrut();
 
   virtual double getSpindleMass() const { return m_spindleMass; }
   virtual double getUpperArmMass() const { return m_upperArmMass; }
@@ -69,7 +69,6 @@ public:
 private:
 
   virtual const ChVector<> getLocation(PointId which) { return m_points[which]; }
-  virtual const ChVector<> getDirection(DirectionId which) { return m_directions[which]; }
 
   void Create(const rapidjson::Document& d);
 
@@ -77,7 +76,6 @@ private:
   ChSpringForceCallback* m_shockForceCB;
 
   ChVector<>  m_points[NUM_POINTS];
-  ChVector<>  m_directions[NUM_DIRS];
 
   double      m_spindleMass;
   double      m_upperArmMass;
