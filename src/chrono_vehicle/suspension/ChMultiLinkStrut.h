@@ -139,8 +139,8 @@ protected:
     US_CM,      ///< upper strut center of mass
     SPRING_C,   ///< spring, chassis
     SPRING_L,   ///< spring, trailing link
-    TIEROD_C,   ///< tierod, chassis
     TIEROD_U,   ///< tierod, upright
+    TIEROD_C,   ///< tierod, chassis
     NUM_POINTS
   };
 
@@ -221,6 +221,7 @@ protected:
   ChSharedPtr<ChLinkLockSpherical> m_sphericalLowerStrut[2]; ///< lower strut/lateral link spherical joints
   ChSharedPtr<ChLinkLockPrismatic> m_prismaticStrut[2];	///< lower/upper strut translational joints
   ChSharedPtr<ChLinkLockSpherical> m_sphericalUpperStrut[2]; ///< upper strut/chassis spherical joints
+  ChSharedPtr<ChLinkDistance>      m_distTierod[2]; ///< tierod distance constraint
 
   ChSharedPtr<ChLinkSpringCB>       m_shock[2];        ///< handles to the spring links (left/right)
   ChSharedPtr<ChLinkSpringCB>       m_spring[2];       ///< handles to the shock links (left/right)

@@ -312,6 +312,12 @@ void ChMultiLinkStrut::InitializeSide(ChVehicleSide                   side,
   m_prismaticStrut[side]->SetNameString(m_name + "_prismaticStrut" + suffix);
   m_prismaticStrut[side]->Initialize(m_upperStrut[side], m_lowerStrut[side], ChCoordsys<>((points[SHOCK_C] + points[SHOCK_L]) / 2.0, rot.Get_A_quaternion()));
 
+  // tierod distance constraint
+  m_distTierod[side] = ChSharedPtr<ChLinkDistance>(new ChLinkDistance);
+  m_distTierod[side]->SetNameString(m_name + "_distTierod" + suffix);
+  m_distTierod[side]->Initialize(m_upright[side], chassis, false, points[TIEROD_U], points[TIEROD_C]);
+  chassis->GetSystem()->AddLink(m_distTierod[side]);
+
   // Create and initialize the axle shaft and its connection to the spindle. Note that the
   // spindle rotates about the Y axis.
   m_axle[side] = ChSharedPtr<ChShaft>(new ChShaft);

@@ -144,6 +144,24 @@ void MultiLinkStrut::Create(const rapidjson::Document& d)
   m_points[TL_C] = loadVector(d["Trailing Link"]["Location Chassis"]);
   m_points[TL_U] = loadVector(d["Trailing Link"]["Location Upright"]);
 
+  // read lower strut body info
+  assert(d.HasMember("Lower Strut"));
+  assert(d.["Lower Strut"].IsObject());
+
+  m_lowerStrutMass = d["Lower Strut"]["Mass"].GetDouble();
+  m_points[LS_CM] = loadVector(d["Lower Strut"]["COM"]);
+  m_lowerStrutInertia = loadVector(d["Lower Strut"]["Inertia"]);
+  m_lowerStrutRadius = d["Lower Strut"]["Radius"].GetDouble();
+
+  // rad upper strut bod info
+  assert(d.HasMember("Upper Strut"));
+  assert(d.["Upper Strut"].IsObject());
+
+  m_upperStrutMass = d["Upper Strut"]["Mass"].GetDouble();
+  m_points[US_CM] = loadVector(d["Upper Strut"]["COM"]);
+  m_upperStrutInertia = loadVector(d["Upper Strut"]["Inertia"]);
+  m_upperStrutRadius = d["Upper Strut"]["Radius"].IsDouble();
+
   // Read Tierod data
   assert(d.HasMember("Tierod"));
   assert(d["Tierod"].IsObject());
