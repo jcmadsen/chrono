@@ -19,22 +19,18 @@
 #ifndef GENERIC_RIGID_TIRE_H
 #define GENERIC_RIGID_TIRE_H
 
-#include "chrono_vehicle/tire/ChRigidTire.h"
+#include "chrono_vehicle/wheeled_vehicle/tire/ChRigidTire.h"
 
-class Generic_RigidTire : public chrono::ChRigidTire
-{
-public:
+class Generic_RigidTire : public chrono::vehicle::ChRigidTire {
+  public:
+    Generic_RigidTire(const std::string& name) : chrono::vehicle::ChRigidTire(name) {
+        SetContactMaterial(0.9f, 0.1f, 2e7f, 0.3f);
+    }
 
-  Generic_RigidTire(const std::string&       name,
-                    const chrono::ChTerrain& terrain)
-  : ChRigidTire(name, terrain) {}
+    ~Generic_RigidTire() {}
 
-  ~Generic_RigidTire() {}
-
-  virtual float getFrictionCoefficient() const { return 0.7f; }
-  virtual double getRadius() const             { return 0.47; }
-  virtual double getWidth() const              { return 0.25; }
+    virtual double getRadius() const override { return 0.47; }
+    virtual double getWidth() const override { return 0.25; }
 };
-
 
 #endif

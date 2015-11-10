@@ -18,7 +18,6 @@
 #include <stdio.h>
 #include <vector>
 #include <cmath>
-#include <omp.h>
 
 #include "unit_testing.h"
 
@@ -43,7 +42,7 @@ double timestep = .001;
 double factor = 1.0 / timestep;
 
 int main(int argc, char* argv[]) {
-  omp_set_num_threads(8);
+  CHOMPfunctions::SetNumThreads(8);
   ChSystemParallelDVI* system_gpu = new ChSystemParallelDVI;
   system_gpu->SetIntegrationType(ChSystem::INT_ANITESCU);
 
@@ -55,7 +54,7 @@ int main(int argc, char* argv[]) {
   system_gpu->SetMaxPenetrationRecoverySpeed(10000);
   utils::ReadCheckpoint(system_gpu, ss.str());
   system_gpu->AssembleSystem();
-  ChContactContainerParallel* container = (ChContactContainerParallel*)system_gpu->GetContactContainer();
+  ChSharedPtr<ChContactContainerParallel> container = system_gpu->GetContactContainer().DynamicCastTo<ChContactContainerParallel>();
 
   std::vector<ChLcpConstraint*>& mconstraints = system_gpu->GetLcpSystemDescriptor()->GetConstraintsList();
   std::vector<ChLcpVariables*>& mvariables = system_gpu->GetLcpSystemDescriptor()->GetVariablesList();

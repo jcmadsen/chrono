@@ -339,10 +339,10 @@ void ChMatterMeshless::IntLoadResidual_F(
     // First, find if any ChProximityContainerMeshless object is present
     // in the system,
 
-    ChProximityContainerMeshless* edges = 0;
-    std::vector<ChPhysicsItem*>::iterator iterotherphysics = this->GetSystem()->Get_otherphysicslist()->begin();
+    ChSharedPtr<ChProximityContainerMeshless> edges;
+    std::vector<ChSharedPtr<ChPhysicsItem> >::iterator iterotherphysics = this->GetSystem()->Get_otherphysicslist()->begin();
     while (iterotherphysics != this->GetSystem()->Get_otherphysicslist()->end()) {
-        if (edges = dynamic_cast<ChProximityContainerMeshless*>(*iterotherphysics))
+        if (edges = (*iterotherphysics).DynamicCastTo<ChProximityContainerMeshless>())
             break;
         iterotherphysics++;
     }
@@ -500,10 +500,10 @@ void ChMatterMeshless::VariablesFbLoadForces(double factor) {
     // First, find if any ChProximityContainerMeshless object is present
     // in the system,
 
-    ChProximityContainerMeshless* edges = 0;
-    std::vector<ChPhysicsItem*>::iterator iterotherphysics = this->GetSystem()->Get_otherphysicslist()->begin();
+    ChSharedPtr<ChProximityContainerMeshless> edges;
+    std::vector<ChSharedPtr<ChPhysicsItem> >::iterator iterotherphysics = this->GetSystem()->Get_otherphysicslist()->begin();
     while (iterotherphysics != this->GetSystem()->Get_otherphysicslist()->end()) {
-        if (edges = dynamic_cast<ChProximityContainerMeshless*>(*iterotherphysics))
+        if (edges = (*iterotherphysics).DynamicCastTo<ChProximityContainerMeshless>())
             break;
         iterotherphysics++;
     }
@@ -755,6 +755,7 @@ void ChMatterMeshless::UpdateParticleCollisionModels() {
 //////// FILE I/O
 
 void ChMatterMeshless::StreamOUT(ChStreamOutBinary& mstream) {
+    /*
     // class version number
     mstream.VersionWrite(1);
 
@@ -763,11 +764,13 @@ void ChMatterMeshless::StreamOUT(ChStreamOutBinary& mstream) {
 
     // stream out all member data
     mstream.AbstractWrite(this->material.get_ptr());
+    */
 
     //***TO DO*** stream nodes
 }
 
 void ChMatterMeshless::StreamIN(ChStreamInBinary& mstream) {
+    /*
     // class version number
     int version = mstream.VersionRead();
 
@@ -778,6 +781,7 @@ void ChMatterMeshless::StreamIN(ChStreamInBinary& mstream) {
     ChContinuumElastoplastic* mmat;
     mstream.AbstractReadCreate(&mmat);
     this->material = ChSharedPtr<ChContinuumElastoplastic>(mmat);
+    */
 
     //***TO DO*** unstream nodes
 }

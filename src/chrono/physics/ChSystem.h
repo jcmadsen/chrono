@@ -42,16 +42,16 @@
 
 #include "core/ChLog.h"
 #include "core/ChMath.h"
-#include "core/ChSpmatrix.h"
+//#include "core/ChSparseMatrix.h" // it is not needed here, isn't it?
 #include "core/ChTimer.h"
 #include "physics/ChLinksAll.h"
-#include "physics/ChHistory.h"
 #include "physics/ChEvents.h"
 #include "physics/ChProbe.h"
 #include "physics/ChControls.h"
 #include "physics/ChMaterialCouple.h"
 #include "physics/ChScriptEngine.h"
 #include "physics/ChGlobal.h"
+#include "physics/ChContactContainerBase.h"
 #include "collision/ChCCollisionSystem.h"
 #include "timestepper/ChIntegrable.h"
 #include "timestepper/ChTimestepper.h"
@@ -175,6 +175,22 @@ class ChApi ChSystem : public ChObj, public ChIntegrableIIorderEasy {
         INT_LEAPFROG = 15,
         INT_NEWMARK = 16,
     };
+    CH_ENUM_MAPPER_BEGIN(eCh_integrationType);
+      CH_ENUM_VAL(INT_ANITESCU);
+      CH_ENUM_VAL(INT_TASORA);
+      CH_ENUM_VAL(INT_EULER_IMPLICIT);
+      CH_ENUM_VAL(INT_EULER_IMPLICIT_LINEARIZED);
+      CH_ENUM_VAL(INT_EULER_IMPLICIT_PROJECTED);
+      CH_ENUM_VAL(INT_TRAPEZOIDAL);
+      CH_ENUM_VAL(INT_TRAPEZOIDAL_LINEARIZED);
+      CH_ENUM_VAL(INT_HHT);
+      CH_ENUM_VAL(INT_HEUN);
+      CH_ENUM_VAL(INT_RUNGEKUTTA45);
+      CH_ENUM_VAL(INT_EULER_EXPLICIT);
+      CH_ENUM_VAL(INT_LEAPFROG);
+      CH_ENUM_VAL(INT_NEWMARK);
+    CH_ENUM_MAPPER_END(eCh_integrationType);
+
     /// Sets the method for time integration (time stepper).
     /// Some steppers are faster but can run into some troubles
     /// when dealing with large interpenetrations in contacts/impacts (es: INT_ANITESCU),
@@ -239,6 +255,19 @@ class ChApi ChSystem : public ChObj, public ChIntegrableIIorderEasy {
         LCP_DEM,
         LCP_ITERATIVE_MINRES,
     };
+    CH_ENUM_MAPPER_BEGIN(eCh_lcpSolver);
+      CH_ENUM_VAL(LCP_ITERATIVE_SOR);
+      CH_ENUM_VAL(LCP_ITERATIVE_SYMMSOR);
+      CH_ENUM_VAL(LCP_SIMPLEX);
+      CH_ENUM_VAL(LCP_ITERATIVE_JACOBI);
+      CH_ENUM_VAL(LCP_ITERATIVE_SOR_MULTITHREAD);
+      CH_ENUM_VAL(LCP_ITERATIVE_PMINRES);
+      CH_ENUM_VAL(LCP_ITERATIVE_BARZILAIBORWEIN);
+      CH_ENUM_VAL(LCP_ITERATIVE_PCG);
+      CH_ENUM_VAL(LCP_ITERATIVE_APGD);
+      CH_ENUM_VAL(LCP_DEM);
+      CH_ENUM_VAL(LCP_ITERATIVE_MINRES);
+    CH_ENUM_MAPPER_END(eCh_lcpSolver);
 
     /// Choose the LCP solver type, to be used for the simultaneous
     /// solution of the constraints in dynamical simulations (as well as
@@ -362,7 +391,7 @@ class ChApi ChSystem : public ChObj, public ChIntegrableIIorderEasy {
     virtual void AddBody(ChSharedPtr<ChBody> newbody);
     /// Attach a link to this system. Must be an object of ChLink or derived classes.
     virtual void AddLink(ChSharedPtr<ChLink> newlink);
-    void AddLink(ChLink* newlink);  // _internal use
+
     /// Attach a ChPhysicsItem object that is not a body or link
     virtual void AddOtherPhysicsItem(ChSharedPtr<ChPhysicsItem> newitem);
     /// Attach a probe to this system.
@@ -393,7 +422,7 @@ class ChApi ChSystem : public ChObj, public ChIntegrableIIorderEasy {
     /// Remove a link from this system.
     virtual void RemoveLink(ChSharedPtr<ChLink> mlink);
     /// Remove a link from this system (faster version, mostly internal use)
-    std::vector<ChLink*>::iterator RemoveLinkIter(std::vector<ChLink*>::iterator& mlinkiter);
+    std::vector< ChSharedPtr<ChLink> >::iterator RemoveLinkIter(std::vector< ChSharedPtr<ChLink> >::iterator& mlinkiter);
     /// Remove a ChPhysicsItem object that is not a body or a link
     virtual void RemoveOtherPhysicsItem(ChSharedPtr<ChPhysicsItem> mitem);
     /// Remove whatever type of ChPhysicsItem that was added to the system.
@@ -415,7 +444,7 @@ class ChApi ChSystem : public ChObj, public ChIntegrableIIorderEasy {
     /// using a safe smart pointer.
     class ChApi IteratorBodies {
       public:
-        IteratorBodies(std::vector<ChBody*>::iterator p) : node_(p) {}
+        IteratorBodies(std::vector< ChSharedPtr<ChBody> >::iterator p) : node_(p) {}
         IteratorBodies& operator=(const IteratorBodies& other);
         bool operator==(const IteratorBodies& other);
         bool operator!=(const IteratorBodies& other);
@@ -425,7 +454,7 @@ class ChApi ChSystem : public ChObj, public ChIntegrableIIorderEasy {
         ~IteratorBodies() {}
 
       private:
-        std::vector<ChBody*>::iterator node_;
+        std::vector< ChSharedPtr<ChBody> >::iterator node_;
     };
     /// Get a ChBody iterator, initialized at the beginning of body list
     IteratorBodies IterBeginBodies();
@@ -435,7 +464,7 @@ class ChApi ChSystem : public ChObj, public ChIntegrableIIorderEasy {
     /// using a safe smart pointer.
     class ChApi IteratorLinks {
       public:
-        IteratorLinks(std::vector<ChLink*>::iterator p) : node_(p) {}
+        IteratorLinks(std::vector< ChSharedPtr<ChLink> >::iterator p) : node_(p) {}
         IteratorLinks& operator=(const IteratorLinks& other);
         ~IteratorLinks() {}
         bool operator==(const IteratorLinks& other);
@@ -445,7 +474,7 @@ class ChApi ChSystem : public ChObj, public ChIntegrableIIorderEasy {
         IteratorLinks(){};
 
       private:
-        std::vector<ChLink*>::iterator node_;
+        std::vector< ChSharedPtr<ChLink> >::iterator node_;
     };
     /// Get a ChLink iterator, initialized at the beginning of link list
     IteratorLinks IterBeginLinks();
@@ -455,7 +484,7 @@ class ChApi ChSystem : public ChObj, public ChIntegrableIIorderEasy {
     /// that were not added to body or link lists, using a safe smart pointer.
     class ChApi IteratorOtherPhysicsItems {
       public:
-        IteratorOtherPhysicsItems(std::vector<ChPhysicsItem*>::iterator p) : node_(p) {}
+        IteratorOtherPhysicsItems(std::vector< ChSharedPtr<ChPhysicsItem> >::iterator p) : node_(p) {}
         IteratorOtherPhysicsItems& operator=(const IteratorOtherPhysicsItems& other);
         ~IteratorOtherPhysicsItems() {}
         bool operator==(const IteratorOtherPhysicsItems& other);
@@ -465,7 +494,7 @@ class ChApi ChSystem : public ChObj, public ChIntegrableIIorderEasy {
         IteratorOtherPhysicsItems(){};
 
       private:
-        std::vector<ChPhysicsItem*>::iterator node_;
+        std::vector< ChSharedPtr<ChPhysicsItem> >::iterator node_;
     };
     /// Get a ChPhysics iterator, initialized at the beginning of additional ChPhysicsItems
     IteratorOtherPhysicsItems IterBeginOtherPhysicsItems();
@@ -491,11 +520,11 @@ class ChApi ChSystem : public ChObj, public ChIntegrableIIorderEasy {
         bool HasItem();
 
       private:
-        std::vector<ChBody*>::iterator node_body;
-        std::vector<ChLink*>::iterator node_link;
-        std::vector<ChPhysicsItem*>::iterator node_otherphysics;
+        std::vector< ChSharedPtr<ChBody> >::iterator node_body;
+        std::vector< ChSharedPtr<ChLink> >::iterator node_link;
+        std::vector< ChSharedPtr<ChPhysicsItem> >::iterator node_otherphysics;
         int stage;
-        ChPhysicsItem* mptr;
+        ChSharedPtr<ChPhysicsItem> mptr;
         ChSystem* msystem;
     };
     /// Get a ChPhysics iterator
@@ -506,26 +535,26 @@ class ChApi ChSystem : public ChObj, public ChIntegrableIIorderEasy {
     /// NOTE! use this list only to enumerate etc., but NOT to
     /// remove or add items (use the appropriate Remove.. and Add..
     /// functions instead!)
-    std::vector<ChBody*>* Get_bodylist() { return &bodylist; }
+    std::vector< ChSharedPtr<ChBody> >* Get_bodylist() { return &bodylist; }
     /// Gets the list of children links -low level function-.
     /// NOTE! use this list only to enumerate etc., but NOT to
     /// remove or add items (use the appropriate Remove.. and Add..
     /// functions instead!)
-    std::vector<ChLink*>* Get_linklist() { return &linklist; }
+    std::vector< ChSharedPtr<ChLink> >* Get_linklist() { return &linklist; }
     /// Gets the list of children physics items that are not in the body or link lists.
     /// NOTE! use this list only to enumerate etc., but NOT to
     /// remove or add items (use the appropriate Remove.. and Add..
     /// functions instead!)
-    std::vector<ChPhysicsItem*>* Get_otherphysicslist() { return &otherphysicslist; }
+    std::vector< ChSharedPtr<ChPhysicsItem> >* Get_otherphysicslist() { return &otherphysicslist; }
 
     /// For higher performance (ex. when GPU coprocessors are available) you can create your own
     /// custom contact container (suffice it is inherited from ChContactContainerBase) and plug
     /// it into the system using this function. The replaced container is automatically deleted.
     /// When the system is deleted, the custom container that you plugged will be automatically deleted.
-    virtual void ChangeContactContainer(ChContactContainerBase* newcontainer);
+    virtual void ChangeContactContainer(ChSharedPtr<ChContactContainerBase> newcontainer);
 
     /// Get the contact container
-    ChContactContainerBase* GetContactContainer() { return contact_container; }
+    ChSharedPtr<ChContactContainerBase> GetContactContainer() { return contact_container; }
 
     /// Searches a body from its ChObject name
     ChSharedPtr<ChBody> SearchBody(const char* m_name);
@@ -790,14 +819,14 @@ class ChApi ChSystem : public ChObj, public ChIntegrableIIorderEasy {
     void SetScriptEngine(ChScriptEngine* mengine) { this->scriptEngine = mengine; }
     ChScriptEngine* GetScriptEngine() { return this->scriptEngine; }
 
-    char* GetScriptForStartFile() { return scriptForStartFile; }
-    char* GetScriptForUpdateFile() { return scriptForUpdateFile; }
-    char* GetScriptForStepFile() { return scriptForStepFile; }
-    char* GetScriptFor3DStepFile() { return scriptFor3DStepFile; }
-    int SetScriptForStartFile(char* mfile);
-    int SetScriptForUpdateFile(char* mfile);
-    int SetScriptForStepFile(char* mfile);
-    int SetScriptFor3DStepFile(char* mfile);
+    const std::string& GetScriptForStartFile() { return scriptForStartFile; }
+    const std::string& GetScriptForUpdateFile() { return scriptForUpdateFile; }
+    const std::string& GetScriptForStepFile() { return scriptForStepFile; }
+    const std::string& GetScriptFor3DStepFile() { return scriptFor3DStepFile; }
+    int SetScriptForStartFile(const std::string& mfile);
+    int SetScriptForUpdateFile(const std::string& mfile);
+    int SetScriptForStepFile(const std::string& mfile);
+    int SetScriptFor3DStepFile(const std::string& mfile);
     int ExecuteScriptForStart();
     int ExecuteScriptForUpdate();
     int ExecuteScriptForStep();
@@ -830,7 +859,7 @@ class ChApi ChSystem : public ChObj, public ChIntegrableIIorderEasy {
     /// collision detection step (ex. all the times that ComputeCollisions() is automatically
     /// called by the integration method). For example some other collision engine could
     /// add further contacts using this callback.
-    void SetCustomComputeCollisionCallback(ChCustomComputeCollisionCallback* mcallb) { collision_callback = mcallb; };
+    void SetCustomComputeCollisionCallback(ChCustomComputeCollisionCallback* mcallb) { collision_callbacks.push_back(mcallb); };
 
     /// Class to be inherited by user and to use in SetCustomCollisionPointCallback()
     class ChApi ChCustomCollisionPointCallback {
@@ -1000,24 +1029,6 @@ class ChApi ChSystem : public ChObj, public ChIntegrableIIorderEasy {
     // STREAMING
     //
 
-    /// Method to allow deserializing a persistent binary archive (ex: a file)
-    /// into transient data.
-    void StreamIN(ChStreamInBinary& mstream);
-
-    /// Method to allow serializing transient data into a persistent
-    /// binary archive (ex: a file).
-    void StreamOUT(ChStreamOutBinary& mstream);
-
-    /// Method to allow serialization of transient data in ascii,
-    /// as a readable item, for example   "chrono::GetLog() << myobject;"
-    void StreamOUT(ChStreamOutAscii& mstream);
-
-    /// Binary save data, for this object and subobjects (bodies, links, etc.)
-    int StreamOUTall(ChStreamOutBinary& m_file);
-
-    /// Binary read data, for this object and subobjects (bodies, links, etc.),
-    /// also rebuilding hierarchy.
-    int StreamINall(ChStreamInBinary& m_file);
 
     /// Writes the hierarchy of contained bodies, markers, etc. in ASCII
     /// readable form, mostly for debugging purposes.
@@ -1032,11 +1043,7 @@ class ChApi ChSystem : public ChObj, public ChIntegrableIIorderEasy {
     /// hierarchy (bodies, forces, links, etc.) (deprecated function - obsolete)
     int FileWriteChR(ChStreamOutBinary& m_file);
 
-    /// If you have initialized SetScriptEngine(), here you can process
-    /// a script file, i.e. a file containing a Chrono scripted
-    /// program (it may build a system and perform simulations, and write to files)
-    /// Example, a ".js"  jvascript file that contain generic javascript commands.
-    int FileProcessJS(char* m_file);
+
 
     /////////////////////////////////////////////////////////////////////////////////////
 
@@ -1046,24 +1053,24 @@ class ChApi ChSystem : public ChObj, public ChIntegrableIIorderEasy {
     //
 
     // list of rigid bodies
-    std::vector<ChBody*> bodylist;
+    std::vector< ChSharedPtr<ChBody > > bodylist;
 
     // list of joints (links)
-    std::vector<ChLink*> linklist;
+    std::vector< ChSharedPtr<ChLink> > linklist;
 
     // list of other physic objects that are not bodies or links
-    std::vector<ChPhysicsItem*> otherphysicslist;
+    std::vector< ChSharedPtr<ChPhysicsItem> > otherphysicslist;
 
     // list of 'probes' (variable-recording objects, exp. for
     // 3rd party apps)
-    std::vector<ChProbe*> probelist;
+    std::vector< ChSharedPtr<ChProbe> > probelist;
 
     // list of 'controls' script objects (objects containing
     // scripting programs and GUI panels, exp. for 3rd party apps)
-    std::vector<ChControls*> controlslist;
+    std::vector< ChSharedPtr<ChControls> > controlslist;
 
     // the container of contacts
-    ChContactContainerBase* contact_container;
+    ChSharedPtr< ChContactContainerBase > contact_container;
 
     // list of items to insert when doing Setup() or Flush.
     std::vector< ChSharedPtr<ChPhysicsItem> > batch_to_insert;
@@ -1123,7 +1130,7 @@ class ChApi ChSystem : public ChObj, public ChIntegrableIIorderEasy {
     // The collision engine, to compute and store contact manifolds
     collision::ChCollisionSystem* collision_system;
 
-    ChCustomComputeCollisionCallback* collision_callback;
+    std::vector<ChCustomComputeCollisionCallback*> collision_callbacks;
 
   public:
     ChCustomCollisionPointCallback* collisionpoint_callback;
@@ -1136,13 +1143,13 @@ class ChApi ChSystem : public ChObj, public ChIntegrableIIorderEasy {
 
     ChScriptEngine* scriptEngine;  // points to a script engine
     ChScript* scriptForStart;      // this script is executed when simulation starts.
-    char scriptForStartFile[200];
+    std::string scriptForStartFile;
     ChScript* scriptForUpdate;  // this script is executed for each Update step.
-    char scriptForUpdateFile[200];
+    std::string scriptForUpdateFile;
     ChScript* scriptForStep;  // this script is executed for each integration step
-    char scriptForStepFile[200];
+    std::string scriptForStepFile;
     ChScript* scriptFor3DStep;  // this script is executed for each 3d interface macro step
-    char scriptFor3DStepFile[200];
+    std::string scriptFor3DStepFile;
 
     // timers for profiling execution speed
   protected:

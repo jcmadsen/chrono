@@ -21,10 +21,11 @@
 #include "utils/ChUtilsInputOutput.h"
 
 // Chrono::Vehicle header files
-#include "chrono_vehicle/utils/ChWheeledVehicleAssembly.h"
+#include "chrono_vehicle/wheeled_vehicle/utils/ChWheeledVehicleAssembly.h"
 
 using namespace chrono;
 using namespace chrono::collision;
+using namespace chrono::vehicle;
 
 using std::cout;
 using std::endl;
@@ -35,10 +36,10 @@ using std::endl;
 // Specification of the terrain
 // -----------------------------------------------------------------------------
 
-enum TerrainType { RIGID, GRANULAR };
+enum TerrainType { RIGID_TERRAIN, GRANULAR_TERRAIN };
 
 // Type of terrain
-TerrainType terrain_type = RIGID;
+TerrainType terrain_type = RIGID_TERRAIN;
 
 // Control visibility of containing bin walls
 bool visible_walls = false;
@@ -201,11 +202,11 @@ int main(int argc, char* argv[]) {
     // Set number of threads.
     // ----------------------
 
-    int max_threads = omp_get_num_procs();
+    int max_threads = CHOMPfunctions::GetNumProcs();
     if (threads > max_threads)
         threads = max_threads;
     system->SetParallelThreadNumber(threads);
-    omp_set_num_threads(threads);
+    CHOMPfunctions::SetNumThreads(threads);
     cout << "Using " << threads << " threads" << endl;
 
     system->GetSettings()->perform_thread_tuning = thread_tuning;
@@ -248,7 +249,7 @@ int main(int argc, char* argv[]) {
     // Bottom box
     utils::AddBoxGeometry(ground.get_ptr(), ChVector<>(hdimX, hdimY, hthick), ChVector<>(0, 0, -hthick),
                           ChQuaternion<>(1, 0, 0, 0), true);
-    if (terrain_type == GRANULAR) {
+    if (terrain_type == GRANULAR_TERRAIN) {
         // Front box
         utils::AddBoxGeometry(ground.get_ptr(), ChVector<>(hthick, hdimY, hdimZ + hthick),
                               ChVector<>(hdimX + hthick, 0, hdimZ - hthick), ChQuaternion<>(1, 0, 0, 0), visible_walls);
@@ -272,7 +273,7 @@ int main(int argc, char* argv[]) {
     // Create the granular material.
     double vertical_offset = 0;
 
-    if (terrain_type == GRANULAR) {
+    if (terrain_type == GRANULAR_TERRAIN) {
         vertical_offset = CreateParticles(system);
     }
 

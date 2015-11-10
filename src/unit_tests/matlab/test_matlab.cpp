@@ -26,7 +26,7 @@
 ///////////////////////////////////////////////////
 
 #include "physics/ChSystem.h"
-#include "unit_MATLAB/ChMatlabEngine.h"
+#include "chrono_matlab/ChMatlabEngine.h"
 
 // Use the namespace of Chrono
 
@@ -92,7 +92,7 @@ int main(int argc, char* argv[]) {
 
         GetLog() << "- Send a sparse matrix to Matlab...\n\n";
 
-        ChSparseMatrix m_sparse(6, 7);
+        ChLinkedListMatrix m_sparse(6, 7);
         m_sparse.SetElement(3, 5, 102);
         m_sparse.SetElement(1, 2, 104);
         m_sparse.SetElement(4, 4, 101);

@@ -27,6 +27,10 @@
 
 namespace chrono {
 
+// Register into the object factory, to enable run-time
+// dynamic creation and persistence
+ChClassRegister<ChLcpIterativeMINRES> a_registration_ChLcpIterativeMINRES;
+
 double ChLcpIterativeMINRES::Solve(ChLcpSystemDescriptor& sysd  ///< system description with constraints and variables
                                    ) {
     std::vector<ChLcpConstraint*>& mconstraints = sysd.GetConstraintsList();
@@ -455,6 +459,14 @@ double ChLcpIterativeMINRES::Solve_SupportingStiffness(
     //
 
     for (int iter = 0; iter < max_iterations; iter++) {
+        // Terminate iteration when the projected r is small, if (norm(r,2) <= max(rel_tol_d,abs_tol))
+        double r_proj_resid = r.NormTwo();
+        if (r_proj_resid < ChMax(rel_tol_d, abs_tol)) {
+            if (verbose)
+                GetLog() << "P(r)-converged! iter=" << iter << " |P(r)|=" << r_proj_resid << "\n";
+            break;
+        }
+
         // MZp = M*Z*p
         MZp = Zp;
         if (do_preconditioning)
@@ -472,14 +484,6 @@ double ChLcpIterativeMINRES::Solve_SupportingStiffness(
         x.MatrInc(tmp);
 
         double maxdeltaunknowns = tmp.NormTwo();
-
-        // Terminate iteration when the projected r is small, if (norm(r,2) <= max(rel_tol_d,abs_tol))
-        double r_proj_resid = r.NormTwo();
-        if (r_proj_resid < ChMax(rel_tol_d, abs_tol)) {
-            if (verbose)
-                GetLog() << "P(r)-converged! iter=" << iter << " |P(r)|=" << r_proj_resid << "\n";
-            break;
-        }
 
         // r_old = r;
         r_old = r;

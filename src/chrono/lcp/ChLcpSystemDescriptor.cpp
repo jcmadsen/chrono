@@ -25,8 +25,14 @@
 #include "ChLcpSystemDescriptor.h"
 #include "ChLcpConstraintTwoTuplesContactN.h"
 #include "ChLcpConstraintTwoTuplesFrictionT.h"
+#include "chrono/core/ChLinkedListMatrix.h"
 
 namespace chrono {
+
+// Register into the object factory, to enable run-time
+// dynamic creation and persistence
+ChClassRegister<ChLcpSystemDescriptor> a_registration_ChLcpSystemDescriptor;
+
 
 #define CH_SPINLOCK_HASHSIZE 203
 
@@ -114,9 +120,9 @@ void ChLcpSystemDescriptor::UpdateCountsAndOffsets() {
     freeze_count = true;
 }
 
-void ChLcpSystemDescriptor::ConvertToMatrixForm(ChSparseMatrixBase* Cq,
-                                                ChSparseMatrixBase* M,
-												ChSparseMatrixBase* E,
+void ChLcpSystemDescriptor::ConvertToMatrixForm(ChSparseMatrix* Cq,
+                                                ChSparseMatrix* M,
+												ChSparseMatrix* E,
                                                 ChMatrix<>* Fvector,
                                                 ChMatrix<>* Bvector,
                                                 ChMatrix<>* Frict,
@@ -207,7 +213,7 @@ void ChLcpSystemDescriptor::ConvertToMatrixForm(ChSparseMatrixBase* Cq,
 
 	
 
-void ChLcpSystemDescriptor::ConvertToMatrixForm(ChSparseMatrixBase* Z,
+void ChLcpSystemDescriptor::ConvertToMatrixForm(ChSparseMatrix* Z,
 												ChMatrix<>* rhs,
 												bool only_bilaterals,
 												bool skip_contacts_uv)
@@ -231,12 +237,12 @@ void ChLcpSystemDescriptor::ConvertToMatrixForm(ChSparseMatrixBase* Z,
 
     n_q = this->CountActiveVariables();
 
-    // Reset and resize (if needed) auxiliary vectors
+    // Reset and resize (if needed) auxiliary vectors. Most of the times the matrix will be only erased
 
-    if (Z)
+	if (Z)
         Z->Reset(n_q + mn_c, n_q + mn_c);
 
-    if (rhs)
+	if (rhs)
         rhs->Reset(n_q + mn_c, 1);
 
     // Fills Z and rhs with masses and inertias, fills rhs with 'f'
@@ -280,8 +286,8 @@ void ChLcpSystemDescriptor::ConvertToMatrixForm(ChSparseMatrixBase* Z,
     }
 }
 
-void ChLcpSystemDescriptor::BuildMatrices(ChSparseMatrixBase* Cq,
-                                          ChSparseMatrixBase* M,
+void ChLcpSystemDescriptor::BuildMatrices(ChSparseMatrix* Cq,
+                                          ChSparseMatrix* M,
                                           bool only_bilaterals,
                                           bool skip_contacts_uv) {
     this->ConvertToMatrixForm(Cq, M, 0, 0, 0, 0, only_bilaterals, skip_contacts_uv);
@@ -295,9 +301,9 @@ void ChLcpSystemDescriptor::DumpLastMatrices(const char* path) {
     char filename[300];
     try {
         const char* numformat = "%.12g";
-        chrono::ChSparseMatrix mdM;
-        chrono::ChSparseMatrix mdCq;
-        chrono::ChSparseMatrix mdE;
+        chrono::ChLinkedListMatrix mdM;
+        chrono::ChLinkedListMatrix mdCq;
+        chrono::ChLinkedListMatrix mdE;
         chrono::ChMatrixDynamic<double> mdf;
         chrono::ChMatrixDynamic<double> mdb;
         chrono::ChMatrixDynamic<double> mdfric;
