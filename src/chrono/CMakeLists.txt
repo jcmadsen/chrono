@@ -184,6 +184,9 @@ set(ChronoEngine_physics_SOURCES
     physics/ChMaterialSurface.cpp
     physics/ChContinuumMaterial.cpp
 	physics/ChLoadContainer.cpp
+	# add viscosity
+	physics/ChMaterialSurfaceV.h
+	physics/ChMaterialSurfaceV.cpp
     )
 
 set(ChronoEngine_physics_HEADERS
