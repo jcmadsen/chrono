@@ -37,6 +37,7 @@ SET(DEMOS
   demo_paths
   demo_collision_2d
   demo_collision_trimesh
+  demo_viscosity
 )
 
 #--------------------------------------------------------------
