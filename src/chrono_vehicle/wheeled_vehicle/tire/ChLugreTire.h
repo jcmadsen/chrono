@@ -29,9 +29,10 @@
 namespace chrono {
 namespace vehicle {
 
-///
+/// @addtogroup vehicle_wheeled_tire
+/// @{
+
 /// Tire model based on LuGre friction model.
-///
 class CH_VEHICLE_API ChLugreTire : public ChTire {
   public:
     ChLugreTire(const std::string& name  ///< [in] name of this tire system
@@ -43,7 +44,7 @@ class CH_VEHICLE_API ChLugreTire : public ChTire {
     void Initialize();
 
     /// Initialize this tire system and enable visualization of the discs.
-    void Initialize(ChSharedPtr<ChBody> wheel  ///< handle to the associated wheel body
+    void Initialize(std::shared_ptr<ChBody> wheel  ///< handle to the associated wheel body
                     );
 
     /// Get the tire force and moment.
@@ -117,6 +118,8 @@ class CH_VEHICLE_API ChLugreTire : public ChTire {
     std::vector<DiscContactData> m_data;
     std::vector<DiscState> m_state;
 };
+
+/// @} vehicle_wheeled_tire
 
 }  // end namespace vehicle
 }  // end namespace chrono

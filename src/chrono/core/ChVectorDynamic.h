@@ -14,10 +14,13 @@
 #ifndef CHVECTORDYNAMIC_H
 #define CHVECTORDYNAMIC_H
 
+#include <cmath>
+
 #include "core/ChCoordsys.h"
 #include "core/ChStream.h"
 #include "core/ChException.h"
 #include "core/ChMatrix.h"
+
 namespace chrono {
 
 //
@@ -98,6 +101,9 @@ class ChVectorDynamic : public ChMatrix<Real> {
     /// Delete allocated heap mem.
     virtual ~ChVectorDynamic() { delete[] this->address; }
 
+    /// Return the length of the vector
+    int GetLength() const { return this->rows; }
+    
     //
     // OPERATORS
     //
@@ -155,7 +161,6 @@ class ChVectorDynamic : public ChMatrix<Real> {
             delete[] this->address;
             this->address = new Real[this->rows];
             // SetZero(this->rows);
-            //#pragma omp parallel for if (this->rows>CH_OMP_MATR)
             for (int i = 0; i < this->rows; ++i)
                 this->address[i] = 0;
         }
@@ -169,18 +174,30 @@ class ChVectorDynamic : public ChMatrix<Real> {
     /// Reset to zeroes and (if needed) changes the size to have row and col
     void Reset(int nrows) {
         Resize(nrows);
-// SetZero(rows);
-#pragma omp parallel for if (this->rows > CH_OMP_MATR)
+        //SetZero(rows);
         for (int i = 0; i < this->rows; ++i)
             this->address[i] = 0;
     }
 
     /// Resets the matrix to zero  (warning: simply sets memory to 0 bytes!)
     void Reset() {
-// SetZero(rows*columns); //memset(address, 0, sizeof(Real) * rows * columns);
-#pragma omp parallel for if (this->rows > CH_OMP_MATRLIGHT)
+        // SetZero(rows*columns); //memset(address, 0, sizeof(Real) * rows * columns);
         for (int i = 0; i < this->rows; ++i)
             this->address[i] = 0;
+    }
+
+    /// Calculate the WRMS (weighted root-mean-square) norm of this vector.
+    ///     norm = sqrt{ sum{(w_i * x_i)^2} / N}
+    Real NormWRMS(const ChVectorDynamic<Real>& w) {
+        if (this->rows == 0)
+            return 0;
+
+        Real sum = 0;
+        for (int i = 0; i < this->rows; ++i) {
+            Real prod = this->address[i] * w.address[i];
+            sum += prod * prod;
+        }
+        return std::sqrt(sum / this->rows);
     }
 };
 

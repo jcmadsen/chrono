@@ -21,11 +21,11 @@
 
 #include <string>
 
-#include "chrono/physics/ChSystem.h"
-#include "chrono/physics/ChBody.h"
 #include "chrono/assets/ChColor.h"
 #include "chrono/assets/ChColorAsset.h"
 #include "chrono/geometry/ChCTriangleMeshConnected.h"
+#include "chrono/physics/ChBody.h"
+#include "chrono/physics/ChSystem.h"
 
 #include "chrono_vehicle/ChApiVehicle.h"
 #include "chrono_vehicle/ChTerrain.h"
@@ -33,13 +33,14 @@
 namespace chrono {
 namespace vehicle {
 
-///
+/// @addtogroup vehicle_terrain
+/// @{
+
 /// Rigid terrain model.
 /// This class implements a terrain modeled as a rigid shape which can interact
 /// through contact and friction with any other bodies whose contact flag is
 /// enabled. In particular, this type of terrain can be used in conjunction with
 /// a ChRigidTire.
-///
 class CH_VEHICLE_API RigidTerrain : public ChTerrain {
   public:
     enum Type { FLAT, MESH, HEIGHT_MAP };
@@ -50,7 +51,7 @@ class CH_VEHICLE_API RigidTerrain : public ChTerrain {
                  );
 
     /// Construct a RigidTerrain from a JSON specification file.
-    RigidTerrain(ChSystem* system,    ///< [in] pointer to the containing multibody system
+    RigidTerrain(ChSystem* system,            ///< [in] pointer to the containing multibody system
                  const std::string& filename  ///< [in] name of the JSON specification file
                  );
 
@@ -72,6 +73,9 @@ class CH_VEHICLE_API RigidTerrain : public ChTerrain {
                     float tex_scale_x = 1,       ///< [in] texture scale in X
                     float tex_scale_y = 1        ///< [in] texture scale in Y
                     );
+
+    /// Return a handle to the ground body.
+    std::shared_ptr<ChBody> GetGroundBody() { return m_ground; }
 
     /// Initialize the terrain system (flat).
     /// This version uses a rigid box of specified dimensions and with specified
@@ -110,12 +114,14 @@ class CH_VEHICLE_API RigidTerrain : public ChTerrain {
 
   private:
     Type m_type;
-    ChSharedPtr<ChBody> m_ground;
-    ChSharedPtr<ChColorAsset> m_color;
+    std::shared_ptr<ChBody> m_ground;
+    std::shared_ptr<ChColorAsset> m_color;
     geometry::ChTriangleMeshConnected m_trimesh;
     std::string m_mesh_name;
     double m_height;
 };
+
+/// @} vehicle_terrain
 
 }  // end namespace vehicle
 }  // end namespace chrono

@@ -50,6 +50,8 @@ class ChSystem;
 class ChApi ChPhysicsItem : public ChObj {
     CH_RTTI(ChPhysicsItem, ChObj);
 
+    friend class ChSystem;
+
   protected:
     //
     // DATA
@@ -57,7 +59,7 @@ class ChApi ChPhysicsItem : public ChObj {
 
     ChSystem* system;  // parent system
 
-    std::vector<ChSharedPtr<ChAsset> > assets;
+    std::vector<std::shared_ptr<ChAsset> > assets;
 
     unsigned int offset_x;  // offset in vector of state (position part)
     unsigned int offset_w;  // offset in vector of state (speed part)
@@ -74,8 +76,14 @@ class ChApi ChPhysicsItem : public ChObj {
         this->offset_L = 0;
     };
 
-    virtual ~ChPhysicsItem(){};
+    virtual ~ChPhysicsItem(){
+        SetSystem(0); // this also might remove collision model from system
+    };
+
     virtual void Copy(ChPhysicsItem* source);
+
+  private:
+    virtual void SetupInitial() {}
 
   public:
     //
@@ -85,24 +93,36 @@ class ChApi ChPhysicsItem : public ChObj {
     /// Get the pointer to the parent ChSystem()
     ChSystem* GetSystem() const { return system; }
 
-    /// Set the pointer to the parent ChSystem()
-    virtual void SetSystem(ChSystem* m_system) { system = m_system; }
+    /// Set the pointer to the parent ChSystem() and 
+    /// also add to new collision system / remove from old coll.system
+    virtual void SetSystem(ChSystem* m_system) { 
+        if (system == m_system) // shortcut if no change
+            return;
+        if (system) {
+            if (this->GetCollide())
+                this->RemoveCollisionModelsFromSystem();
+        }
+        system = m_system; // set here
+        if (system) {
+            if (this->GetCollide())
+                this->AddCollisionModelsToSystem();
+        }
+    }
 
     /// Add an optional asset (it can be used to define visualization shapes, es ChSphereShape,
     /// or textures, or custom attached properties that the user can define by
     /// creating his class inherited from ChAsset)
-    void AddAsset(ChSharedPtr<ChAsset> masset) { this->assets.push_back(masset); }
+    void AddAsset(std::shared_ptr<ChAsset> masset) { this->assets.push_back(masset); }
 
     /// Access to the list of optional assets.
-    std::vector<ChSharedPtr<ChAsset> >& GetAssets() { return this->assets; }
+    std::vector<std::shared_ptr<ChAsset> >& GetAssets() { return this->assets; }
 
     /// Access the Nth asset in the list of optional assets.
-    ChSharedPtr<ChAsset> GetAssetN(unsigned int num) {
+    std::shared_ptr<ChAsset> GetAssetN(unsigned int num) {
         if (num < assets.size())
             return assets[num];
         else {
-            ChSharedPtr<ChAsset> none;
-            return none;
+            return std::shared_ptr<ChAsset>();
         };
     }
 

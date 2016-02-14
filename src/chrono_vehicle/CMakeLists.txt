@@ -8,10 +8,17 @@ option(ENABLE_MODULE_VEHICLE "Enable the Chrono Vehicle module" OFF)
 
 # Return now if this module is not enabled
 if(NOT ENABLE_MODULE_VEHICLE)
-  return()
+   mark_as_advanced(FORCE ENABLE_IRRKLANG)
+   mark_as_advanced(FORCE CH_IRRKLANG_SDKDIR)
+   mark_as_advanced(FORCE CH_IRRKLANGLIB)
+   return()
 endif()
 
 message(STATUS "==== Chrono Vehicle module ====")
+
+mark_as_advanced(CLEAR ENABLE_IRRKLANG)
+mark_as_advanced(CLEAR CH_IRRKLANG_SDKDIR)
+mark_as_advanced(CLEAR CH_IRRKLANGLIB)
 
 # If Irrlicht support was enabled, provide option to add Irrklang support.
 cmake_dependent_option(ENABLE_IRRKLANG "Enable Irrklang library for sound" OFF
@@ -224,6 +231,8 @@ set(CV_WV_SUSPENSION_FILES
     wheeled_vehicle/suspension/ChMultiLink.cpp
     wheeled_vehicle/suspension/ChHendricksonPRIMAXX.h
     wheeled_vehicle/suspension/ChHendricksonPRIMAXX.cpp
+    wheeled_vehicle/suspension/ChMacPhersonStrut.h
+    wheeled_vehicle/suspension/ChMacPhersonStrut.cpp
 
     wheeled_vehicle/suspension/DoubleWishbone.h
     wheeled_vehicle/suspension/DoubleWishbone.cpp
@@ -235,6 +244,8 @@ set(CV_WV_SUSPENSION_FILES
     wheeled_vehicle/suspension/MultiLink.cpp
     wheeled_vehicle/suspension/HendricksonPRIMAXX.h
     wheeled_vehicle/suspension/HendricksonPRIMAXX.cpp
+    wheeled_vehicle/suspension/MacPhersonStrut.h
+    wheeled_vehicle/suspension/MacPhersonStrut.cpp
 )
 source_group("wheeled_vehicle\\suspension" FILES ${CV_WV_SUSPENSION_FILES})
 

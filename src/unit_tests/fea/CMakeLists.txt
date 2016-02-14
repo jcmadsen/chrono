@@ -5,10 +5,11 @@ SET(TESTS
     test_ANCFShell_Iso
     test_ANCFShell_Ort
     test_ANCFShell_OrtGrav
-)
-
+    test_EASBrickIso
+    test_EASBrickIso_Grav
+test_EASBrickMooneyR_Grav
+test_ANCFConstraints)
 MESSAGE(STATUS "Unit test programs for FEA module...")
-
 # A hack to set the working directory in which to execute the CTest
 # runs.  This is needed for tests that need to access the Chrono data
 # directory (since we use a relative path to it)
@@ -35,7 +36,13 @@ FOREACH(PROGRAM ${TESTS})
 
     INSTALL(TARGETS ${PROGRAM} DESTINATION bin)
 
-    ADD_TEST(NAME ${PROGRAM}
-             COMMAND ${PROGRAM}
-             WORKING_DIRECTORY ${MY_WORKING_DIR})
+    #ADD_TEST(NAME ${PROGRAM}
+    #         COMMAND ${PROJECT_BINARY_DIR}/bin/${PROGRAM}
+    #         WORKING_DIRECTORY ${MY_WORKING_DIR})
+
+    ADD_TEST(${PROGRAM} ${PROJECT_BINARY_DIR}/bin/${PROGRAM})
+
+    SET_TESTS_PROPERTIES (${PROGRAM} PROPERTIES 
+                          WORKING_DIRECTORY ${MY_WORKING_DIR})
+
 ENDFOREACH()

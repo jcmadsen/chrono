@@ -29,10 +29,11 @@
 ///////////////////////////////////////////////////
 
 #include <vector>
-#include "ChCCollisionModel.h"
-#include "core/ChSmartpointers.h"
-#include "BulletCollision/CollisionShapes/btCollisionShape.h"
-#include "geometry/ChCLinePath.h"
+#include <memory>
+
+#include "chrono/collision/ChCCollisionModel.h"
+#include "chrono/collision/bullet/BulletCollision/CollisionShapes/btCollisionShape.h"
+#include "chrono/geometry/ChCLinePath.h"
 
 // forward references
 class btCollisionObject;
@@ -42,7 +43,6 @@ namespace chrono {
 
 // forward references
 class ChBody;
-typedef ChSmartPtr<btCollisionShape> smartptrshapes;
 
 namespace collision {
 
@@ -61,7 +61,7 @@ class ChApi ChModelBullet : public ChCollisionModel {
     btCollisionObject* bt_collision_object;
 
     // Vector of shared pointers to geometric objects.
-    std::vector<smartptrshapes> shapes;
+    std::vector<std::shared_ptr<btCollisionShape>> shapes;
 
   public:
     ChModelBullet();
@@ -171,7 +171,8 @@ class ChApi ChModelBullet : public ChCollisionModel {
                                  bool is_static,
                                  bool is_convex,
                                  const ChVector<>& pos = ChVector<>(),
-                                 const ChMatrix33<>& rot = ChMatrix33<>(1));
+                                 const ChMatrix33<>& rot = ChMatrix33<>(1),
+                                 double sphereswept_thickness = 0.0);
 
     /// CUSTOM for this class only: add a concave triangle mesh that will be managed
     /// by GImpact mesh-mesh algorithm. Note that, despite this can work with
@@ -234,6 +235,9 @@ class ChApi ChModelBullet : public ChCollisionModel {
     virtual bool AddTriangleProxy(  ChVector<>* p1,                 ///< points to vertex1 coords
                                     ChVector<>* p2,                 ///< points to vertex2 coords
                                     ChVector<>* p3,                 ///< points to vertex3 coords
+                                    ChVector<>* ep1,                ///< points to neighbouring vertex at edge1 if any
+                                    ChVector<>* ep2,                ///< points to neighbouring vertex at edge1 if any
+                                    ChVector<>* ep3,                ///< points to neighbouring vertex at edge1 if any
                                     bool mowns_vertex_1,            ///< vertex is owned by this triangle (otherwise, owned by neighbour)
                                     bool mowns_vertex_2,
                                     bool mowns_vertex_3,

@@ -14,6 +14,7 @@ option(ENABLE_MODULE_PARALLEL "Enable the Chrono Parallel module" OFF)
 if(NOT ENABLE_MODULE_PARALLEL)
   mark_as_advanced(FORCE BLAZE_DIR)
   mark_as_advanced(FORCE BOOST_DIR)
+  mark_as_advanced(FORCE USE_PARALLEL_DOUBLE)
   return()
 endif()
 
@@ -21,6 +22,7 @@ message(STATUS "==== Chrono Parallel module ====")
 
 mark_as_advanced(CLEAR BLAZE_DIR)
 mark_as_advanced(CLEAR BOOST_DIR)
+mark_as_advanced(CLEAR USE_PARALLEL_DOUBLE)
 
 # ------------------------------------------------------------------------------
 # Additional compiler flags
@@ -33,53 +35,11 @@ set(CH_PARALLEL_C_FLAGS "")
 # Additional dependencies, specific to this module
 # ------------------------------------------------------------------------------
 
-# Figure out SSE level support
-# TODO:  Move to parent level?  May be of interest in other modules...
-OPTION(USE_SSE "Compile with SSE support for floating point math" OFF)
-OPTION(USE_DOUBLE "Compile with double precision math (no SSE support)" ON)
 
-IF(USE_DOUBLE)
+OPTION(USE_PARALLEL_DOUBLE "Compile Chrono::Parallel with double precision math (no SSE support)" ON)
 
-  OPTION(USE_SSE "Compile with SSE support for floating point math" OFF)
+IF(USE_PARALLEL_DOUBLE)
   SET(CHRONO_PARALLEL_USE_DOUBLE "#define CHRONO_PARALLEL_USE_DOUBLE")
-  
-  IF(${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU")
-      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native -Wa,-q")
-      set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=native -Wa,-q")
-      set(CH_PARALLEL_CXX_FLAGS "${CH_PARALLEL_CXX_FLAGS} -march=native -Wa,-q")
-      set(CH_PARALLEL_C_FLAGS "${CH_PARALLEL_C_FLAGS} -march=native -Wa,-q")
-  ENDIF()
-  
-ELSEIF(USE_SSE)
-
-  FIND_PACKAGE(SSE)
-
-  # Set substitution variables for configuration file.
-  IF(SSE_FOUND)
-    MESSAGE(STATUS "SSE version: ${SSE_VERSION}")
-    SET(CHRONO_PARALLEL_HAS_SSE "#define CHRONO_PARALLEL_HAS_SSE")
-    SET(CHRONO_PARALLEL_SSE_LEVEL "#define CHRONO_PARALLEL_SSE_LEVEL \"${SSE_VERSION}\"")
-    SET(CHRONO_PARALLEL_SSE_LEVEL "#define CHRONO_PARALLEL_SSE_${SSE_STR}")
-  ELSE()
-    MESSAGE("No SSE support")
-  ENDIF()
-
-  IF (${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
-    # using Clang
-  ELSEIF (${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU")
-    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${SSE_FLAGS}")
-    SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${SSE_FLAGS}")
-    set(CH_PARALLEL_CXX_FLAGS "${CH_PARALLEL_CXX_FLAGS} ${SSE_FLAGS}")
-    set(CH_PARALLEL_C_FLAGS "${CH_PARALLEL_C_FLAGS} ${SSE_FLAGS}")
-  ELSEIF (${CMAKE_CXX_COMPILER_ID} STREQUAL "Intel")
-    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -xsse${SSE_VERSION}")
-    SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -xsse${SSE_VERSION}")
-    set(CH_PARALLEL_CXX_FLAGS "${CH_PARALLEL_CXX_FLAGS} -xsse${SSE_VERSION}")
-    set(CH_PARALLEL_C_FLAGS "${CH_PARALLEL_C_FLAGS} -xsse${SSE_VERSION}")
-  ELSEIF (${CMAKE_CXX_COMPILER_ID} STREQUAL "MSVC")
-    # using Visual Studio C++
-  ENDIF()
-
 ENDIF()
 
 # Add the OpenMP-specific compiler and linker flags
@@ -152,8 +112,8 @@ INCLUDE_DIRECTORIES(${CH_PARALLEL_INCLUDES})
 # Make some variables visible from parent directory
 # ------------------------------------------------------------------------------
 
-set(CH_PARALLEL_CXX_FLAGS "${CH_PARALLEL_CXX_FLAGS}" PARENT_SCOPE)
-set(CH_PARALLEL_C_FLAGS "${CH_PARALLEL_C_FLAGS}" PAREANT_SCOPE)
+SET(CH_PARALLEL_CXX_FLAGS "${CH_PARALLEL_CXX_FLAGS}" PARENT_SCOPE)
+SET(CH_PARALLEL_C_FLAGS "${CH_PARALLEL_C_FLAGS}" PARENT_SCOPE)
 SET(CH_PARALLEL_INCLUDES "${CH_PARALLEL_INCLUDES}" PARENT_SCOPE)
 
 # ------------------------------------------------------------------------------

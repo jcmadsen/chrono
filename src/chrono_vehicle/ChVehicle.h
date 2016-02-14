@@ -23,20 +23,30 @@
 #define CH_VEHICLE_H
 
 #include "chrono/core/ChVector.h"
+#include "chrono/physics/ChBodyAuxRef.h"
 #include "chrono/physics/ChSystem.h"
 #include "chrono/physics/ChSystemDEM.h"
-#include "chrono/physics/ChBodyAuxRef.h"
 
 #include "chrono_vehicle/ChApiVehicle.h"
 #include "chrono_vehicle/ChSubsysDefs.h"
 
+/**
+    @defgroup vehicle Chrono::Vehicle
+    @brief Ground vehicle modeling
+*/
+
 namespace chrono {
+
+/// Namespace for the Chrono::Vehicle module.
 namespace vehicle {
 
-///
+/// @addtogroup vehicle
+/// @{
+
 /// Base class for chrono vehicle systems.
-///
-class CH_VEHICLE_API ChVehicle : public ChShared {
+/// The reference frame for a vehicle follows the ISO standard: Z-axis up, X-axis
+/// pointing forward, and Y-axis towards the left of the vehicle.
+class CH_VEHICLE_API ChVehicle {
   public:
     /// Construct a vehicle system with a default ChSystem.
     ChVehicle(ChMaterialSurfaceBase::ContactMethod contact_method = ChMaterialSurfaceBase::DVI);
@@ -54,7 +64,7 @@ class CH_VEHICLE_API ChVehicle : public ChShared {
     double GetChTime() const { return m_system->GetChTime(); }
 
     /// Get a handle to the vehicle's chassis body.
-    ChSharedPtr<ChBodyAuxRef> GetChassis() const { return m_chassis; }
+    std::shared_ptr<ChBodyAuxRef> GetChassis() const { return m_chassis; }
 
     /// Get the global location of the chassis reference frame origin.
     const ChVector<>& GetChassisPos() const { return m_chassis->GetFrame_REF_to_abs().GetPos(); }
@@ -86,7 +96,7 @@ class CH_VEHICLE_API ChVehicle : public ChShared {
     ChVector<> GetVehicleAcceleration(const ChVector<>& locpos) const;
 
     /// Get a handle to the vehicle's driveshaft body.
-    virtual ChSharedPtr<ChShaft> GetDriveshaft() const = 0;
+    virtual std::shared_ptr<ChShaft> GetDriveshaft() const = 0;
 
     /// Get the angular speed of the driveshaft.
     /// This function provides the interface between a vehicle system and a
@@ -120,10 +130,12 @@ class CH_VEHICLE_API ChVehicle : public ChShared {
     ChSystem* m_system;  ///< pointer to the Chrono system
     bool m_ownsSystem;   ///< true if system created at construction
 
-    ChSharedPtr<ChBodyAuxRef> m_chassis;  ///< handle to the chassis body
+    std::shared_ptr<ChBodyAuxRef> m_chassis;  ///< handle to the chassis body
 
     double m_stepsize;  ///< integration step-size for the vehicle system
 };
+
+/// @} vehicle
 
 }  // end namespace vehicle
 }  // end namespace chrono

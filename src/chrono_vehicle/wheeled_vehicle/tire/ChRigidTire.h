@@ -27,11 +27,12 @@
 namespace chrono {
 namespace vehicle {
 
-///
+/// @addtogroup vehicle_wheeled_tire
+/// @{
+
 /// Rigid tire model.
 /// This tire is modeled as a rigid cylinder.  Requires a terrain system that
 /// supports rigid contact with friction.
-///
 class CH_VEHICLE_API ChRigidTire : public ChTire {
   public:
     ChRigidTire(const std::string& name  ///< [in] name of this tire system
@@ -55,7 +56,7 @@ class CH_VEHICLE_API ChRigidTire : public ChTire {
     /// Initialize this tire system.
     /// This function creates the tire contact shape and attaches it to the
     /// associated wheel body.
-    void Initialize(ChSharedPtr<ChBody> wheel  ///< handle to the associated wheel body
+    void Initialize(std::shared_ptr<ChBody> wheel  ///< handle to the associated wheel body
                     );
 
   protected:
@@ -71,6 +72,8 @@ class CH_VEHICLE_API ChRigidTire : public ChTire {
     float m_young_modulus;
     float m_poisson_ratio;
 };
+
+/// @} vehicle_wheeled_tire
 
 }  // end namespace vehicle
 }  // end namespace chrono

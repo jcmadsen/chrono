@@ -20,9 +20,10 @@
 namespace chrono {
 namespace fea {
 
+/// @addtogroup fea_elements
+/// @{
 
 /// Base class for most structral elements of 'shell' type.
-
 class ChApiFea ChElementShell : public ChElementGeneric {
   protected:
     double mass;
@@ -68,6 +69,9 @@ class ChApiFea ChElementShell : public ChElementGeneric {
                                       const ChMatrix<>& displ,
                                       ChVector<>& point) = 0;
 
+	/// Virtual method to plot velocity field distribution
+	virtual void EvaluateSectionVelNorm(double U, double V, ChVector<> &Result) = 0;
+
 /*
     /// TODO?????
     /// Gets the tensional state at a point on the shell
@@ -82,6 +86,8 @@ class ChApiFea ChElementShell : public ChElementGeneric {
 */
 
 };
+
+/// @} fea_elements
 
 }  // END_OF_NAMESPACE____
 }  // END_OF_NAMESPACE____

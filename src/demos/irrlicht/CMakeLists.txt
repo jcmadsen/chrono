@@ -3,7 +3,6 @@
 
 SET(DEMOS
   demo_collision
-  demo_benchmark
   demo_bricks
   demo_cohesion
   demo_conveyor
@@ -36,6 +35,7 @@ SET(DEMOS
   demo_earthquake
   demo_paths
   demo_collision_2d
+  demo_collision_trimesh
 )
 
 #--------------------------------------------------------------

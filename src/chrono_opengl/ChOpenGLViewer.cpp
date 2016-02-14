@@ -106,16 +106,16 @@ void ChOpenGLViewer::TakeDown() {
 bool ChOpenGLViewer::Initialize() {
   // Initialize all of the shaders and compile them
   if (!main_shader.InitializeStrings("phong", phong_vert, phong_frag)) {
-    return 0;
+    return false;
   }
   if (!cloud_shader.InitializeStrings("cloud", cloud_vert, cloud_frag)) {
-    return 0;
+    return false;
   }
   if (!dot_shader.InitializeStrings("dot", dot_vert, dot_frag)) {
-    return 0;
+    return false;
   }
   if (!sphere_shader.InitializeStrings("sphere", sphere_vert, sphere_frag)) {
-    return 0;
+    return false;
   }
 
   // Setup the generic shapes and load them from file
@@ -143,6 +143,8 @@ bool ChOpenGLViewer::Initialize() {
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
   // glLineWidth(10);
   // glEnable(GL_LINE_SMOOTH);
+
+  return true;
 }
 bool ChOpenGLViewer::Update(double time_step) {
   if (pause_sim == true && single_step == false) {
@@ -183,7 +185,7 @@ void ChOpenGLViewer::Render() {
       model_cylinder.clear();
       model_obj.clear();
       for (int i = 0; i < physics_system->Get_bodylist()->size(); i++) {
-    	ChSharedPtr<ChBody> abody = physics_system->Get_bodylist()->at(i);
+        std::shared_ptr<ChBody> abody = physics_system->Get_bodylist()->at(i);
         DrawObject(abody);
       }
       if (model_box.size() > 0) {
@@ -212,7 +214,7 @@ void ChOpenGLViewer::Render() {
       cloud_data.resize(physics_system->Get_bodylist()->size());
 #pragma omp parallel for
       for (int i = 0; i < physics_system->Get_bodylist()->size(); i++) {
-    	ChSharedPtr<ChBody> abody = physics_system->Get_bodylist()->at(i);
+    	std::shared_ptr<ChBody> abody = physics_system->Get_bodylist()->at(i);
         ChVector<> pos = abody->GetPos();
         cloud_data[i] = glm::vec3(pos.x, pos.y, pos.z);
       }
@@ -244,7 +246,7 @@ void ChOpenGLViewer::Render() {
   fps = 1.0 / current_time;
 }
 
-void ChOpenGLViewer::DrawObject(ChSharedPtr<ChBody> abody) {
+void ChOpenGLViewer::DrawObject(std::shared_ptr<ChBody> abody) {
   if (abody->GetAssets().size() == 0) {
     return;
   }
@@ -257,13 +259,13 @@ void ChOpenGLViewer::DrawObject(ChSharedPtr<ChBody> abody) {
   rot.Q_to_AngAxis(angle, axis);
 
   for (int i = 0; i < abody->GetAssets().size(); i++) {
-    ChSharedPtr<ChAsset> asset = abody->GetAssets().at(i);
+    std::shared_ptr<ChAsset> asset = abody->GetAssets().at(i);
 
-    if (!asset.IsType<ChVisualization>()) {
+    if (!std::dynamic_pointer_cast<ChVisualization>(asset)) {
       continue;
     }
 
-    ChVisualization* visual_asset = ((ChVisualization*)(asset.get_ptr()));
+    ChVisualization* visual_asset = static_cast<ChVisualization*>(asset.get());
     Vector center = visual_asset->Pos;
     center = rot.Rotate(center);
     Quaternion lrot = visual_asset->Rot.Get_A_quaternion();
@@ -271,161 +273,148 @@ void ChOpenGLViewer::DrawObject(ChSharedPtr<ChBody> abody) {
     lrot.Normalize();
     lrot.Q_to_AngAxis(angle, axis);
 
-    if (asset.IsType<ChSphereShape>()) {
-      ChSphereShape* sphere_shape = ((ChSphereShape*)(asset.get_ptr()));
-      float radius = sphere_shape->GetSphereGeometry().rad;
-      ChVector<> pos_final = pos + center;
+    if (auto sphere_shape = std::dynamic_pointer_cast<ChSphereShape>(asset)) {
+        double radius = sphere_shape->GetSphereGeometry().rad;
+        ChVector<> pos_final = pos + center;
 
-      model = glm::translate(glm::mat4(1), glm::vec3(pos_final.x, pos_final.y, pos_final.z));
-      model = glm::rotate(model, float(angle), glm::vec3(axis.x, axis.y, axis.z));
-      model = glm::scale(model, glm::vec3(radius, radius, radius));
-      model_sphere.push_back(model);
+        model = glm::translate(glm::mat4(1), glm::vec3(pos_final.x, pos_final.y, pos_final.z));
+        model = glm::rotate(model, float(angle), glm::vec3(axis.x, axis.y, axis.z));
+        model = glm::scale(model, glm::vec3(radius, radius, radius));
+        model_sphere.push_back(model);
 
-    } else if (asset.IsType<ChEllipsoidShape>()) {
-      ChEllipsoidShape* ellipsoid_shape = ((ChEllipsoidShape*)(asset.get_ptr()));
-      Vector radius = ellipsoid_shape->GetEllipsoidGeometry().rad;
-      ChVector<> pos_final = pos + center;
-      model = glm::translate(glm::mat4(1), glm::vec3(pos_final.x, pos_final.y, pos_final.z));
-      model = glm::rotate(model, float(angle), glm::vec3(axis.x, axis.y, axis.z));
-      model = glm::scale(model, glm::vec3(radius.x, radius.y, radius.z));
-      model_sphere.push_back(model);
+    } else if (auto ellipsoid_shape = std::dynamic_pointer_cast<ChEllipsoidShape>(asset)) {
+        Vector radius = ellipsoid_shape->GetEllipsoidGeometry().rad;
+        ChVector<> pos_final = pos + center;
+        model = glm::translate(glm::mat4(1), glm::vec3(pos_final.x, pos_final.y, pos_final.z));
+        model = glm::rotate(model, float(angle), glm::vec3(axis.x, axis.y, axis.z));
+        model = glm::scale(model, glm::vec3(radius.x, radius.y, radius.z));
+        model_sphere.push_back(model);
+    } else if (auto box_shape = std::dynamic_pointer_cast<ChBoxShape>(asset)) {
+        ChVector<> pos_final = pos + center;
+        Vector radius = box_shape->GetBoxGeometry().Size;
 
-    } else if (asset.IsType<ChBoxShape>()) {
-      ChBoxShape* box_shape = ((ChBoxShape*)(asset.get_ptr()));
-      ChVector<> pos_final = pos + center;
-      Vector radius = box_shape->GetBoxGeometry().Size;
+        model = glm::translate(glm::mat4(1), glm::vec3(pos_final.x, pos_final.y, pos_final.z));
+        model = glm::rotate(model, float(angle), glm::vec3(axis.x, axis.y, axis.z));
+        model = glm::scale(model, glm::vec3(radius.x, radius.y, radius.z));
+        model_box.push_back(model);
+    } else if (auto cylinder_shape = std::dynamic_pointer_cast<ChCylinderShape>(asset)) {
+        double rad = cylinder_shape->GetCylinderGeometry().rad;
+        double height = cylinder_shape->GetCylinderGeometry().p1.y - cylinder_shape->GetCylinderGeometry().p2.y;
+        // Quaternion rott(1,0,0,0);
+        Quaternion lrot = visual_asset->Rot.Get_A_quaternion();
+        // lrot = lrot % rott;
+        lrot = rot % lrot;
 
-      model = glm::translate(glm::mat4(1), glm::vec3(pos_final.x, pos_final.y, pos_final.z));
-      model = glm::rotate(model, float(angle), glm::vec3(axis.x, axis.y, axis.z));
-      model = glm::scale(model, glm::vec3(radius.x, radius.y, radius.z));
-      model_box.push_back(model);
+        lrot.Q_to_AngAxis(angle, axis);
+        ChVector<> pos_final = pos + center;
+        model = glm::translate(glm::mat4(1), glm::vec3(pos_final.x, pos_final.y, pos_final.z));
+        model = glm::rotate(model, float(angle), glm::vec3(axis.x, axis.y, axis.z));
+        model = glm::scale(model, glm::vec3(rad, height * .5, rad));
+        model_cylinder.push_back(model);
+    } else if (auto cone_shape = std::dynamic_pointer_cast<ChConeShape>(asset)) {
+        Vector rad = cone_shape->GetConeGeometry().rad;
+        ChVector<> pos_final = pos + center;
+        model = glm::translate(glm::mat4(1), glm::vec3(pos_final.x, pos_final.y, pos_final.z));
+        model = glm::rotate(model, float(angle), glm::vec3(axis.x, axis.y, axis.z));
+        model = glm::scale(model, glm::vec3(rad.x, rad.y, rad.z));
+        model_cone.push_back(model);
+    } else if (auto shape = std::dynamic_pointer_cast<ChRoundedBoxShape>(asset)) {
+        Vector rad = shape->GetRoundedBoxGeometry().Size;
+        double radsphere = shape->GetRoundedBoxGeometry().radsphere;
+        ChVector<> pos_final = pos + center;
+        model = glm::translate(glm::mat4(1), glm::vec3(pos_final.x, pos_final.y, pos_final.z));
+        model = glm::rotate(model, float(angle), glm::vec3(axis.x, axis.y, axis.z));
+        model = glm::scale(model, glm::vec3(rad.x, rad.y, rad.z));
+        model_box.push_back(model);
 
-    } else if (asset.IsType<ChCylinderShape>()) {
-      ChCylinderShape* cylinder_shape = ((ChCylinderShape*)(asset.get_ptr()));
-      double rad = cylinder_shape->GetCylinderGeometry().rad;
-      double height = cylinder_shape->GetCylinderGeometry().p1.y - cylinder_shape->GetCylinderGeometry().p2.y;
-      // Quaternion rott(1,0,0,0);
-      Quaternion lrot = visual_asset->Rot.Get_A_quaternion();
-      // lrot = lrot % rott;
-      lrot = rot % lrot;
+        glm::vec3 local = glm::rotate(glm::vec3(rad.x, rad.y, rad.z), float(angle), glm::vec3(axis.x, axis.y, axis.z));
+        model = glm::translate(glm::mat4(1),
+                               glm::vec3(pos_final.x + local.x, pos_final.y + local.y, pos_final.z + local.z));
+        model = glm::scale(model, glm::vec3(radsphere));
+        model_sphere.push_back(model);
 
-      lrot.Q_to_AngAxis(angle, axis);
-      ChVector<> pos_final = pos + center;
-      model = glm::translate(glm::mat4(1), glm::vec3(pos_final.x, pos_final.y, pos_final.z));
-      model = glm::rotate(model, float(angle), glm::vec3(axis.x, axis.y, axis.z));
-      model = glm::scale(model, glm::vec3(rad, height * .5, rad));
-      model_cylinder.push_back(model);
+        local = glm::rotate(glm::vec3(rad.x, rad.y, -rad.z), float(angle), glm::vec3(axis.x, axis.y, axis.z));
+        model = glm::translate(glm::mat4(1),
+                               glm::vec3(pos_final.x + local.x, pos_final.y + local.y, pos_final.z + local.z));
+        model = glm::scale(model, glm::vec3(radsphere));
+        model_sphere.push_back(model);
 
-    } else if (asset.IsType<ChConeShape>()) {
-      ChConeShape* cone_shape = ((ChConeShape*)(asset.get_ptr()));
-      Vector rad = cone_shape->GetConeGeometry().rad;
-      ChVector<> pos_final = pos + center;
-      model = glm::translate(glm::mat4(1), glm::vec3(pos_final.x, pos_final.y, pos_final.z));
-      model = glm::rotate(model, float(angle), glm::vec3(axis.x, axis.y, axis.z));
-      model = glm::scale(model, glm::vec3(rad.x, rad.y, rad.z));
-      model_cone.push_back(model);
+        local = glm::rotate(glm::vec3(-rad.x, rad.y, rad.z), float(angle), glm::vec3(axis.x, axis.y, axis.z));
+        model = glm::translate(glm::mat4(1),
+                               glm::vec3(pos_final.x + local.x, pos_final.y + local.y, pos_final.z + local.z));
+        model = glm::scale(model, glm::vec3(radsphere));
+        model_sphere.push_back(model);
 
-    } else if (asset.IsType<ChRoundedBoxShape>()) {
-      ChRoundedBoxShape* shape = ((ChRoundedBoxShape*)(asset.get_ptr()));
-      Vector rad = shape->GetRoundedBoxGeometry().Size;
-      double radsphere = shape->GetRoundedBoxGeometry().radsphere;
-      ChVector<> pos_final = pos + center;
-      model = glm::translate(glm::mat4(1), glm::vec3(pos_final.x, pos_final.y, pos_final.z));
-      model = glm::rotate(model, float(angle), glm::vec3(axis.x, axis.y, axis.z));
-      model = glm::scale(model, glm::vec3(rad.x, rad.y, rad.z));
-      model_box.push_back(model);
+        local = glm::rotate(glm::vec3(-rad.x, rad.y, -rad.z), float(angle), glm::vec3(axis.x, axis.y, axis.z));
+        model = glm::translate(glm::mat4(1),
+                               glm::vec3(pos_final.x + local.x, pos_final.y + local.y, pos_final.z + local.z));
+        model = glm::scale(model, glm::vec3(radsphere));
+        model_sphere.push_back(model);
 
-      glm::vec3 local = glm::rotate(glm::vec3(rad.x, rad.y, rad.z), float(angle), glm::vec3(axis.x, axis.y, axis.z));
-      model =
-          glm::translate(glm::mat4(1), glm::vec3(pos_final.x + local.x, pos_final.y + local.y, pos_final.z + local.z));
-      model = glm::scale(model, glm::vec3(radsphere));
-      model_sphere.push_back(model);
+        local = glm::rotate(glm::vec3(rad.x, -rad.y, rad.z), float(angle), glm::vec3(axis.x, axis.y, axis.z));
+        model = glm::translate(glm::mat4(1),
+                               glm::vec3(pos_final.x + local.x, pos_final.y + local.y, pos_final.z + local.z));
+        model = glm::scale(model, glm::vec3(radsphere));
+        model_sphere.push_back(model);
 
-      local = glm::rotate(glm::vec3(rad.x, rad.y, -rad.z), float(angle), glm::vec3(axis.x, axis.y, axis.z));
-      model =
-          glm::translate(glm::mat4(1), glm::vec3(pos_final.x + local.x, pos_final.y + local.y, pos_final.z + local.z));
-      model = glm::scale(model, glm::vec3(radsphere));
-      model_sphere.push_back(model);
+        local = glm::rotate(glm::vec3(rad.x, -rad.y, -rad.z), float(angle), glm::vec3(axis.x, axis.y, axis.z));
+        model = glm::translate(glm::mat4(1),
+                               glm::vec3(pos_final.x + local.x, pos_final.y + local.y, pos_final.z + local.z));
+        model = glm::scale(model, glm::vec3(radsphere));
+        model_sphere.push_back(model);
 
-      local = glm::rotate(glm::vec3(-rad.x, rad.y, rad.z), float(angle), glm::vec3(axis.x, axis.y, axis.z));
-      model =
-          glm::translate(glm::mat4(1), glm::vec3(pos_final.x + local.x, pos_final.y + local.y, pos_final.z + local.z));
-      model = glm::scale(model, glm::vec3(radsphere));
-      model_sphere.push_back(model);
+        local = glm::rotate(glm::vec3(-rad.x, -rad.y, rad.z), float(angle), glm::vec3(axis.x, axis.y, axis.z));
+        model = glm::translate(glm::mat4(1),
+                               glm::vec3(pos_final.x + local.x, pos_final.y + local.y, pos_final.z + local.z));
+        model = glm::scale(model, glm::vec3(radsphere));
+        model_sphere.push_back(model);
 
-      local = glm::rotate(glm::vec3(-rad.x, rad.y, -rad.z), float(angle), glm::vec3(axis.x, axis.y, axis.z));
-      model =
-          glm::translate(glm::mat4(1), glm::vec3(pos_final.x + local.x, pos_final.y + local.y, pos_final.z + local.z));
-      model = glm::scale(model, glm::vec3(radsphere));
-      model_sphere.push_back(model);
+        local = glm::rotate(glm::vec3(-rad.x, -rad.y, -rad.z), float(angle), glm::vec3(axis.x, axis.y, axis.z));
+        model = glm::translate(glm::mat4(1),
+                               glm::vec3(pos_final.x + local.x, pos_final.y + local.y, pos_final.z + local.z));
+        model = glm::scale(model, glm::vec3(radsphere));
+        model_sphere.push_back(model);
+    } else if (auto capsule_shape = std::dynamic_pointer_cast<ChCapsuleShape>(asset)) {
+        double rad = capsule_shape->GetCapsuleGeometry().rad;
+        double height = capsule_shape->GetCapsuleGeometry().hlen;
+        // Quaternion rott(1,0,0,0);
+        Quaternion lrot = visual_asset->Rot.Get_A_quaternion();
+        // lrot = lrot % rott;
+        lrot = rot % lrot;
 
-      local = glm::rotate(glm::vec3(rad.x, -rad.y, rad.z), float(angle), glm::vec3(axis.x, axis.y, axis.z));
-      model =
-          glm::translate(glm::mat4(1), glm::vec3(pos_final.x + local.x, pos_final.y + local.y, pos_final.z + local.z));
-      model = glm::scale(model, glm::vec3(radsphere));
-      model_sphere.push_back(model);
+        lrot.Q_to_AngAxis(angle, axis);
+        ChVector<> pos_final = pos + center;
+        model = glm::translate(glm::mat4(1), glm::vec3(pos_final.x, pos_final.y, pos_final.z));
+        model = glm::rotate(model, float(angle), glm::vec3(axis.x, axis.y, axis.z));
+        model = glm::scale(model, glm::vec3(rad, height, rad));
+        model_cylinder.push_back(model);
+        glm::vec3 local = glm::rotate(glm::vec3(0, height, 0), float(angle), glm::vec3(axis.x, axis.y, axis.z));
+        model = glm::translate(glm::mat4(1),
+                               glm::vec3(pos_final.x + local.x, pos_final.y + local.y, pos_final.z + local.z));
+        model = glm::scale(model, glm::vec3(rad));
+        model_sphere.push_back(model);
 
-      local = glm::rotate(glm::vec3(rad.x, -rad.y, -rad.z), float(angle), glm::vec3(axis.x, axis.y, axis.z));
-      model =
-          glm::translate(glm::mat4(1), glm::vec3(pos_final.x + local.x, pos_final.y + local.y, pos_final.z + local.z));
-      model = glm::scale(model, glm::vec3(radsphere));
-      model_sphere.push_back(model);
+        local = glm::rotate(glm::vec3(0, -height, 0), float(angle), glm::vec3(axis.x, axis.y, axis.z));
 
-      local = glm::rotate(glm::vec3(-rad.x, -rad.y, rad.z), float(angle), glm::vec3(axis.x, axis.y, axis.z));
-      model =
-          glm::translate(glm::mat4(1), glm::vec3(pos_final.x + local.x, pos_final.y + local.y, pos_final.z + local.z));
-      model = glm::scale(model, glm::vec3(radsphere));
-      model_sphere.push_back(model);
+        model = glm::translate(glm::mat4(1),
+                               glm::vec3(pos_final.x + local.x, pos_final.y + local.y, pos_final.z + local.z));
+        model = glm::scale(model, glm::vec3(rad));
+        model_sphere.push_back(model);
+    } else if (auto trimesh_shape = std::dynamic_pointer_cast<ChTriangleMeshShape>(asset)) {
+        ChVector<> pos_final = pos + center;
+        model = glm::translate(glm::mat4(1), glm::vec3(pos_final.x, pos_final.y, pos_final.z));
+        model = glm::rotate(model, float(angle), glm::vec3(axis.x, axis.y, axis.z));
 
-      local = glm::rotate(glm::vec3(-rad.x, -rad.y, -rad.z), float(angle), glm::vec3(axis.x, axis.y, axis.z));
-      model =
-          glm::translate(glm::mat4(1), glm::vec3(pos_final.x + local.x, pos_final.y + local.y, pos_final.z + local.z));
-      model = glm::scale(model, glm::vec3(radsphere));
-      model_sphere.push_back(model);
-    } else if (asset.IsType<ChCapsuleShape>()) {
-      ChCapsuleShape* capsule_shape = ((ChCapsuleShape*)(asset.get_ptr()));
-      double rad = capsule_shape->GetCapsuleGeometry().rad;
-      double height = capsule_shape->GetCapsuleGeometry().hlen;
-      // Quaternion rott(1,0,0,0);
-      Quaternion lrot = visual_asset->Rot.Get_A_quaternion();
-      // lrot = lrot % rott;
-      lrot = rot % lrot;
-
-      lrot.Q_to_AngAxis(angle, axis);
-      ChVector<> pos_final = pos + center;
-      model = glm::translate(glm::mat4(1), glm::vec3(pos_final.x, pos_final.y, pos_final.z));
-      model = glm::rotate(model, float(angle), glm::vec3(axis.x, axis.y, axis.z));
-      model = glm::scale(model, glm::vec3(rad, height, rad));
-      model_cylinder.push_back(model);
-      glm::vec3 local = glm::rotate(glm::vec3(0, height, 0), float(angle), glm::vec3(axis.x, axis.y, axis.z));
-      model =
-          glm::translate(glm::mat4(1), glm::vec3(pos_final.x + local.x, pos_final.y + local.y, pos_final.z + local.z));
-      model = glm::scale(model, glm::vec3(rad));
-      model_sphere.push_back(model);
-
-      local = glm::rotate(glm::vec3(0, -height, 0), float(angle), glm::vec3(axis.x, axis.y, axis.z));
-
-      model =
-          glm::translate(glm::mat4(1), glm::vec3(pos_final.x + local.x, pos_final.y + local.y, pos_final.z + local.z));
-      model = glm::scale(model, glm::vec3(rad));
-      model_sphere.push_back(model);
-
-    } else if (asset.IsType<ChTriangleMeshShape>()) {
-      ChTriangleMeshShape* trimesh_shape = ((ChTriangleMeshShape*)(asset.get_ptr()));
-      ChVector<> pos_final = pos + center;
-      model = glm::translate(glm::mat4(1), glm::vec3(pos_final.x, pos_final.y, pos_final.z));
-      model = glm::rotate(model, float(angle), glm::vec3(axis.x, axis.y, axis.z));
-
-      if (obj_files.find(trimesh_shape->GetName()) == obj_files.end()) {
-        ChOpenGLMaterial pillow(glm::vec3(196.0f, 77.0f, 88.0f) / 255.0f * .5f,
-                                glm::vec3(196.0f, 77.0f, 88.0f) / 255.0f, glm::vec3(1, 1, 1));
-        std::cout << trimesh_shape->GetName() << std::endl;
-        obj_files[trimesh_shape->GetName()].Initialize(trimesh_shape, pillow);
-        obj_files[trimesh_shape->GetName()].AttachShader(&main_shader);
-        model_obj[trimesh_shape->GetName()].push_back(model);
-      } else {
-        model_obj[trimesh_shape->GetName()].push_back(model);
-      }
+        if (obj_files.find(trimesh_shape->GetName()) == obj_files.end()) {
+            ChOpenGLMaterial pillow(glm::vec3(196.0f, 77.0f, 88.0f) / 255.0f * .5f,
+                                    glm::vec3(196.0f, 77.0f, 88.0f) / 255.0f, glm::vec3(1, 1, 1));
+            std::cout << trimesh_shape->GetName() << std::endl;
+            obj_files[trimesh_shape->GetName()].Initialize(trimesh_shape.get(), pillow);
+            obj_files[trimesh_shape->GetName()].AttachShader(&main_shader);
+            model_obj[trimesh_shape->GetName()].push_back(model);
+        } else {
+            model_obj[trimesh_shape->GetName()].push_back(model);
+        }
     }
   }
 }
