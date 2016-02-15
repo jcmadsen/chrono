@@ -100,6 +100,13 @@ inline double ChMax(double a, double b) {
         return a;
     return b;
 }
+
+template <class T> T ChMax(T a, T b) {
+  if (a > b)
+    return a;
+  return b;
+}
+
 /// Minimum between two values
 inline int ChMin(int a, int b) {
     if (a < b)

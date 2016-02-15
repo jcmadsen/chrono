@@ -3,6 +3,7 @@
 
 SET(DEMOS
   demo_LCPsolver
+  demo_compare_LCPsolvers
 )
 
 MESSAGE(STATUS "Demo programs for LCP_SOLVER module...")

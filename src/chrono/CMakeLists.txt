@@ -628,6 +628,7 @@ set(ChronoEngine_lcp_SOURCES
     lcp/ChLcpSolver.cpp
     lcp/ChLcpIterativeSOR.cpp
     lcp/ChLcpIterativeSORmultithread.cpp
+	lcp/ChLcpIterativeSORstdThread.cpp
     lcp/ChLcpIterativeJacobi.cpp
     lcp/ChLcpIterativeSymmSOR.cpp
     lcp/ChLcpIterativeMINRES.cpp
@@ -685,6 +686,7 @@ set(ChronoEngine_lcp_HEADERS
     lcp/ChLcpIterativeSolver.h
     lcp/ChLcpIterativeSOR.h
     lcp/ChLcpIterativeSORmultithread.h
+	lcp/ChLcpIterativeSORstdThread.h
     lcp/ChLcpIterativeSymmSOR.h
     lcp/ChLcpSimplexSolver.h
     lcp/ChLcpSolver.h
