@@ -240,6 +240,9 @@ bool ChIrrAppEventReceiver::OnEvent(const irr::SEvent& event) {
                             app->GetSystem()->SetLcpSolverType(ChSystem::LCP_ITERATIVE_MINRES);
                             break;
                         case 9:
+                            app->GetSystem()->SetLcpSolverType(ChSystem::LCP_ITERATIVE_SOR_STDTHREAD);
+                            break;
+                        case 10:
                             GetLog() << "WARNING.\nYou cannot change to a custom solver using the GUI. Use C++ instead.\n";
                             break;
                     }
@@ -757,8 +760,10 @@ void ChIrrAppInterface::DrawAll() {
             case ChSystem::LCP_ITERATIVE_MINRES:
                 gad_ccpsolver->setSelected(8);
                 break;
+            case ChSystem::LCP_ITERATIVE_SOR_STDTHREAD:
+              gad_ccpsolver->setSelected(9);
             default:
-                gad_ccpsolver->setSelected(9);
+                gad_ccpsolver->setSelected(10);
                 break;
         }
 

@@ -30,6 +30,7 @@
 #include "lcp/ChLcpIterativeSOR.h"
 #include "lcp/ChLcpIterativeSymmSOR.h"
 #include "lcp/ChLcpIterativeSORmultithread.h"
+#include "lcp/ChLcpIterativeSORstdThread.h"
 #include "lcp/ChLcpIterativeJacobi.h"
 #include "lcp/ChLcpIterativeMINRES.h"
 #include "lcp/ChLcpIterativePMINRES.h"
@@ -422,6 +423,10 @@ void ChSystem::SetLcpSolverType(eCh_lcpSolver mval) {
             LCP_solver_speed = new ChLcpIterativeSORmultithread((char*)"speedLCP", parallel_thread_number);
             LCP_solver_stab = new ChLcpIterativeSORmultithread((char*)"posLCP", parallel_thread_number);
             break;
+        case LCP_ITERATIVE_SOR_STDTHREAD:
+          LCP_solver_speed = new ChLcpIterativeSORstdThread();
+          LCP_solver_stab = new ChLcpIterativeSORstdThread();
+          break;
         case LCP_ITERATIVE_PMINRES:
             LCP_solver_speed = new ChLcpIterativePMINRES();
             LCP_solver_stab = new ChLcpIterativePMINRES();
@@ -529,7 +534,7 @@ void ChSystem::SetParallelThreadNumber(int mthreads) {
 
     LCP_descriptor->SetNumThreads(mthreads);
 
-    if (lcp_solver_type == LCP_ITERATIVE_SOR_MULTITHREAD) {
+    if (lcp_solver_type == LCP_ITERATIVE_SOR_MULTITHREAD || lcp_solver_type == LCP_ITERATIVE_SOR_STDTHREAD) {
         ((ChLcpIterativeSORmultithread*)LCP_solver_speed)->ChangeNumberOfThreads(mthreads);
         ((ChLcpIterativeSORmultithread*)LCP_solver_stab)->ChangeNumberOfThreads(mthreads);
     }
