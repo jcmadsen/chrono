@@ -8,6 +8,7 @@ SET(DEMOS
 
 MESSAGE(STATUS "Demo programs for LCP_SOLVER module...")
 
+
 FOREACH(PROGRAM ${DEMOS})
     MESSAGE(STATUS "...add ${PROGRAM}")
 

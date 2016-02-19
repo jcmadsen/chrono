@@ -172,9 +172,9 @@ namespace chrono {
 
               if (m_solver->GetRecordViolation())
               {
-                maxdeltalambda = ChMax(maxdeltalambda, fabs(true_delta_0));
-                maxdeltalambda = ChMax(maxdeltalambda, fabs(true_delta_1));
-                maxdeltalambda = ChMax(maxdeltalambda, fabs(true_delta_2));
+                maxdeltalambda += fabs(true_delta_0);
+                maxdeltalambda += fabs(true_delta_1);
+                maxdeltalambda += fabs(true_delta_2);
               }
               i_friction_comp = 0;
             }
@@ -207,25 +207,26 @@ namespace chrono {
             m_mutex->unlock();  // end critical section
 
             if (m_solver->GetRecordViolation())
-              maxdeltalambda = ChMax(maxdeltalambda, fabs(true_delta));
+              maxdeltalambda += fabs(true_delta); // inf. norm
 
+          }
+          // take the 2-norm of all candidate violations.
+          // sum max_violation over all threads, then take sqrt
+          maxviolation += candidate_violation*candidate_violation;
 
-            maxviolation = ChMax(maxviolation, fabs(candidate_violation));
+        }  // end IsActive()
 
-          }  // end IsActive()
+      }  // end loop on constraints
 
-        }  // end loop on constraints
+      // For recording into violaiton history, if debugging
+      if (m_solver->GetRecordViolation())
+        AtIterationEnd(maxviolation, maxdeltalambda);
 
-        // For recording into violaiton history, if debugging
-        if (m_solver->GetRecordViolation())
-          AtIterationEnd(maxviolation, maxdeltalambda);
+      // Terminate the loop if violation in constraints has been succesfully limited.
+      if (maxviolation < m_solver->GetTolerance())
+        break;
 
-        // Terminate the loop if violation in constraints has been succesfully limited.
-        if (maxviolation < m_solver->GetTolerance())
-          break;
-
-      }  // end iteration loop
-    }
+    }  // end iteration loop
   }
 
 
@@ -249,10 +250,7 @@ namespace chrono {
     std::vector<ChLcpConstraint*>& m_constraints = sysd.GetConstraintsList();
     std::vector<ChLcpVariables*>& mvariables = sysd.GetVariablesList();
 
-    double maxviolation = 0.;
-    double maxdeltalambda = 0.;
-    int i_friction_comp = 0;
-
+   
     /////////////////////////////////////////////
     /// THE PARALLEL SOLVER, PERFORMED IN STAGES
 
@@ -301,8 +299,8 @@ namespace chrono {
 
     // --1--  stage:
     //        precompute aux variables in constraints.
-    for (auto thread_data_n : thread_data) {
-      thread_stage.push_back(std::thread(&Thread_data::Prepare, &thread_data_n));
+    for (int i = 0; i < thread_data.size(); ++i){ // thread_data_n: thread_data) {
+      thread_stage.push_back(std::thread(&Thread_data::Prepare, &thread_data[i]));
     }
     // threads rejoin main execution thread when finished
     std::for_each(thread_stage.begin(), thread_stage.end(), std::mem_fn(&std::thread::join));
@@ -310,8 +308,8 @@ namespace chrono {
 
     // --2--  stage:
     //        add external forces and mass effects, on variables.
-    for (auto thread_data_n : thread_data) {
-      thread_stage.push_back(std::thread(&Thread_data::AddForces, &thread_data_n));
+    for (int i = 0; i < thread_data.size(); ++i){ //(auto thread_data_n : thread_data) {
+      thread_stage.push_back(std::thread(&Thread_data::AddForces, &thread_data[i]));
     }
     // threads rejoin main execution thread when finished
     std::for_each(thread_stage.begin(), thread_stage.end(), std::mem_fn(&std::thread::join));
@@ -319,8 +317,8 @@ namespace chrono {
 
     // --3--  stage:
     //        loop on constraints.
-    for (auto thread_data_n : thread_data) {
-      thread_stage.push_back(std::thread(&Thread_data::AddForces, &thread_data_n));
+    for (int i = 0; i < thread_data.size(); ++i) { // (auto thread_data_n : thread_data) {
+      thread_stage.push_back(std::thread(&Thread_data::LoopConstraints, &thread_data[i]));
     }
     // threads rejoin main execution thread when finished
     std::for_each(thread_stage.begin(), thread_stage.end(), std::mem_fn(&std::thread::join));
@@ -343,7 +341,18 @@ namespace chrono {
     for (auto tid : threads){
       max_iters = ChMax(max_iters, tid.Get_max_dlambda().size());
     }
-
+    // 2-norm of the violation, sum val. of each thread then take sqrt, per iteration
+    violation_history.assign(max_iters, 0);
+    // inf.-norm of the lambdas, just sum
+    dlambda_history.assign(max_iters, 0);
+    for (size_t i = 0; i < max_iters; ++i){
+      for (auto thread : threads)
+      {
+        violation_history[i] += thread.Get_max_violation()[i];
+        dlambda_history[i] += thread.Get_max_dlambda()[i];
+      }
+      violation_history[i] = std::sqrt(violation_history[i]);
+    }
 
 
   }
