@@ -16,6 +16,7 @@
 #include <stdlib.h>
 #include <math.h>
 
+#include "chrono/core/ChTimer.h"
 #include "chrono/physics/ChContinuumMaterial.h"
 #include "chrono/physics/ChIndexedNodes.h"
 #include "chrono/physics/ChMaterialSurface.h"
@@ -25,8 +26,15 @@
 #include "chrono_fea/ChNodeFEAbase.h"
 
 /**
-    @defgroup fea Chrono::FEA
+    @defgroup fea_module FEA module
     @brief Finite Element Analysis
+
+    This module allows Finite Element Analysis (FEA) in Chrono::Engine.
+
+    For additional information, see:
+    - the [installation guide](@ref module_fea_installation)
+    - the [tutorials](@ref tutorial_table_of_content_chrono_fea)
+
     @{
         @defgroup fea_nodes Nodes
         @defgroup fea_elements Elements
@@ -40,7 +48,7 @@ namespace chrono {
 /// Namespace with classes for the Chrono::FEA module.
 namespace fea {
 
-/// @addtogroup fea
+/// @addtogroup fea_module
 /// @{
 
 /// Class which defines a mesh of finite elements of class ChFelem,
@@ -62,14 +70,21 @@ class ChApiFea ChMesh : public ChIndexedNodes {
     bool automatic_gravity_load;
 	int num_points_gravity;
 
+    ChTimer<> timer_internal_forces;
+    ChTimer<> timer_KRMload;
+    int ncalls_internal_forces;
+    int ncalls_KRMload;
+
   public:
-    ChMesh() {
-        n_dofs = 0;
-        n_dofs_w = 0;
-        automatic_gravity_load = true;
-        num_points_gravity = 1;
-    };
-    ~ChMesh(){};
+    ChMesh()
+        : n_dofs(0),
+          n_dofs_w(0),
+          automatic_gravity_load(true),
+          num_points_gravity(1),
+          ncalls_internal_forces(0),
+          ncalls_KRMload(0) {}
+
+    ~ChMesh() {}
 
     void AddNode(std::shared_ptr<ChNodeFEAbase> m_node);
     void AddElement(std::shared_ptr<ChElementBase> m_elem);
@@ -87,7 +102,17 @@ class ChApiFea ChMesh : public ChIndexedNodes {
     virtual int GetDOF_w() { return n_dofs_w; }
 
     /// Override default in ChPhysicsItem
-    virtual bool GetCollide() { return true; };
+    virtual bool GetCollide() { return true; }
+
+    /// Get number of calls to internal forces evaluation.
+    int GetNumCallsInternalForces() { return ncalls_internal_forces; }
+    /// Get number of calls to load Jacobian information.
+    int GetNumCallsJacobianLoad() { return ncalls_KRMload; }
+
+    /// Get cummulative timing for internal force evaluation.
+    double GetTimingInternalForces() { return timer_internal_forces(); }
+    /// Get cummulative timing for Jacobian load calls.
+    double GetTimingJacobianLoad() { return timer_KRMload(); }
 
     /// Add a contact surface
     void AddContactSurface(std::shared_ptr<ChContactSurface> m_surf);
@@ -138,19 +163,25 @@ class ChApiFea ChMesh : public ChIndexedNodes {
     /// to all contained elements (that support gravity) using the G value from the ChSystem.
     /// So this saves you from adding many ChLoad<ChLoaderGravity> to all elements.
 	void SetAutomaticGravity(bool mg, int num_points = 1) { automatic_gravity_load = mg; num_points_gravity = num_points; }
-    /// Tell if this mesh will add automatically a gravity load to all contained elements 
-    bool GetAutomaticGravity() {return automatic_gravity_load;} 
+    /// Tell if this mesh will add automatically a gravity load to all contained elements
+    bool GetAutomaticGravity() { return automatic_gravity_load; }
+
+    /// Get ChMesh mass properties
+    void ComputeMassProperties(double& mass,          ///< ChMesh object mass
+                               ChVector<>& com,       ///< ChMesh center of gravity
+                               ChMatrix33<>& inertia  ///< ChMesh inertia tensor
+                               );
 
     //
     // STATE FUNCTIONS
     //
 
-    // (override/implement interfaces for global state vectors, see ChPhysicsItem for comments.)
-    virtual void IntStateGather(const unsigned int off_x,
-                                ChState& x,
-                                const unsigned int off_v,
-                                ChStateDelta& v,
-                                double& T);
+        // (override/implement interfaces for global state vectors, see ChPhysicsItem for comments.)
+        virtual void IntStateGather(const unsigned int off_x,
+                                    ChState& x,
+                                    const unsigned int off_v,
+                                    ChStateDelta& v,
+                                    double& T);
     virtual void IntStateScatter(const unsigned int off_x,
                                  const ChState& x,
                                  const unsigned int off_v,
@@ -235,7 +266,7 @@ class ChApiFea ChMesh : public ChIndexedNodes {
     virtual void SetupInitial() override;
 };
 
-/// @} fea
+/// @} fea_module
 
 }  // END_OF_NAMESPACE____
 }  // END_OF_NAMESPACE____

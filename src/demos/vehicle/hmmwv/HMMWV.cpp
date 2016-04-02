@@ -28,7 +28,8 @@ namespace hmmwv {
 
 // -----------------------------------------------------------------------------
 HMMWV::HMMWV()
-    : m_vehicle(NULL),
+    : m_system(NULL),
+      m_vehicle(NULL),
       m_powertrain(NULL),
       m_tireFL(NULL),
       m_tireFR(NULL),
@@ -45,6 +46,25 @@ HMMWV::HMMWV()
       m_wheelVis(PRIMITIVES),
       m_initPos(ChCoordsys<>(ChVector<>(0, 0, 1), QUNIT)) {
 }
+
+HMMWV::HMMWV(ChSystem* system)
+    : m_system(system),
+      m_vehicle(NULL),
+      m_powertrain(NULL),
+      m_tireFL(NULL),
+      m_tireFR(NULL),
+      m_tireRL(NULL),
+      m_tireRR(NULL),
+      m_contactMethod(ChMaterialSurfaceBase::DVI),
+      m_fixed(false),
+      m_driveType(AWD),
+      m_powertrainType(SHAFTS),
+      m_tireType(RIGID),
+      m_tire_step_size(-1),
+      m_pacejkaParamFile(""),
+      m_chassisVis(PRIMITIVES),
+      m_wheelVis(PRIMITIVES),
+      m_initPos(ChCoordsys<>(ChVector<>(0, 0, 1), QUNIT)) {}
 
 HMMWV::~HMMWV() {
     delete m_vehicle;
@@ -65,30 +85,25 @@ void HMMWV::Initialize() {
     switch (m_powertrainType) {
         case SHAFTS: {
             HMMWV_Powertrain* ptrain = new HMMWV_Powertrain;
-            ptrain->Initialize(m_vehicle->GetChassis(), m_vehicle->GetDriveshaft());
             m_powertrain = ptrain;
             break;
         }
         case SIMPLE: {
             HMMWV_SimplePowertrain* ptrain = new HMMWV_SimplePowertrain;
-            ptrain->Initialize();
             m_powertrain = ptrain;
             break;
         }
     }
 
-    // Create and initialize the tires
+    m_powertrain->Initialize(m_vehicle->GetChassis(), m_vehicle->GetDriveshaft());
+
+    // Create the tires and set parameters depending on type.
     switch (m_tireType) {
         case RIGID: {
             HMMWV_RigidTire* tire_FL = new HMMWV_RigidTire("FL");
             HMMWV_RigidTire* tire_FR = new HMMWV_RigidTire("FR");
             HMMWV_RigidTire* tire_RL = new HMMWV_RigidTire("RL");
             HMMWV_RigidTire* tire_RR = new HMMWV_RigidTire("RR");
-
-            tire_FL->Initialize(m_vehicle->GetWheelBody(FRONT_LEFT));
-            tire_FR->Initialize(m_vehicle->GetWheelBody(FRONT_RIGHT));
-            tire_RL->Initialize(m_vehicle->GetWheelBody(REAR_LEFT));
-            tire_RR->Initialize(m_vehicle->GetWheelBody(REAR_RIGHT));
 
             m_tireFL = tire_FL;
             m_tireFR = tire_FR;
@@ -104,15 +119,10 @@ void HMMWV::Initialize() {
             HMMWV_LugreTire* tire_RR = new HMMWV_LugreTire("RR");
 
             if (m_wheelVis == NONE) {
-                tire_FL->Initialize(m_vehicle->GetWheelBody(FRONT_LEFT));
-                tire_FR->Initialize(m_vehicle->GetWheelBody(FRONT_RIGHT));
-                tire_RL->Initialize(m_vehicle->GetWheelBody(REAR_LEFT));
-                tire_RR->Initialize(m_vehicle->GetWheelBody(REAR_RIGHT));
-            } else {
-                tire_FL->Initialize();
-                tire_FR->Initialize();
-                tire_RL->Initialize();
-                tire_RR->Initialize();
+                tire_FL->SetDiscVisualization(true);
+                tire_FR->SetDiscVisualization(true);
+                tire_RL->SetDiscVisualization(true);
+                tire_RR->SetDiscVisualization(true);
             }
 
             if (m_tire_step_size > 0) {
@@ -134,11 +144,6 @@ void HMMWV::Initialize() {
             HMMWV_FialaTire* tire_FR = new HMMWV_FialaTire("FR");
             HMMWV_FialaTire* tire_RL = new HMMWV_FialaTire("RL");
             HMMWV_FialaTire* tire_RR = new HMMWV_FialaTire("RR");
-
-            tire_FL->Initialize();
-            tire_FR->Initialize();
-            tire_RL->Initialize();
-            tire_RR->Initialize();
 
             if (m_tire_step_size > 0) {
                 tire_FL->SetStepsize(m_tire_step_size);
@@ -165,10 +170,10 @@ void HMMWV::Initialize() {
             ChPacejkaTire* tire_RL = new ChPacejkaTire("RL", param_file);
             ChPacejkaTire* tire_RR = new ChPacejkaTire("RR", param_file);
 
-            tire_FL->Initialize(LEFT, false);
-            tire_FR->Initialize(RIGHT, false);
-            tire_RL->Initialize(LEFT, true);
-            tire_RR->Initialize(RIGHT, true);
+            tire_FL->SetDrivenWheel(false);
+            tire_FR->SetDrivenWheel(false);
+            tire_RL->SetDrivenWheel(true);
+            tire_RR->SetDrivenWheel(true);
 
             if (m_tire_step_size > 0) {
                 tire_FL->SetStepsize(m_tire_step_size);
@@ -185,14 +190,20 @@ void HMMWV::Initialize() {
             break;
         }
     }
+
+    // Initialize the tires.
+    m_tireFL->Initialize(m_vehicle->GetWheelBody(FRONT_LEFT), LEFT);
+    m_tireFR->Initialize(m_vehicle->GetWheelBody(FRONT_RIGHT), RIGHT);
+    m_tireRL->Initialize(m_vehicle->GetWheelBody(REAR_LEFT), LEFT);
+    m_tireRR->Initialize(m_vehicle->GetWheelBody(REAR_RIGHT), RIGHT);
 }
 
 // -----------------------------------------------------------------------------
-void HMMWV::Update(double time,
-                   double steering_input,
-                   double braking_input,
-                   double throttle_input,
-                   const ChTerrain& terrain) {
+void HMMWV::Synchronize(double time,
+                        double steering_input,
+                        double braking_input,
+                        double throttle_input,
+                        const ChTerrain& terrain) {
     TireForces tire_forces(4);
     WheelState wheel_states[4];
 
@@ -210,14 +221,14 @@ void HMMWV::Update(double time,
 
     double driveshaft_speed = m_vehicle->GetDriveshaftSpeed();
 
-    m_tireFL->Update(time, wheel_states[0], terrain);
-    m_tireFR->Update(time, wheel_states[1], terrain);
-    m_tireRL->Update(time, wheel_states[2], terrain);
-    m_tireRR->Update(time, wheel_states[3], terrain);
+    m_tireFL->Synchronize(time, wheel_states[0], terrain);
+    m_tireFR->Synchronize(time, wheel_states[1], terrain);
+    m_tireRL->Synchronize(time, wheel_states[2], terrain);
+    m_tireRR->Synchronize(time, wheel_states[3], terrain);
 
-    m_powertrain->Update(time, throttle_input, driveshaft_speed);
+    m_powertrain->Synchronize(time, throttle_input, driveshaft_speed);
 
-    m_vehicle->Update(time, steering_input, braking_input, powertrain_torque, tire_forces);
+    m_vehicle->Synchronize(time, steering_input, braking_input, powertrain_torque, tire_forces);
 }
 
 // -----------------------------------------------------------------------------

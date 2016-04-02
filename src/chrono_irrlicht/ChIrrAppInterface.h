@@ -26,8 +26,15 @@
 #include "chrono_irrlicht/ChIrrWizard.h"
 
 /**
-    @defgroup irrlicht Chrono::Irrlicht
+    @defgroup irrlicht_module IRRLICHT module
     @brief Runtime visualization with Irrlicht
+
+    This module can be used to provide 3D realtime rendering 
+    in Chrono::Engine.
+
+    For additional information, see:
+    - the [installation guide](@ref module_irrlicht_installation)
+    - the [tutorials](@ref tutorial_root)
 */
 
 namespace chrono {
@@ -35,7 +42,7 @@ namespace chrono {
 /// Namespace with classes for the Chrono::Irrlicht module.
 namespace irrlicht {
 
-/// @addtogroup irrlicht
+/// @addtogroup irrlicht_module
 /// @{
 
 // Forward reference
@@ -239,6 +246,8 @@ class ChApiIrr ChIrrAppInterface {
     int videoframe_each;
     double symbolscale;
 
+    double camera_auto_rotate_speed;
+
     ChRealtimeStepTimer m_realtime_timer;
 
     irr::gui::IGUITabControl* gad_tabbed;
@@ -292,7 +301,7 @@ class ChApiIrr ChIrrAppInterface {
     friend class ChIrrAppEventReceiver;
 };
 
-/// @} irrlicht
+/// @} irrlicht_module
 
 }  // end namespace irrlicht
 }  // end namespace chrono

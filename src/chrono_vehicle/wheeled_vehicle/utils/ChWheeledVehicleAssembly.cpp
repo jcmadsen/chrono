@@ -49,7 +49,7 @@ ChWheeledVehicleAssembly::ChWheeledVehicleAssembly(ChSystem* system,
 void ChWheeledVehicleAssembly::Initialize(const ChVector<>& init_loc, const ChQuaternion<>& init_rot) {
     // Initialize the vehicle and powertrain systems.
     m_vehicle->Initialize(ChCoordsys<>(init_loc, init_rot));
-    m_powertrain->Initialize();
+    m_powertrain->Initialize(m_vehicle->GetChassis(), m_vehicle->GetDriveshaft());
 
     // If provided, invoke the user-specified callback to attach chassis contact
     // geometry.
@@ -77,7 +77,7 @@ void ChWheeledVehicleAssembly::Initialize(const ChVector<>& init_loc, const ChQu
 // -----------------------------------------------------------------------------
 // Update the vehicle model at the specified time.
 // -----------------------------------------------------------------------------
-void ChWheeledVehicleAssembly::Update(double time) {
+void ChWheeledVehicleAssembly::Synchronize(double time) {
     // Invoke the user-provided callback to get driver inputs at current time.
     double throttle = 0;
     double steering = 0;
@@ -87,10 +87,10 @@ void ChWheeledVehicleAssembly::Update(double time) {
         m_driver_cb->onCallback(time, throttle, steering, braking);
 
     // Update the powertrain system.
-    m_powertrain->Update(time, throttle, m_vehicle->GetDriveshaftSpeed());
+    m_powertrain->Synchronize(time, throttle, m_vehicle->GetDriveshaftSpeed());
 
     // Update the vehicle system.
-    m_vehicle->Update(time, steering, braking, m_powertrain->GetOutputTorque(), m_tire_forces);
+    m_vehicle->Synchronize(time, steering, braking, m_powertrain->GetOutputTorque(), m_tire_forces);
 }
 
 }  // end namespace vehicle

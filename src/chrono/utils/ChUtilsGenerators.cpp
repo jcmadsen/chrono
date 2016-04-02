@@ -43,7 +43,8 @@ MixtureIngredient::MixtureIngredient(Generator* generator, MixtureType type, dou
       m_restitutionDist(NULL),
       m_densityDist(NULL),
       m_sizeDist(NULL),
-      callback_post_creation(NULL) {}
+      callback_post_creation(NULL) {
+}
 
 // Destructor:: free the various distribution associated with this ingredient
 MixtureIngredient::~MixtureIngredient() {
@@ -216,7 +217,7 @@ void MixtureIngredient::calcGeometricProps(const ChVector<>& size, double& volum
             gyration = CalcSphereGyration(size.x).Get_Diag();
             break;
         case ELLIPSOID:
-            volume = CalcEllipsoidVolume(size.x);
+            volume = CalcEllipsoidVolume(size);
             gyration = CalcEllipsoidGyration(size).Get_Diag();
             break;
         case BOX:
@@ -257,15 +258,17 @@ double MixtureIngredient::calcMinSeparation() {
 
 // Constructor: create a generator for the specified system.
 Generator::Generator(ChSystem* system)
-    : m_system(system), m_mixDist(0, 1), m_crtBodyId(0), m_totalNumBodies(0), m_totalMass(0), m_totalVolume(0) {}
+    : m_system(system), m_mixDist(0, 1), m_crtBodyId(0), m_totalNumBodies(0), m_totalMass(0), m_totalVolume(0) {
+}
 
 // Destructor
-Generator::~Generator() {}
+Generator::~Generator() {
+}
 
 // Add a new ingredient to the current mixture by specifying its type
 // and the ratio in the final mixture. A smart pointer to the new
 // mixture ingredient is returned to allow modifying its properties.
-std::shared_ptr<MixtureIngredient>& Generator::AddMixtureIngredient(MixtureType type, double ratio) {
+std::shared_ptr<MixtureIngredient> Generator::AddMixtureIngredient(MixtureType type, double ratio) {
     m_mixture.push_back(std::make_shared<MixtureIngredient>(this, type, ratio));
     return m_mixture.back();
 }
@@ -458,7 +461,7 @@ void Generator::normalizeMixture() {
 int Generator::selectIngredient() {
     double val = m_mixDist(rengine());
 
-    for (int i = m_mixture.size() - 1; i >= 0; i--) {
+    for (int i = (int)m_mixture.size() - 1; i >= 0; i--) {
         if (val > m_mixture[i]->m_cumRatio)
             return i;
     }
@@ -572,7 +575,7 @@ void Generator::createObjects(const PointVector& points, const ChVector<>& vel) 
         m_bodies.push_back(BodyInfo(m_mixture[index]->m_type, density, size, bodyPtr));
     }
 
-    m_totalNumBodies += points.size();
+    m_totalNumBodies += (unsigned int)points.size();
 }
 
 // Write body information to a CSV file

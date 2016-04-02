@@ -50,7 +50,7 @@ class ChApiIrr vector3dfCH : public vector3df {
 namespace chrono {
 namespace irrlicht {
 
-/// @addtogroup irrlicht
+/// @addtogroup irrlicht_module
 /// @{
 
 // -----------------------------------------------------------------------------
@@ -208,6 +208,15 @@ class ChApiIrr ChIrrTools {
                          irr::video::SColor mcol = irr::video::SColor(50, 80, 110, 110),
                          bool use_Zbuffer = false);
 
+    /// Easy-to-use function to draw color bar with a color map and 2D legend
+    static void drawColorbar(double vmin, double vmax, 
+                             const std::string& label,
+                             irr::IrrlichtDevice* mdevice,
+                             int mx = 740,
+                             int my =  20,
+                             int sx =  30,
+                             int sy = 300);
+
     /// --
     static void drawPlot3D(irr::video::IVideoDriver* driver,
                            ChMatrix<> X,  // x of points, in local csys x
@@ -218,7 +227,7 @@ class ChApiIrr ChIrrTools {
                            bool use_Zbuffer = false);
 };
 
-/// @} irrlicht
+/// @} irrlicht_module
 
 }  // end namespace irrlicht
 }  // end namespace chrono
