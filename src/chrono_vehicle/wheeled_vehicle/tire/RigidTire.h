@@ -2,7 +2,7 @@
 // PROJECT CHRONO - http://projectchrono.org
 //
 // Copyright (c) 2014 projectchrono.org
-// All right reserved.
+// All rights reserved.
 //
 // Use of this source code is governed by a BSD-style license that can be found
 // in the LICENSE file at the top level of the distribution and at
@@ -19,10 +19,12 @@
 #ifndef RIGID_TIRE_H
 #define RIGID_TIRE_H
 
+#include "chrono/assets/ChTriangleMeshShape.h"
+
 #include "chrono_vehicle/ChApiVehicle.h"
 #include "chrono_vehicle/wheeled_vehicle/tire/ChRigidTire.h"
 
-#include "thirdparty/rapidjson/document.h"
+#include "chrono_thirdparty/rapidjson/document.h"
 
 namespace chrono {
 namespace vehicle {
@@ -37,14 +39,22 @@ class CH_VEHICLE_API RigidTire : public ChRigidTire {
     RigidTire(const rapidjson::Document& d);
     ~RigidTire() {}
 
-    virtual double getRadius() const override { return m_radius; }
-    virtual double getWidth() const override { return m_width; }
+    virtual double GetRadius() const override { return m_radius; }
+    virtual double GetWidth() const override { return m_width; }
+
+    virtual void AddVisualizationAssets(VisualizationType vis) override;
+    virtual void RemoveVisualizationAssets() override final;
 
   private:
     void Create(const rapidjson::Document& d);
 
     double m_radius;
     double m_width;
+
+    bool m_has_mesh;
+    std::string m_meshName;
+    std::string m_meshFile;
+    std::shared_ptr<ChTriangleMeshShape> m_trimesh_shape;
 };
 
 /// @} vehicle_wheeled_tire

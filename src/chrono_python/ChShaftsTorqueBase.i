@@ -1,7 +1,7 @@
 %{
 
 /* Includes the header in the wrapper code */
-#include "physics/ChShaftsTorqueBase.h"
+#include "chrono/physics/ChShaftsTorqueBase.h"
 
 %}
  
@@ -10,7 +10,7 @@
 
 
 /* Parse the header file to generate wrappers */
-%include "../physics/ChShaftsTorqueBase.h"  
+%include "../chrono/physics/ChShaftsTorqueBase.h"  
 
 
 

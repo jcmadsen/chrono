@@ -22,14 +22,15 @@ SET(CH_MATLABSDK "" CACHE PATH
 SET(ChronoEngine_MATLAB_HEADERS
   ChApiMatlab.h
   ChMatlabEngine.h
-  ChLcpMatlabSolver.h
+  ChSolverMatlab.h
 )
 
 SET(ChronoEngine_MATLAB_SOURCES
   ChMatlabEngine.cpp
-  ChLcpMatlabSolver.cpp
+  ChSolverMatlab.cpp
 )
 
+SOURCE_GROUP("" FILES ${ChronoEngine_MATLAB_HEADERS} ${ChronoEngine_MATLAB_SOURCES})
 
 SET (CH_MATLABINC "${CH_MATLABSDK}/include")
 
@@ -80,8 +81,8 @@ ADD_DEPENDENCIES(ChronoEngine_matlab ChronoEngine)
 
 INSTALL(TARGETS ChronoEngine_matlab
         RUNTIME DESTINATION bin
-        LIBRARY DESTINATION lib
-        ARCHIVE DESTINATION lib)       
+        LIBRARY DESTINATION lib64
+        ARCHIVE DESTINATION lib64)       
 
 INSTALL(FILES ${ChronoEngine_MATLAB_HEADERS}
         DESTINATION include/chrono/unit_MATLAB)

@@ -8,16 +8,16 @@ set(CMAKE_SKIP_BUILD_RPATH  FALSE)
 # (but later on when installing)
 set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE) 
 
-set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
+set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib64")
 
 # add the automatically determined parts of the RPATH
 # which point to directories outside the build tree to the install RPATH
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 # the RPATH to be used when installing, but only if it's not a system directory
-list(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${CMAKE_INSTALL_PREFIX}/lib" isSystemDir)
+list(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${CMAKE_INSTALL_PREFIX}/lib64" isSystemDir)
 if("${isSystemDir}" STREQUAL "-1")
-   set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
+   set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib64")
 endif("${isSystemDir}" STREQUAL "-1")
 
 #--------------------------------------------------------------
@@ -27,10 +27,7 @@ message(STATUS "==== Demo programs ====")
 option(BUILD_DEMOS_BASE "Build demo programs for base Chrono module" TRUE)
 mark_as_advanced(FORCE BUILD_DEMOS_BASE)
 if(BUILD_DEMOS_BASE)
-	add_subdirectory(basics)
-	#add_subdirectory(benchmarks)
 	add_subdirectory(core)
-	add_subdirectory(lcp_solver)
 endif()
 
 if(ENABLE_MODULE_FEA)
@@ -132,3 +129,13 @@ if(ENABLE_MODULE_VEHICLE)
   		add_subdirectory(vehicle)
   	endif()
 endif()
+
+if(ENABLE_MODULE_FSI)
+ 	option(BUILD_DEMOS_FSI "Build demo programs for FSI module" TRUE)
+ 	mark_as_advanced(FORCE BUILD_DEMOS_FSI)
+	if(BUILD_DEMOS_FSI)
+  		add_subdirectory(fsi)
+  	endif()
+endif()
+
+

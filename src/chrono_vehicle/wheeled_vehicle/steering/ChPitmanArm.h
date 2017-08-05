@@ -2,7 +2,7 @@
 // PROJECT CHRONO - http://projectchrono.org
 //
 // Copyright (c) 2014 projectchrono.org
-// All right reserved.
+// All rights reserved.
 //
 // Use of this source code is governed by a BSD-style license that can be found
 // in the LICENSE file at the top level of the distribution and at
@@ -45,9 +45,6 @@ namespace vehicle {
 /// are provided.
 class CH_VEHICLE_API ChPitmanArm : public ChSteering {
   public:
-    ChPitmanArm(const std::string& name  ///< [in] name of the subsystem
-                );
-
     virtual ~ChPitmanArm() {}
 
     /// Initialize this steering subsystem.
@@ -60,13 +57,26 @@ class CH_VEHICLE_API ChPitmanArm : public ChSteering {
                             const ChQuaternion<>& rotation          ///< [in] orientation relative to the chassis frame
                             ) override;
 
+    /// Add visualization assets for the steering subsystem.
+    /// This default implementation uses primitives.
+    virtual void AddVisualizationAssets(VisualizationType vis) override;
+
+    /// Remove visualization assets for the steering subsystem.
+    virtual void RemoveVisualizationAssets() override;
+
     /// Update the state of this steering subsystem at the current time.
     /// The steering subsystem is provided the current steering driver input (a
     /// value between -1 and +1).  Positive steering input indicates steering
     /// to the left. This function is called during the vehicle update.
-    virtual void Update(double time,     ///< [in] current time
-                        double steering  ///< [in] current steering input [-1,+1]
-                        ) override;
+    virtual void Synchronize(double time,     ///< [in] current time
+                             double steering  ///< [in] current steering input [-1,+1]
+                             ) override;
+
+    /// Get the total mass of the steering subsystem.
+    virtual double GetMass() const override;
+
+    /// Get the current global COM location of the steering subsystem.
+    virtual ChVector<> GetCOMPos() const override;
 
     /// Log current constraint violations.
     virtual void LogConstraintViolations() override;
@@ -94,6 +104,17 @@ class CH_VEHICLE_API ChPitmanArm : public ChSteering {
         NUM_DIRS
     };
 
+    /// Protected constructor.
+    ChPitmanArm(const std::string& name,            ///< [in] name of the subsystem
+                bool vehicle_frame_inertia = false  ///< [in] inertia specified in vehicle-aligned centroidal frames?
+                );
+
+    /// Indicate whether or not inertia matrices are specified with respect to a
+    /// vehicle-aligned centroidal frame (flag=true) or with respect to the body
+    /// centroidal frame (flag=false).  Note that this function must be called
+    /// before Initialize().
+    void SetVehicleFrameInertiaFlag(bool val) { m_vehicle_frame_inertia = val; }
+
     /// Return the location of the specified hardpoint.
     /// The returned location must be expressed in the suspension reference frame.
     virtual const ChVector<> getLocation(PointId which) = 0;
@@ -107,9 +128,14 @@ class CH_VEHICLE_API ChPitmanArm : public ChSteering {
     virtual double getPitmanArmMass() const = 0;
 
     /// Return the moments of inertia of the steering link body.
-    virtual const ChVector<>& getSteeringLinkInertia() const = 0;
+    virtual const ChVector<>& getSteeringLinkInertiaMoments() const = 0;
+    /// Return the products of inertia of the steering link body.
+    virtual const ChVector<>& getSteeringLinkInertiaProducts() const = 0;
+
     /// Return the moments of inertia of the Pitman arm body.
-    virtual const ChVector<>& getPitmanArmInertia() const = 0;
+    virtual const ChVector<>& getPitmanArmInertiaMoments() const = 0;
+    /// Return the products of inertia of the Pitman arm body.
+    virtual const ChVector<>& getPitmanArmInertiaProducts() const = 0;
 
     /// Return the radius of the steering link body (visualization only).
     virtual double getSteeringLinkRadius() const = 0;
@@ -126,17 +152,19 @@ class CH_VEHICLE_API ChPitmanArm : public ChSteering {
     std::shared_ptr<ChLinkUniversal> m_universal;       ///< handle to the arm-link universal joint
 
   private:
-    static void AddVisualizationPitmanArm(std::shared_ptr<ChBody> arm,
-                                          const ChVector<>& pt_C,
-                                          const ChVector<>& pt_L,
-                                          double radius);
+    // Flag indicating that the inertia matrices for the upright and control arms
+    // are provided in vehicle-aligned centroidal frames
+    bool m_vehicle_frame_inertia;
 
-    static void AddVisualizationSteeringLink(std::shared_ptr<ChBody> link,
-                                             const ChVector<>& pt_P,
-                                             const ChVector<>& pt_I,
-                                             const ChVector<>& pt_TP,
-                                             const ChVector<>& pt_TI,
-                                             double radius);
+    // Points for link visualization
+    ChVector<> m_pP;
+    ChVector<> m_pI;
+    ChVector<> m_pTP;
+    ChVector<> m_pTI;
+
+    // Points for arm visualization
+    ChVector<> m_pC;
+    ChVector<> m_pL;
 };
 
 /// @} vehicle_wheeled_steering

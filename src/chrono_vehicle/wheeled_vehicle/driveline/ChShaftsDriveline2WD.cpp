@@ -2,7 +2,7 @@
 // PROJECT CHRONO - http://projectchrono.org
 //
 // Copyright (c) 2014 projectchrono.org
-// All right reserved.
+// All rights reserved.
 //
 // Use of this source code is governed by a BSD-style license that can be found
 // in the LICENSE file at the top level of the distribution and at
@@ -32,9 +32,8 @@ namespace vehicle {
 // conic gear pair, in chassis local coords. This is needed because ChShaftsBody
 // could transfer pitch torque to the chassis.
 // -----------------------------------------------------------------------------
-ChShaftsDriveline2WD::ChShaftsDriveline2WD()
-    : ChDriveline(), m_dir_motor_block(ChVector<>(1, 0, 0)), m_dir_axle(ChVector<>(0, 1, 0)) {
-}
+ChShaftsDriveline2WD::ChShaftsDriveline2WD(const std::string& name)
+    : ChDriveline(name), m_dir_motor_block(ChVector<>(1, 0, 0)), m_dir_axle(ChVector<>(0, 1, 0)) {}
 
 // -----------------------------------------------------------------------------
 // Initialize the driveline subsystem.
@@ -73,7 +72,7 @@ void ChShaftsDriveline2WD::Initialize(std::shared_ptr<ChBody> chassis,
     m_conicalgear->SetTransmissionRatio(GetConicalGearRatio());
     my_system->Add(m_conicalgear);
 
-    // Create a differential, i.e. an apicycloidal mechanism that connects three
+    // Create a differential, i.e. an epicycloidal mechanism that connects three
     // rotating members. This class of mechanisms can be simulated using
     // ChShaftsPlanetary; a proper 'ordinary' transmission ratio t0 must be
     // assigned according to Willis formula. The case of the differential is

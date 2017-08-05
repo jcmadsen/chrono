@@ -1,35 +1,27 @@
-//
+// =============================================================================
 // PROJECT CHRONO - http://projectchrono.org
 //
-// Copyright (c) 1996, 2005, 2010-2012 Alessandro Tasora
-// Copyright (c) 2013 Project Chrono
+// Copyright (c) 2014 projectchrono.org
 // All rights reserved.
 //
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE file at the top level of the distribution
-// and at http://projectchrono.org/license-chrono.txt.
+// Use of this source code is governed by a BSD-style license that can be found
+// in the LICENSE file at the top level of the distribution and at
+// http://projectchrono.org/license-chrono.txt.
 //
+// =============================================================================
+// Authors: Alessandro Tasora, Radu Serban
+// =============================================================================
 
 #ifndef CHMATRIX_H
 #define CHMATRIX_H
 
-//////////////////////////////////////////////////
-//
-//   ChMatrix.h
-//
-//   Math functions for:
-//      - MATRICES
-//
-//   HEADER file for CHRONO,
-//   Multibody dynamics engine
-//
-// ------------------------------------------------
-// ------------------------------------------------
-///////////////////////////////////////////////////
+#include <immintrin.h>
 
-#include "core/ChCoordsys.h"
-#include "core/ChStream.h"
-#include "core/ChException.h"
+#include "chrono/core/ChCoordsys.h"
+#include "chrono/core/ChException.h"
+#include "chrono/ChConfig.h"
+#include "chrono/serialization/ChArchive.h"
+#include "chrono/serialization/ChArchiveAsciiDump.h"
 
 namespace chrono {
 
@@ -64,12 +56,13 @@ class ChMatrixDynamic;
 /// means the element at 3rd row, 5th column.
 ///  This is an abstract class, so you cannot instantiate
 /// objects from it: you must rather create matrices using the
-/// specialized child classes like ChMatrixDynamic, ChMatrixNM
+/// specialized child classes like ChMatrixDynamic, ChMatrixNM,
 /// ChMatrix33 and so on; all of them have this same base class.
 ///  Warning: for optimization reasons, not all functions will
 /// check about boundaries of element indexes and matrix sizes (in
 /// some cases, if sizes are wrong, debug asserts are used).
-
+///
+/// Further info at the @ref mathematical_objects manual page.
 template <class Real = double>
 class ChMatrix {
   protected:
@@ -168,28 +161,6 @@ class ChMatrix {
         return *this;
     }
 
-    //   // Virtualizable functions
-
-    // virtual void SetElement(int row, int col, double elem) { this->SetElement(row, col, elem); }
-    // virtual void PasteMatrix(const ChMatrix<double>* matra, int insrow, int inscol) { PasteMatrix(matra, insrow,
-    // inscol); }
-    // virtual void PasteTranspMatrix(const ChMatrix<double>* matra, int insrow, int inscol) { PasteTranspMatrix(matra,
-    // insrow, inscol); }
-    // virtual void PasteMatrixFloat(const ChMatrix<float>* matra, int insrow, int inscol) { PasteMatrix(matra, insrow,
-    // inscol); }
-    // virtual void PasteTranspMatrixFloat(const ChMatrix<float>* matra, int insrow, int inscol) {
-    // PasteTranspMatrix(matra, insrow, inscol); }
-    // virtual void PasteClippedMatrix(const ChMatrix<double>* matra, int cliprow, int clipcol, int nrows, int ncolumns,
-    // int insrow, int inscol)
-    //{
-    //	PasteClippedMatrix(matra, cliprow, clipcol, nrows, ncolumns, insrow, inscol)
-    //}
-    // virtual void PasteSumClippedMatrix(const ChMatrix<double>* matra, int cliprow, int clipcol, int nrows, int
-    // ncolumns, int insrow, int inscol)
-    //{
-    //	PasteSumClippedMatrix(matra, cliprow, clipcol, nrows, ncolumns, insrow, inscol)
-    //}
-
     //
     // FUNCTIONS
     //
@@ -286,7 +257,7 @@ class ChMatrix {
 
     /// Fill the diagonal elements, given a sample.
     /// Note that the matrix must already be square (no check for
-    /// rectangular matrices!), and the extradiagonal elements are
+    /// rectangular matrices!), and the extra-diagonal elements are
     /// not modified -this function does not set them to 0-
     void FillDiag(Real sample) {
         for (int i = 0; i < rows; ++i)
@@ -556,6 +527,74 @@ class ChMatrix {
         }
     }
 
+#ifdef CHRONO_HAS_AVX
+    /// Multiplies two matrices, and stores the result in "this" matrix: [this]=[A]*[B].
+    /// AVX implementation: The speed up is marginal if size of the matrices are small, e.g. 3*3
+    /// Generally, as the matra.GetColumns() increases the method performs better
+    void MatrMultiplyAVX(const ChMatrix<double>& matra, const ChMatrix<double>& matrb) {
+        assert(matra.GetColumns() == matrb.GetRows());
+        assert(this->rows == matra.GetRows());
+        assert(this->columns == matrb.GetColumns());
+        int A_Nrow = matra.GetRows();
+        int B_Nrow = matrb.GetRows();
+        int A_NCol = matra.GetColumns();
+        int B_NCol = matrb.GetColumns();
+        const double* A_add = matra.GetAddress();
+        const double* B_add = matrb.GetAddress();
+        double* this_Add = this->GetAddress();
+        for (int rowA = 0; rowA < A_Nrow; rowA++) {
+            for (int colB = 0; colB < B_NCol; colB += 4) {
+                __m256d sum = _mm256_setzero_pd();
+                for (int elem = 0; elem < A_NCol; elem++) {
+                    __m256d ymmA = _mm256_broadcast_sd(A_add + A_NCol * rowA + elem);
+                    __m256d ymmB = _mm256_loadu_pd(B_add + elem * B_NCol + colB);
+                    __m256d prod = _mm256_mul_pd(ymmA, ymmB);
+                    sum = _mm256_add_pd(sum, prod);
+                }
+                _mm256_storeu_pd(this_Add + rowA * B_NCol + colB, sum);
+            }
+        }
+    }
+
+    /// Multiplies two matrices (the second is considered transposed): [this]=[A]*[B]'
+    /// Note: This method is faster than MatrMultiplyT if matra.GetColumns()%4=0 && matra.GetColumns()>8
+    /// It is still fast if matra.GetColumns() is large enough even if matra.GetColumns()%4!=0
+    void MatrMultiplyTAVX(const ChMatrix<double>& matra, const ChMatrix<double>& matrb) {
+        assert(matra.GetColumns() == matrb.GetColumns());
+        assert(this->GetRows() == matra.GetRows());
+        assert(this->GetColumns() == matrb.GetRows());
+        int A_Nrow = matra.GetRows();
+        int B_Nrow = matrb.GetRows();
+        int A_NCol = matra.GetColumns();
+        int B_NCol = matrb.GetColumns();
+        const double* A_add = matra.GetAddress();
+        const double* B_add = matrb.GetAddress();
+        bool NeedsPadding = (B_NCol % 4 != 0);
+        int CorrectFAT = ((B_NCol >> 2) << 2);
+        for (int rowA = 0; rowA < A_Nrow; rowA++) {
+            for (int rowB = 0; rowB < B_Nrow; rowB++) {
+                int colB;
+                double temp_sum = 0.0;
+                __m256d sum = _mm256_setzero_pd();
+                for (colB = 0; colB < CorrectFAT; colB += 4) {
+                    __m256d ymmA = _mm256_loadu_pd(A_add + rowA * A_NCol + colB);
+                    __m256d ymmB = _mm256_loadu_pd(B_add + rowB * B_NCol + colB);
+                    __m256d prod = _mm256_mul_pd(ymmA, ymmB);
+                    sum = _mm256_add_pd(sum, prod);
+                }
+                sum = _mm256_hadd_pd(sum, sum);
+                temp_sum = ((double*)&sum)[0] + ((double*)&sum)[2];
+                if (NeedsPadding)
+                    for (colB = CorrectFAT; colB < B_NCol; colB++) {
+                        temp_sum += (matra.Element(rowA, colB) * matrb.Element(rowB, colB));
+                    }
+                SetElement(rowA, rowB, temp_sum);
+            }
+        }
+    }
+
+#endif
+
     /// Multiplies two matrices (the second is considered transposed): [this]=[A]*[B]'
     /// Faster than doing B.MatrTranspose(); result.MatrMultiply(A,B);
     /// Note: no check on mistaken size of this!
@@ -598,11 +637,11 @@ class ChMatrix {
     /// Computes dot product between two column-matrices (vectors) with
     /// same size. Returns a scalar value.
     template <class RealB, class RealC>
-    static Real MatrDot(const ChMatrix<RealB>* ma, const ChMatrix<RealC>* mb) {
-        assert(ma->GetColumns() == mb->GetColumns() && ma->GetRows() == mb->GetRows());
+    static Real MatrDot(const ChMatrix<RealB>& ma, const ChMatrix<RealC>& mb) {
+        assert(ma.GetColumns() == mb.GetColumns() && ma.GetRows() == mb.GetRows());
         Real tot = 0;
-        for (int i = 0; i < ma->GetRows(); ++i)
-            tot += (Real)(ma->ElementN(i) * mb->ElementN(i));
+        for (int i = 0; i < ma.GetRows(); ++i)
+            tot += (Real)(ma.ElementN(i) * mb.ElementN(i));
         return tot;
     }
 
@@ -838,12 +877,12 @@ class ChMatrix {
     template <class RealB>
     ChVector<Real> Matr34_x_Quat(const ChQuaternion<RealB>& qua) {
         assert((rows == 3) && (columns == 4));
-        return ChVector<Real>(((Get34Element(0, 0)) * (Real)qua.e0) + ((Get34Element(0, 1)) * (Real)qua.e1) +
-                                  ((Get34Element(0, 2)) * (Real)qua.e2) + ((Get34Element(0, 3)) * (Real)qua.e3),
-                              ((Get34Element(1, 0)) * (Real)qua.e0) + ((Get34Element(1, 1)) * (Real)qua.e1) +
-                                  ((Get34Element(1, 2)) * (Real)qua.e2) + ((Get34Element(1, 3)) * (Real)qua.e3),
-                              ((Get34Element(2, 0)) * (Real)qua.e0) + ((Get34Element(2, 1)) * (Real)qua.e1) +
-                                  ((Get34Element(2, 2)) * (Real)qua.e2) + ((Get34Element(2, 3)) * (Real)qua.e3));
+        return ChVector<Real>(Get34Element(0, 0) * (Real)qua.e0() + Get34Element(0, 1) * (Real)qua.e1() +
+                                  Get34Element(0, 2) * (Real)qua.e2() + Get34Element(0, 3) * (Real)qua.e3(),
+                              Get34Element(1, 0) * (Real)qua.e0() + Get34Element(1, 1) * (Real)qua.e1() +
+                                  Get34Element(1, 2) * (Real)qua.e2() + Get34Element(1, 3) * (Real)qua.e3(),
+                              Get34Element(2, 0) * (Real)qua.e0() + Get34Element(2, 1) * (Real)qua.e1() +
+                                  Get34Element(2, 2) * (Real)qua.e2() + Get34Element(2, 3) * (Real)qua.e3());
     }
 
     /// Multiplies this 3x4 matrix (transposed) by a vector, as q=[G]'*v
@@ -852,14 +891,11 @@ class ChMatrix {
     template <class RealB>
     ChQuaternion<Real> Matr34T_x_Vect(const ChVector<RealB>& va) {
         assert((rows == 3) && (columns == 4));
-        return ChQuaternion<Real>(((Get34Element(0, 0)) * (Real)va.x) + ((Get34Element(1, 0)) * (Real)va.y) +
-                                      ((Get34Element(2, 0)) * (Real)va.z),
-                                  ((Get34Element(0, 1)) * (Real)va.x) + ((Get34Element(1, 1)) * (Real)va.y) +
-                                      ((Get34Element(2, 1)) * (Real)va.z),
-                                  ((Get34Element(0, 2)) * (Real)va.x) + ((Get34Element(1, 2)) * (Real)va.y) +
-                                      ((Get34Element(2, 2)) * (Real)va.z),
-                                  ((Get34Element(0, 3)) * (Real)va.x) + ((Get34Element(1, 3)) * (Real)va.y) +
-                                      ((Get34Element(2, 3)) * (Real)va.z));
+        return ChQuaternion<Real>(
+            Get34Element(0, 0) * (Real)va.x() + Get34Element(1, 0) * (Real)va.y() + Get34Element(2, 0) * (Real)va.z(),
+            Get34Element(0, 1) * (Real)va.x() + Get34Element(1, 1) * (Real)va.y() + Get34Element(2, 1) * (Real)va.z(),
+            Get34Element(0, 2) * (Real)va.x() + Get34Element(1, 2) * (Real)va.y() + Get34Element(2, 2) * (Real)va.z(),
+            Get34Element(0, 3) * (Real)va.x() + Get34Element(1, 3) * (Real)va.y() + Get34Element(2, 3) * (Real)va.z());
     }
 
     /// Multiplies this 4x4 matrix (transposed) by a quaternion,
@@ -868,21 +904,21 @@ class ChMatrix {
     template <class RealB>
     ChQuaternion<Real> Matr44_x_Quat(const ChQuaternion<RealB>& qua) {
         assert((rows == 4) && (columns == 4));
-        return ChQuaternion<Real>(((Get44Element(0, 0)) * (Real)qua.e0) + ((Get44Element(0, 1)) * (Real)qua.e1) +
-                                      ((Get44Element(0, 2)) * (Real)qua.e2) + ((Get44Element(0, 3)) * (Real)qua.e3),
-                                  ((Get44Element(1, 0)) * (Real)qua.e0) + ((Get44Element(1, 1)) * (Real)qua.e1) +
-                                      ((Get44Element(1, 2)) * (Real)qua.e2) + ((Get44Element(1, 3)) * (Real)qua.e3),
-                                  ((Get44Element(2, 0)) * (Real)qua.e0) + ((Get44Element(2, 1)) * (Real)qua.e1) +
-                                      ((Get44Element(2, 2)) * (Real)qua.e2) + ((Get44Element(2, 3)) * (Real)qua.e3),
-                                  ((Get44Element(3, 0)) * (Real)qua.e0) + ((Get44Element(3, 1)) * (Real)qua.e1) +
-                                      ((Get44Element(3, 2)) * (Real)qua.e2) + ((Get44Element(3, 3)) * (Real)qua.e3));
+        return ChQuaternion<Real>(Get44Element(0, 0) * (Real)qua.e0() + Get44Element(0, 1) * (Real)qua.e1() +
+                                      Get44Element(0, 2) * (Real)qua.e2() + Get44Element(0, 3) * (Real)qua.e3(),
+                                  Get44Element(1, 0) * (Real)qua.e0() + Get44Element(1, 1) * (Real)qua.e1() +
+                                      Get44Element(1, 2) * (Real)qua.e2() + Get44Element(1, 3) * (Real)qua.e3(),
+                                  Get44Element(2, 0) * (Real)qua.e0() + Get44Element(2, 1) * (Real)qua.e1() +
+                                      Get44Element(2, 2) * (Real)qua.e2() + Get44Element(2, 3) * (Real)qua.e3(),
+                                  Get44Element(3, 0) * (Real)qua.e0() + Get44Element(3, 1) * (Real)qua.e1() +
+                                      Get44Element(3, 2) * (Real)qua.e2() + Get44Element(3, 3) * (Real)qua.e3());
     }
 
-    /// Transposes only the lower-right 3x3 submatrix of a hemisimetric 4x4 matrix,
+    /// Transposes only the lower-right 3x3 submatrix of a hemisymmetric 4x4 matrix,
     /// used when the 4x4 matrix is a "star" matrix [q] coming from a quaternion q:
     /// the non commutative quat. product is:
     ///     q1 x q2  =  [q1]*q2  =  [q2st]*q1
-    /// where [q2st] is the "semitranspose of [q2].
+    /// where [q2st] is the "semi-transpose of [q2].
     void MatrXq_SemiTranspose() {
         SetElement(1, 2, -GetElement(1, 2));
         SetElement(1, 3, -GetElement(1, 3));
@@ -893,9 +929,9 @@ class ChMatrix {
     }
 
     /// Change the sign of the 2nd, 3rd and 4th columns of a 4x4 matrix,
-    /// The product between a quaternion q1 and the coniugate of q2 (q2'), is:
+    /// The product between a quaternion q1 and the conjugate of q2 (q2'), is:
     ///    q1 x q2'  = [q1]*q2'   = [q1sn]*q2
-    /// where [q1sn] is the seminegation of the 4x4 matrix [q1].
+    /// where [q1sn] is the semi-negation of the 4x4 matrix [q1].
     void MatrXq_SemiNeg() {
         for (int i = 0; i < rows; ++i)
             for (int j = 1; j < columns; ++j)
@@ -966,43 +1002,43 @@ class ChMatrix {
     /// Paste a matrix "matra" into "this", inserting at location insrow-inscol.
     /// Normal copy for insrow=inscol=0
     template <class RealB>
-    void PasteMatrix(const ChMatrix<RealB>* matra, int insrow, int inscol) {
-        for (int i = 0; i < matra->GetRows(); ++i)
-            for (int j = 0; j < matra->GetColumns(); ++j)
-                Element(i + insrow, j + inscol) = (Real)matra->Element(i, j);
+    void PasteMatrix(const ChMatrix<RealB>& matra, int insrow, int inscol) {
+        for (int i = 0; i < matra.GetRows(); ++i)
+            for (int j = 0; j < matra.GetColumns(); ++j)
+                Element(i + insrow, j + inscol) = (Real)matra.Element(i, j);
     }
 
     /// Paste a matrix "matra" into "this", inserting at location insrow-inscol
     /// and performing a sum with the preexisting values.
     template <class RealB>
-    void PasteSumMatrix(const ChMatrix<RealB>* matra, int insrow, int inscol) {
-        for (int i = 0; i < matra->GetRows(); ++i)
-            for (int j = 0; j < matra->GetColumns(); ++j)
-                Element(i + insrow, j + inscol) += (Real)matra->Element(i, j);
+    void PasteSumMatrix(const ChMatrix<RealB>& matra, int insrow, int inscol) {
+        for (int i = 0; i < matra.GetRows(); ++i)
+            for (int j = 0; j < matra.GetColumns(); ++j)
+                Element(i + insrow, j + inscol) += (Real)matra.Element(i, j);
     }
 
     /// Paste a matrix "matra", transposed, into "this", inserting at location insrow-inscol.
     /// Normal copy for insrow=inscol=0
     template <class RealB>
-    void PasteTranspMatrix(const ChMatrix<RealB>* matra, int insrow, int inscol) {
-        for (int i = 0; i < matra->GetRows(); ++i)
-            for (int j = 0; j < matra->GetColumns(); ++j)
-                Element(j + insrow, i + inscol) = (Real)matra->Element(i, j);
+    void PasteTranspMatrix(const ChMatrix<RealB>& matra, int insrow, int inscol) {
+        for (int i = 0; i < matra.GetRows(); ++i)
+            for (int j = 0; j < matra.GetColumns(); ++j)
+                Element(j + insrow, i + inscol) = (Real)matra.Element(i, j);
     }
 
     /// Paste a matrix "matra", transposed, into "this", inserting at location insrow-inscol
     /// and performing a sum with the preexisting values.
     template <class RealB>
-    void PasteSumTranspMatrix(const ChMatrix<RealB>* matra, int insrow, int inscol) {
-        for (int i = 0; i < matra->GetRows(); ++i)
-            for (int j = 0; j < matra->GetColumns(); ++j)
-                Element(j + insrow, i + inscol) += (Real)matra->Element(i, j);
+    void PasteSumTranspMatrix(const ChMatrix<RealB>& matra, int insrow, int inscol) {
+        for (int i = 0; i < matra.GetRows(); ++i)
+            for (int j = 0; j < matra.GetColumns(); ++j)
+                Element(j + insrow, i + inscol) += (Real)matra.Element(i, j);
     }
 
     /// Paste a clipped portion of the matrix "matra" into "this",
     /// inserting the clip (of size nrows, ncolumns) at the location insrow-inscol.
     template <class RealB>
-    void PasteClippedMatrix(const ChMatrix<RealB>* matra,
+    void PasteClippedMatrix(const ChMatrix<RealB>& matra,
                             int cliprow,
                             int clipcol,
                             int nrows,
@@ -1011,13 +1047,13 @@ class ChMatrix {
                             int inscol) {
         for (int i = 0; i < nrows; ++i)
             for (int j = 0; j < ncolumns; ++j)
-                Element(i + insrow, j + inscol) = (Real)matra->Element(i + cliprow, j + clipcol);
+                Element(i + insrow, j + inscol) = (Real)matra.Element(i + cliprow, j + clipcol);
     }
     /// Paste a clipped portion of the matrix "matra" into "this", where "this"
     /// is a vector (of ChMatrix type),
     /// inserting the clip (of size nrows, ncolumns) at the location insindex.
     template <class RealB>
-    void PasteClippedMatrixToVector(const ChMatrix<RealB>* matra,
+    void PasteClippedMatrixToVector(const ChMatrix<RealB>& matra,
                                     int cliprow,
                                     int clipcol,
                                     int nrows,
@@ -1025,14 +1061,14 @@ class ChMatrix {
                                     int insindex) {
         for (int i = 0; i < nrows; ++i)
             for (int j = 0; j < ncolumns; ++j)
-                ElementN(insindex + i * ncolumns + j) = (Real)matra->Element(cliprow + i, clipcol + j);
+                ElementN(insindex + i * ncolumns + j) = (Real)matra.Element(cliprow + i, clipcol + j);
     }
 
     /// Paste a clipped portion of a vector into "this", where "this"
     /// is a matrix (of ChMatrix type),
     /// inserting the clip (of size nrows, ncolumns) at the location insindex.
     template <class RealB>
-    void PasteClippedVectorToMatrix(const ChMatrix<RealB>* matra,
+    void PasteClippedVectorToMatrix(const ChMatrix<RealB>& matra,
                                     int cliprow,
                                     int clipcol,
                                     int nrows,
@@ -1040,12 +1076,13 @@ class ChMatrix {
                                     int insindex) {
         for (int i = 0; i < nrows; ++i)
             for (int j = 0; j < ncolumns; ++j)
-                Element(i + cliprow, j + clipcol) = (Real)matra->ElementN(insindex + i * ncolumns + j);
+                Element(i + cliprow, j + clipcol) = (Real)matra.ElementN(insindex + i * ncolumns + j);
     }
+
     /// Paste a clipped portion of the matrix "matra" into "this", performing a sum with preexisting values,
     /// inserting the clip (of size nrows, ncolumns) at the location insrow-inscol.
     template <class RealB>
-    void PasteSumClippedMatrix(const ChMatrix<RealB>* matra,
+    void PasteSumClippedMatrix(const ChMatrix<RealB>& matra,
                                int cliprow,
                                int clipcol,
                                int nrows,
@@ -1055,49 +1092,49 @@ class ChMatrix {
         for (int i = 0; i < nrows; ++i)
             for (int j = 0; j < ncolumns; ++j)
 #pragma omp atomic
-                Element(i + insrow, j + inscol) += (Real)matra->Element(i + cliprow, j + clipcol);
+                Element(i + insrow, j + inscol) += (Real)matra.Element(i + cliprow, j + clipcol);
     }
 
     /// Paste a vector "va" into the matrix.
     template <class RealB>
     void PasteVector(const ChVector<RealB>& va, int insrow, int inscol) {
-        SetElement(insrow, inscol, (Real)va.x);
-        SetElement(insrow + 1, inscol, (Real)va.y);
-        SetElement(insrow + 2, inscol, (Real)va.z);
+        SetElement(insrow + 0, inscol, (Real)va.x());
+        SetElement(insrow + 1, inscol, (Real)va.y());
+        SetElement(insrow + 2, inscol, (Real)va.z());
     }
 
     /// Paste a vector "va" into the matrix, summing it with preexisting values.
     template <class RealB>
     void PasteSumVector(const ChVector<RealB>& va, int insrow, int inscol) {
-        Element(insrow, inscol) += (Real)va.x;
-        Element(insrow + 1, inscol) += (Real)va.y;
-        Element(insrow + 2, inscol) += (Real)va.z;
+        Element(insrow + 0, inscol) += (Real)va.x();
+        Element(insrow + 1, inscol) += (Real)va.y();
+        Element(insrow + 2, inscol) += (Real)va.z();
     }
 
     /// Paste a vector "va" into the matrix, subtracting it from preexisting values.
     template <class RealB>
     void PasteSubVector(const ChVector<RealB>& va, int insrow, int inscol) {
-        Element(insrow, inscol) -= (Real)va.x;
-        Element(insrow + 1, inscol) -= (Real)va.y;
-        Element(insrow + 2, inscol) -= (Real)va.z;
+        Element(insrow + 0, inscol) -= (Real)va.x();
+        Element(insrow + 1, inscol) -= (Real)va.y();
+        Element(insrow + 2, inscol) -= (Real)va.z();
     }
 
     /// Paste a quaternion into the matrix.
     template <class RealB>
     void PasteQuaternion(const ChQuaternion<RealB>& qa, int insrow, int inscol) {
-        SetElement(insrow, inscol, (Real)qa.e0);
-        SetElement(insrow + 1, inscol, (Real)qa.e1);
-        SetElement(insrow + 2, inscol, (Real)qa.e2);
-        SetElement(insrow + 3, inscol, (Real)qa.e3);
+        SetElement(insrow + 0, inscol, (Real)qa.e0());
+        SetElement(insrow + 1, inscol, (Real)qa.e1());
+        SetElement(insrow + 2, inscol, (Real)qa.e2());
+        SetElement(insrow + 3, inscol, (Real)qa.e3());
     }
 
     /// Paste a quaternion into the matrix, summing it with preexisting values.
     template <class RealB>
     void PasteSumQuaternion(const ChQuaternion<RealB>& qa, int insrow, int inscol) {
-        Element(insrow, inscol) += (Real)qa.e0;
-        Element(insrow + 1, inscol) += (Real)qa.e1;
-        Element(insrow + 2, inscol) += (Real)qa.e2;
-        Element(insrow + 3, inscol) += (Real)qa.e3;
+        Element(insrow + 0, inscol) += (Real)qa.e0();
+        Element(insrow + 1, inscol) += (Real)qa.e1();
+        Element(insrow + 2, inscol) += (Real)qa.e2();
+        Element(insrow + 3, inscol) += (Real)qa.e3();
     }
 
     /// Paste a coordsys into the matrix.
@@ -1131,25 +1168,25 @@ class ChMatrix {
     /// That is, given two quaternions a and b, aXb= [Astar]*b
     template <class RealB>
     void Set_Xq_matrix(const ChQuaternion<RealB>& q) {
-        Set44Element(0, 0, (Real)q.e0);
-        Set44Element(0, 1, -(Real)q.e1);
-        Set44Element(0, 2, -(Real)q.e2);
-        Set44Element(0, 3, -(Real)q.e3);
-        Set44Element(1, 0, (Real)q.e1);
-        Set44Element(1, 1, (Real)q.e0);
-        Set44Element(1, 2, -(Real)q.e3);
-        Set44Element(1, 3, (Real)q.e2);
-        Set44Element(2, 0, (Real)q.e2);
-        Set44Element(2, 1, (Real)q.e3);
-        Set44Element(2, 2, (Real)q.e0);
-        Set44Element(2, 3, -(Real)q.e1);
-        Set44Element(3, 0, (Real)q.e3);
-        Set44Element(3, 1, -(Real)q.e2);
-        Set44Element(3, 2, (Real)q.e1);
-        Set44Element(3, 3, (Real)q.e0);
+        Set44Element(0, 0, (Real)q.e0());
+        Set44Element(0, 1, -(Real)q.e1());
+        Set44Element(0, 2, -(Real)q.e2());
+        Set44Element(0, 3, -(Real)q.e3());
+        Set44Element(1, 0, (Real)q.e1());
+        Set44Element(1, 1, (Real)q.e0());
+        Set44Element(1, 2, -(Real)q.e3());
+        Set44Element(1, 3, (Real)q.e2());
+        Set44Element(2, 0, (Real)q.e2());
+        Set44Element(2, 1, (Real)q.e3());
+        Set44Element(2, 2, (Real)q.e0());
+        Set44Element(2, 3, -(Real)q.e1());
+        Set44Element(3, 0, (Real)q.e3());
+        Set44Element(3, 1, -(Real)q.e2());
+        Set44Element(3, 2, (Real)q.e1());
+        Set44Element(3, 3, (Real)q.e0());
     }
 };
 
-}  // END_OF_NAMESPACE____
+}  // end namespace chrono
 
-#endif  // END of ChMatrix.h
+#endif

@@ -2,7 +2,7 @@
 // PROJECT CHRONO - http://projectchrono.org
 //
 // Copyright (c) 2014 projectchrono.org
-// All right reserved.
+// All rights reserved.
 //
 // Use of this source code is governed by a BSD-style license that can be found
 // in the LICENSE file at the top level of the distribution and at
@@ -13,8 +13,8 @@
 // =============================================================================
 //
 // Simple brake created with constant torque opposing wheel rotation.
-// It just uses a speed-dependant torque, so it fits in ODEs because it does not
-// use DVI set valued constraints (the  drawback is that it cannot simulate
+// It just uses a speed-dependent torque, so it fits in ODEs because it does not
+// use NSC set valued constraints (the  drawback is that it cannot simulate
 // sticking brakes).
 //
 // =============================================================================
@@ -24,7 +24,7 @@
 namespace chrono {
 namespace vehicle {
 
-ChBrakeSimple::ChBrakeSimple() : m_modulation(0) {
+ChBrakeSimple::ChBrakeSimple(const std::string& name) : ChBrake(name), m_modulation(0) {
     m_brake = std::make_shared<ChLinkBrake>();
 }
 
@@ -42,11 +42,11 @@ void ChBrakeSimple::Initialize(std::shared_ptr<ChLinkLockRevolute> hub) {
     auto mb1 = std::dynamic_pointer_cast<ChBody>(mbf1);
     auto mb2 = std::dynamic_pointer_cast<ChBody>(mbf2);
 
-    m_brake->Initialize(mb1, mb2, hub->GetMarker2()->GetCoord());
+    m_brake->Initialize(mb1, mb2, true, hub->GetMarker1()->GetCoord(), hub->GetMarker2()->GetCoord());
     my_system->AddLink(m_brake);
 }
 
-void ChBrakeSimple::Update(double modulation) {
+void ChBrakeSimple::Synchronize(double modulation) {
     m_modulation = modulation;
     m_brake->Set_brake_torque(modulation * GetMaxBrakingTorque());
 }

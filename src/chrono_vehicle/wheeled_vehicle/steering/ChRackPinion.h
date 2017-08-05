@@ -2,7 +2,7 @@
 // PROJECT CHRONO - http://projectchrono.org
 //
 // Copyright (c) 2014 projectchrono.org
-// All right reserved.
+// All rights reserved.
 //
 // Use of this source code is governed by a BSD-style license that can be found
 // in the LICENSE file at the top level of the distribution and at
@@ -59,13 +59,26 @@ class CH_VEHICLE_API ChRackPinion : public ChSteering {
                             const ChQuaternion<>& rotation          ///< [in] orientation relative to the chassis frame
                             ) override;
 
+    /// Add visualization assets for the steering subsystem.
+    /// This default implementation uses primitives.
+    virtual void AddVisualizationAssets(VisualizationType vis) override;
+
+    /// Remove visualization assets for the steering subsystem.
+    virtual void RemoveVisualizationAssets() override;
+
     /// Update the state of this steering subsystem at the current time.
     /// The steering subsystem is provided the current steering driver input (a
     /// value between -1 and +1).  Positive steering input indicates steering
     /// to the left. This function is called during the vehicle update.
-    virtual void Update(double time,     ///< [in] current time
-                        double steering  ///< [in] current steering input [-1,+1]
-                        ) override;
+    virtual void Synchronize(double time,     ///< [in] current time
+                             double steering  ///< [in] current steering input [-1,+1]
+                             ) override;
+
+    /// Get the total mass of the steering subsystem.
+    virtual double GetMass() const override;
+
+    /// Get the current global COM location of the steering subsystem.
+    virtual ChVector<> GetCOMPos() const override;
 
     /// Log current constraint violations.
     virtual void LogConstraintViolations() override;
@@ -94,9 +107,6 @@ class CH_VEHICLE_API ChRackPinion : public ChSteering {
 
     std::shared_ptr<ChLinkLockPrismatic> m_prismatic;  ///< handle to the prismatic joint chassis-link
     std::shared_ptr<ChLinkLinActuator> m_actuator;     ///< handle to the linear actuator on steering link
-
-  private:
-    void AddVisualizationSteeringLink();
 };
 
 /// @} vehicle_wheeled_steering

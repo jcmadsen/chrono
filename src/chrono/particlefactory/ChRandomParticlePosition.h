@@ -1,14 +1,16 @@
-//
+// =============================================================================
 // PROJECT CHRONO - http://projectchrono.org
 //
-// Copyright (c) 2010 Alessandro Tasora
+// Copyright (c) 2014 projectchrono.org
 // All rights reserved.
 //
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE file at the top level of the distribution
-// and at http://projectchrono.org/license-chrono.txt.
+// Use of this source code is governed by a BSD-style license that can be found
+// in the LICENSE file at the top level of the distribution and at
+// http://projectchrono.org/license-chrono.txt.
 //
-// File author: A.Tasora
+// =============================================================================
+// Authors: Alessandro Tasora
+// =============================================================================
 
 #ifndef CHRANDOMPARTICLEPOSITION_H
 #define CHRANDOMPARTICLEPOSITION_H
@@ -29,6 +31,7 @@ namespace particlefactory {
 class ChRandomParticlePosition {
   public:
     ChRandomParticlePosition() {}
+    virtual ~ChRandomParticlePosition() {}
 
     /// Function that creates a random position each
     /// time it is called.
@@ -49,7 +52,7 @@ class ChRandomParticlePositionRectangleOutlet : public ChRandomParticlePosition 
 
     /// Function that creates a random position each
     /// time it is called.
-    virtual ChVector<> RandomPosition() {
+    virtual ChVector<> RandomPosition() override {
         ChVector<> localp = ChVector<>(ChRandom() * width - 0.5 * width, ChRandom() * height - 0.5 * height, 0);
         return outlet.TransformLocalToParent(localp);
     }
@@ -81,7 +84,7 @@ class ChRandomParticlePositionOnGeometry : public ChRandomParticlePosition {
 
     /// Function that creates a random position each
     /// time it is called.
-    virtual ChVector<> RandomPosition() {
+    virtual ChVector<> RandomPosition() override {
         ChVector<> mpos;
         geometry->Evaluate(mpos, ChRandom(), ChRandom(), ChRandom());
         return mpos;

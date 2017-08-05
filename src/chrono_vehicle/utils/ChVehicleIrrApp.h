@@ -2,7 +2,7 @@
 // PROJECT CHRONO - http://projectchrono.org
 //
 // Copyright (c) 2014 projectchrono.org
-// All right reserved.
+// All rights reserved.
 //
 // Use of this source code is governed by a BSD-style license that can be found
 // in the LICENSE file at the top level of the distribution and at
@@ -58,7 +58,7 @@ class CH_VEHICLE_API ChVehicleIrrApp : public irrlicht::ChIrrApp {
     /// Construct a vehicle Irrlicht application.
     ChVehicleIrrApp(
         ChVehicle* vehicle,        ///< pointer to the associated vehicle system
-        ChPowertrain* powertrain,  /// pointer to the associated powertrain system
+        ChPowertrain* powertrain,  ///< pointer to the associated powertrain system
         const wchar_t* title = 0,  ///< window title
         irr::core::dimension2d<irr::u32> dims = irr::core::dimension2d<irr::u32>(1000, 800)  ///< window dimensions
         );
@@ -76,6 +76,11 @@ class CH_VEHICLE_API ChVehicleIrrApp : public irrlicht::ChIrrApp {
                         );
     /// Set the step size for integration of the chase-cam dynamics.
     void SetStepsize(double val) { m_stepsize = val; }
+    /// Set camera position.
+    /// Note that this forces the chase-cam in Track mode.
+    void SetChaseCameraPosition(const ChVector<>& pos) { m_camera.SetCameraPos(pos); }
+    /// Set camera zoom multipliers.
+    void SetChaseCameraMultipliers(double minMult, double maxMult) { m_camera.SetMultLimits(minMult, maxMult); }
 
     /// Set the upper-left point of HUD elements.
     void SetHUDLocation(int HUD_x, int HUD_y) {
@@ -86,16 +91,10 @@ class CH_VEHICLE_API ChVehicleIrrApp : public irrlicht::ChIrrApp {
     /// Turn on/off rendering of the grid.
     void EnableGrid(bool val) { m_renderGrid = val; }
 
-    /// Turn on/off rendering of specialized joints in the vehicle model.
-    void EnableLinks(bool val) { m_renderLinks = val; }
-
-    /// Turn on/off rendering of springs in the vehicle model.
-    void EnableSprings(bool val) { m_renderSprings = val; }
-
     /// Turn on/off rendering of stats (HUD).
     void EnableStats(bool val) { m_renderStats = val; }
 
-    /// Set the height at whoich the horizontal grid is rendered.
+    /// Set the height at which the horizontal grid is rendered.
     void SetGridHeight(double height) { m_gridHeight = height; }
 
     /// Turn on/off Irrklang sound generation.
@@ -106,7 +105,7 @@ class CH_VEHICLE_API ChVehicleIrrApp : public irrlicht::ChIrrApp {
     virtual void DrawAll() override;
 
     /// Update information related to driver inputs.
-    void Update(const std::string& msg, double steering, double throttle, double braking);
+    void Synchronize(const std::string& msg, double steering, double throttle, double braking);
 
     /// Advance the dynamics of the chase camera.
     /// The integration of the underlying ODEs is performed using as many steps as needed to advance
@@ -143,8 +142,6 @@ class CH_VEHICLE_API ChVehicleIrrApp : public irrlicht::ChIrrApp {
     ChPowertrain* m_powertrain;  ///< pointer to the associated powertrain system
 
   private:
-    void renderSprings();
-    void renderLinks();
     void renderGrid();
     void renderStats();
 
@@ -154,8 +151,6 @@ class CH_VEHICLE_API ChVehicleIrrApp : public irrlicht::ChIrrApp {
     double m_stepsize;  ///< integration step size for chase-cam dynamics
 
     bool m_renderGrid;     ///< turn on/off rendering of grid
-    bool m_renderLinks;    ///< turn on/off rendering of joints
-    bool m_renderSprings;  ///< turn on/off rendering of springs
     bool m_renderStats;    ///< turn on/off rendering of stats
 
     double m_gridHeight;  ///< height of grid
@@ -175,6 +170,7 @@ class CH_VEHICLE_API ChVehicleIrrApp : public irrlicht::ChIrrApp {
 
     friend class ChCameraEventReceiver;
     friend class ChIrrGuiDriver;
+    friend class ChIrrGuiDriverSTR;
 };
 
 // @} vehicle_utils

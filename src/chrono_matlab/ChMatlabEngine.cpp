@@ -1,7 +1,22 @@
+// =============================================================================
+// PROJECT CHRONO - http://projectchrono.org
+//
+// Copyright (c) 2014 projectchrono.org
+// All rights reserved.
+//
+// Use of this source code is governed by a BSD-style license that can be found
+// in the LICENSE file at the top level of the distribution and at
+// http://projectchrono.org/license-chrono.txt.
+//
+// =============================================================================
+// Authors: Alessandro Tasora
+// =============================================================================
+
 #include "chrono_matlab/ChMatlabEngine.h"
 
-using namespace chrono;
 using namespace std;
+
+namespace chrono {
 
 ChMatlabEngine::ChMatlabEngine() {
 #ifdef __APPLE__
@@ -58,24 +73,24 @@ bool ChMatlabEngine::PutVariable(const ChMatrix<double>& mmatr, string varname) 
 
 /// Put a sparse matrix in Matlab environment, specifying its name as variable.
 /// If a variable with the same name already exist, it is overwritten.
-bool ChMatlabEngine::PutSparseMatrix(const ChLinkedListMatrix& mmatr, string varname) {
+bool ChMatlabEngine::PutSparseMatrix(const ChSparseMatrix& mmatr, string varname) {
     int nels = 0;
-    for (int ii = 0; ii < mmatr.GetRows(); ii++)
-        for (int jj = 0; jj < mmatr.GetColumns(); jj++) {
-            double elVal = ((ChLinkedListMatrix&)mmatr).GetElement(ii, jj);
+    for (int ii = 0; ii < mmatr.GetNumRows(); ii++)
+        for (int jj = 0; jj < mmatr.GetNumColumns(); jj++) {
+            double elVal = ((ChSparseMatrix&)mmatr).GetElement(ii, jj);
             if (elVal ||
-                (ii + 1 == ((ChLinkedListMatrix&)mmatr).GetRows() && jj + 1 == ((ChLinkedListMatrix&)mmatr).GetColumns()))
+                (ii + 1 == ((ChSparseMatrix&)mmatr).GetNumRows() && jj + 1 == ((ChSparseMatrix&)mmatr).GetNumColumns()))
                 ++nels;
         }
 
     ChMatrixDynamic<> transfer(nels, 3);
 
     int eln = 0;
-    for (int ii = 0; ii < mmatr.GetRows(); ii++)
-        for (int jj = 0; jj < mmatr.GetColumns(); jj++) {
-            double elVal = ((ChLinkedListMatrix&)mmatr).GetElement(ii, jj);
-            if (elVal ||
-                (ii + 1 == ((ChLinkedListMatrix&)mmatr).GetRows() && jj + 1 == ((ChLinkedListMatrix&)mmatr).GetColumns())) {
+    for (int ii = 0; ii < mmatr.GetNumRows(); ii++)
+        for (int jj = 0; jj < mmatr.GetNumColumns(); jj++) {
+            double elVal = ((ChSparseMatrix&)mmatr).GetElement(ii, jj);
+            if (elVal || (ii + 1 == ((ChSparseMatrix&)mmatr).GetNumRows() &&
+                          jj + 1 == ((ChSparseMatrix&)mmatr).GetNumColumns())) {
                 transfer(eln, 0) = ii + 1;
                 transfer(eln, 1) = jj + 1;
                 transfer(eln, 2) = elVal;
@@ -118,3 +133,5 @@ bool ChMatlabEngine::GetVariable(ChMatrixDynamic<double>& mmatr, string varname)
     matlabengine::mxDestroyArray(T);
     return false;
 }
+
+}  // end namespace chrono

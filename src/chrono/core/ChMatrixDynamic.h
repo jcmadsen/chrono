@@ -1,36 +1,23 @@
-//
+// =============================================================================
 // PROJECT CHRONO - http://projectchrono.org
 //
-// Copyright (c) 1996, 2005, 2010-2012 Alessandro Tasora
-// Copyright (c) 2013 Project Chrono
+// Copyright (c) 2014 projectchrono.org
 // All rights reserved.
 //
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE file at the top level of the distribution
-// and at http://projectchrono.org/license-chrono.txt.
+// Use of this source code is governed by a BSD-style license that can be found
+// in the LICENSE file at the top level of the distribution and at
+// http://projectchrono.org/license-chrono.txt.
 //
+// =============================================================================
 
 #ifndef CHMATRIXDYNAMIC_H
 #define CHMATRIXDYNAMIC_H
 
-//////////////////////////////////////////////////
-//
-//   ChMatrixDynamic.h
-//
-//   Math functions for:
-//      - Dynamicly sized MATRICES
-//
-//   HEADER file for CHRONO,
-//   Multibody dynamics engine
-//
-// ------------------------------------------------
-// ------------------------------------------------
-///////////////////////////////////////////////////
+#include "chrono/core/ChCoordsys.h"
+#include "chrono/core/ChStream.h"
+#include "chrono/core/ChException.h"
+#include "chrono/core/ChMatrix.h"
 
-#include "core/ChCoordsys.h"
-#include "core/ChStream.h"
-#include "core/ChException.h"
-#include "core/ChMatrix.h"
 namespace chrono {
 
 //
@@ -101,7 +88,12 @@ class ChMatrixDynamic : public ChMatrix<Real> {
         assert(row >= 0 && col >= 0);
         this->rows = row;
         this->columns = col;
+#ifdef CHRONO_HAS_AVX
+        this->address = new Real[row * col + 3];
+#else
         this->address = new Real[row * col];
+
+#endif
         // SetZero(row*col);
         for (int i = 0; i < this->rows * this->columns; ++i)
             this->address[i] = 0;
@@ -183,6 +175,6 @@ class ChMatrixDynamic : public ChMatrix<Real> {
     }
 };
 
-}  // END_OF_NAMESPACE____
+}  // end namespace chrono
 
-#endif  // END of ChMatrix.h
+#endif

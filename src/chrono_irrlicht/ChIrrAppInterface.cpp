@@ -1,14 +1,14 @@
-//
+// =============================================================================
 // PROJECT CHRONO - http://projectchrono.org
 //
-// Copyright (c) 2010-2012 Alessandro Tasora
-// Copyright (c) 2013 Project Chrono
+// Copyright (c) 2014 projectchrono.org
 // All rights reserved.
 //
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE file at the top level of the distribution
-// and at http://projectchrono.org/license-chrono.txt.
+// Use of this source code is governed by a BSD-style license that can be found
+// in the LICENSE file at the top level of the distribution and at
+// http://projectchrono.org/license-chrono.txt.
 //
+// =============================================================================
 
 #include "chrono/collision/ChCModelBullet.h"
 #include "chrono/core/ChStream.h"
@@ -16,7 +16,7 @@
 #include "chrono/serialization/ChArchiveAsciiDump.h"
 #include "chrono/serialization/ChArchiveJSON.h"
 #include "chrono/core/ChFileutils.h"
-
+#include "chrono/utils/ChProfiler.h"
 #include "chrono_irrlicht/ChIrrAppInterface.h"
 #include "chrono_irrlicht/ChIrrCamera.h"
 
@@ -52,53 +52,54 @@ bool ChIrrAppEventReceiver::OnEvent(const irr::SEvent& event) {
     // Process keyboard events.
     if (event.EventType == irr::EET_KEY_INPUT_EVENT && !event.KeyInput.PressedDown) {
         switch (event.KeyInput.Key) {
-        case irr::KEY_KEY_I:
+            case irr::KEY_KEY_I:
                 app->SetShowInfos(!app->GetShowInfos());
                 return true;
-        case irr::KEY_SPACE:
+            case irr::KEY_KEY_O:
+                app->SetShowProfiler(!app->GetShowProfiler());
+                return true;
+            case irr::KEY_SPACE:
                 app->pause_step = !app->pause_step;
                 return true;
-        case irr::KEY_KEY_P:
+            case irr::KEY_KEY_P:
                 app->pause_step = true;
                 app->do_single_step = true;
                 return true;
-        case irr::KEY_F11:
+            case irr::KEY_F11:
                 GetLog() << "---Computing linear static solution---\n";
                 app->GetSystem()->DoStaticLinear();
                 return true;
-        case irr::KEY_F10:
+            case irr::KEY_F10:
                 GetLog() << "---Computing NONlinear static solution, 20 steps---\n";
                 app->GetSystem()->DoStaticNonlinear(20);
                 return true;
-        case irr::KEY_F8:
-            {
+            case irr::KEY_F8: {
                 GetLog() << "Saving system in JSON format to dump.json file \n";
                 ChStreamOutAsciiFile mfileo("dump.json");
                 ChArchiveOutJSON marchiveout(mfileo);
                 marchiveout.SetUseVersions(false);
-                marchiveout << CHNVP(app->GetSystem(),"System");
+                marchiveout << CHNVP(app->GetSystem(), "System");
 
                 GetLog() << "Saving system in ASCII format to dump.txt file \n";
                 ChStreamOutAsciiFile mfileo2("dump.txt");
                 ChArchiveAsciiDump marchiveout2(mfileo2);
                 marchiveout2.SetUseVersions(false);
-                marchiveout2 << CHNVP(app->GetSystem(),"System");
+                marchiveout2 << CHNVP(app->GetSystem(), "System");
             }
-        case irr::KEY_F6:
+            case irr::KEY_F6:
                 GetLog() << "Saving system vector and matrices to dump_xxyy.dat files.\n";
-                app->DumpMatrices();
+                app->DumpSystemMatrices();
                 return true;
-        case irr::KEY_F7:
-                if (!app->system->GetDumpMatrices()) {
+            case irr::KEY_F7:
+                if (!app->system->GetDumpSolverMatrices()) {
                     GetLog() << "Start saving system vector and matrices to dump_xxxx_yy.dat files...\n";
-                    app->system->SetDumpMatrices(true);
-                }
-                else {
+                    app->system->SetDumpSolverMatrices(true);
+                } else {
                     GetLog() << "Stop saving system vector and matrices to dump_xxxx_yy.dat files.\n";
-                    app->system->SetDumpMatrices(false);
+                    app->system->SetDumpSolverMatrices(false);
                 }
                 return true;
-        case irr::KEY_SNAPSHOT:
+            case irr::KEY_SNAPSHOT:
                 if (app->videoframe_save == false) {
                     app->videoframe_save = true;
                     GetLog() << "Start saving frames in /video_capture/snapshotnnnnn.bmp pictures...\n";
@@ -107,9 +108,26 @@ bool ChIrrAppEventReceiver::OnEvent(const irr::SEvent& event) {
                     GetLog() << "Stop saving frames in /video_capture directory.\n";
                 }
                 return true;
-        case irr::KEY_ESCAPE:
+            case irr::KEY_F4:
+                if (app->camera_auto_rotate_speed <= 0)
+                    app->camera_auto_rotate_speed = 0.02;
+                else
+                    app->camera_auto_rotate_speed *= 1.5;
+                return true;
+            case irr::KEY_F3:
+                app->camera_auto_rotate_speed = 0;
+                return true;
+            case irr::KEY_F2:
+                if (app->camera_auto_rotate_speed >= 0)
+                    app->camera_auto_rotate_speed = -0.02;
+                else
+                    app->camera_auto_rotate_speed *= 1.5;
+                return true;
+            case irr::KEY_ESCAPE:
                 app->GetDevice()->closeDevice();
                 return true;
+            default:
+                break;
         }
     }
 
@@ -118,7 +136,7 @@ bool ChIrrAppEventReceiver::OnEvent(const irr::SEvent& event) {
     // Process mouse events.
     if (event.EventType == irr::EET_MOUSE_INPUT_EVENT) {
         switch (event.MouseInput.Event) {
-        case irr::EMIE_MMOUSE_PRESSED_DOWN: {
+            case irr::EMIE_MMOUSE_PRESSED_DOWN: {
                 irr::core::line3d<irr::f32> mline =
                     app->GetSceneManager()->getSceneCollisionManager()->getRayFromScreenCoordinates(
                         app->GetDevice()->getCursorControl()->getPosition());
@@ -127,8 +145,7 @@ bool ChIrrAppEventReceiver::OnEvent(const irr::SEvent& event) {
                 collision::ChCollisionSystem::ChRayhitResult mresult;
                 app->GetSystem()->GetCollisionSystem()->RayHit(mfrom, mto, mresult);
                 if (mresult.hit) {
-                    if (ChBody* mbo =
-                            dynamic_cast<ChBody*>(mresult.hitModel->GetContactable())) {
+                    if (ChBody* mbo = dynamic_cast<ChBody*>(mresult.hitModel->GetContactable())) {
                         app->selectedmover = new std::shared_ptr<ChBody>(mbo);
                         app->selectedpoint = (*(app->selectedmover))->Point_World2Body(mresult.abs_hitPoint);
                         app->selecteddist = (mfrom - mresult.abs_hitPoint).Length();
@@ -144,7 +161,7 @@ bool ChIrrAppEventReceiver::OnEvent(const irr::SEvent& event) {
                 }
                 break;
             }
-        case irr::EMIE_MMOUSE_LEFT_UP:
+            case irr::EMIE_MMOUSE_LEFT_UP:
                 if (app->selectedtruss) {
                     app->GetSystem()->RemoveBody((*(app->selectedtruss)));
                     app->GetSystem()->RemoveLink((*(app->selectedspring)));
@@ -154,7 +171,7 @@ bool ChIrrAppEventReceiver::OnEvent(const irr::SEvent& event) {
                     app->selectedspring = 0;
                 }
                 break;
-        case irr::EMIE_MOUSE_MOVED:
+            case irr::EMIE_MOUSE_MOVED:
                 if (app->selectedtruss) {
                     irr::core::line3d<irr::f32> mline =
                         app->GetSceneManager()->getSceneCollisionManager()->getRayFromScreenCoordinates(
@@ -171,6 +188,8 @@ bool ChIrrAppEventReceiver::OnEvent(const irr::SEvent& event) {
                     (*(app->selectedspring))->Set_SpringR(3 * (*(app->selectedmover))->GetMass());
                 }
                 break;
+            default:
+                break;
         }
     }
 
@@ -182,19 +201,19 @@ bool ChIrrAppEventReceiver::OnEvent(const irr::SEvent& event) {
             case irr::gui::EGET_SCROLL_BAR_CHANGED:
                 switch (id) {
                     case 9904:
-                        app->GetSystem()->SetIterLCPmaxItersSpeed(
+                        app->GetSystem()->SetMaxItersSolverSpeed(
                             ((irr::gui::IGUIScrollBar*)event.GUIEvent.Caller)->getPos());
                         break;
                     case 9905:
-                        app->GetSystem()->SetIterLCPmaxItersStab(
+                        app->GetSystem()->SetMaxItersSolverStab(
                             ((irr::gui::IGUIScrollBar*)event.GUIEvent.Caller)->getPos());
                         break;
                     case 9909:
-                        app->GetSystem()->SetIterLCPomega((1.0 / 50.0) *
-                                                          ((irr::gui::IGUIScrollBar*)event.GUIEvent.Caller)->getPos());
+                        app->GetSystem()->SetSolverOverrelaxationParam(
+                            (1.0 / 50.0) * ((irr::gui::IGUIScrollBar*)event.GUIEvent.Caller)->getPos());
                         break;
                     case 9910:
-                        app->GetSystem()->SetIterLCPsharpnessLambda(
+                        app->GetSystem()->SetSolverSharpnessParam(
                             (1.0 / 50.0) * ((irr::gui::IGUIScrollBar*)event.GUIEvent.Caller)->getPos());
                         break;
                     case 9911:
@@ -202,8 +221,8 @@ bool ChIrrAppEventReceiver::OnEvent(const irr::SEvent& event) {
                             (3.0 / 50.0) * ((irr::gui::IGUIScrollBar*)event.GUIEvent.Caller)->getPos());
                         break;
                     case 9912:
-                        app->GetSystem()->SetMinBounceSpeed((1.0 / 200.0) *
-                                                            ((irr::gui::IGUIScrollBar*)event.GUIEvent.Caller)->getPos());
+                        app->GetSystem()->SetMinBounceSpeed(
+                            (1.0 / 200.0) * ((irr::gui::IGUIScrollBar*)event.GUIEvent.Caller)->getPos());
                         break;
                 }
                 break;
@@ -213,34 +232,35 @@ bool ChIrrAppEventReceiver::OnEvent(const irr::SEvent& event) {
                     int sel = ((irr::gui::IGUIComboBox*)event.GUIEvent.Caller)->getSelected();
                     switch (sel) {
                         case 0:
-                            app->GetSystem()->SetLcpSolverType(ChSystem::LCP_ITERATIVE_SOR);
+                            app->GetSystem()->SetSolverType(ChSolver::Type::SOR);
                             break;
                         case 1:
-                            app->GetSystem()->SetLcpSolverType(ChSystem::LCP_ITERATIVE_SYMMSOR);
+                            app->GetSystem()->SetSolverType(ChSolver::Type::SYMMSOR);
                             break;
                         case 2:
-                            app->GetSystem()->SetLcpSolverType(ChSystem::LCP_ITERATIVE_JACOBI);
+                            app->GetSystem()->SetSolverType(ChSolver::Type::JACOBI);
                             break;
                         case 3:
-                            app->GetSystem()->SetLcpSolverType(ChSystem::LCP_ITERATIVE_SOR_MULTITHREAD);
+                            app->GetSystem()->SetSolverType(ChSolver::Type::SOR_MULTITHREAD);
                             break;
                         case 4:
-                            app->GetSystem()->SetLcpSolverType(ChSystem::LCP_ITERATIVE_BARZILAIBORWEIN);
+                            app->GetSystem()->SetSolverType(ChSolver::Type::BARZILAIBORWEIN);
                             break;
                         case 5:
-                            app->GetSystem()->SetLcpSolverType(ChSystem::LCP_ITERATIVE_PCG);
+                            app->GetSystem()->SetSolverType(ChSolver::Type::PCG);
                             break;
                         case 6:
-                            app->GetSystem()->SetLcpSolverType(ChSystem::LCP_ITERATIVE_PMINRES);
+                            app->GetSystem()->SetSolverType(ChSolver::Type::PMINRES);
                             break;
                         case 7:
-                            app->GetSystem()->SetLcpSolverType(ChSystem::LCP_ITERATIVE_APGD);
+                            app->GetSystem()->SetSolverType(ChSolver::Type::APGD);
                             break;
                         case 8:
-                            app->GetSystem()->SetLcpSolverType(ChSystem::LCP_ITERATIVE_MINRES);
+                            app->GetSystem()->SetSolverType(ChSolver::Type::MINRES);
                             break;
                         case 9:
-                            GetLog() << "WARNING.\nYou cannot change to a custom solver using the GUI. Use C++ instead.\n";
+                            GetLog()
+                                << "WARNING.\nYou cannot change to a custom solver using the GUI. Use C++ instead.\n";
                             break;
                     }
                     break;
@@ -250,46 +270,41 @@ bool ChIrrAppEventReceiver::OnEvent(const irr::SEvent& event) {
                     int sel = ((irr::gui::IGUIComboBox*)event.GUIEvent.Caller)->getSelected();
                     switch (sel) {
                         case 0:
-                            app->GetSystem()->SetIntegrationType(ChSystem::INT_ANITESCU);
+                            app->GetSystem()->SetTimestepperType(ChTimestepper::Type::EULER_IMPLICIT);
                             break;
                         case 1:
-                            app->GetSystem()->SetIntegrationType(ChSystem::INT_TASORA);
+                            app->GetSystem()->SetTimestepperType(ChTimestepper::Type::EULER_IMPLICIT_LINEARIZED);
                             break;
                         case 2:
-                            app->GetSystem()->SetIntegrationType(ChSystem::INT_EULER_IMPLICIT);
+                            app->GetSystem()->SetTimestepperType(ChTimestepper::Type::EULER_IMPLICIT_PROJECTED);
                             break;
                         case 3:
-                            app->GetSystem()->SetIntegrationType(ChSystem::INT_EULER_IMPLICIT_LINEARIZED);
+                            app->GetSystem()->SetTimestepperType(ChTimestepper::Type::TRAPEZOIDAL);
                             break;
                         case 4:
-                            app->GetSystem()->SetIntegrationType(ChSystem::INT_EULER_IMPLICIT_PROJECTED);
+                            app->GetSystem()->SetTimestepperType(ChTimestepper::Type::TRAPEZOIDAL_LINEARIZED);
                             break;
                         case 5:
-                            app->GetSystem()->SetIntegrationType(ChSystem::INT_TRAPEZOIDAL);
+                            app->GetSystem()->SetTimestepperType(ChTimestepper::Type::HHT);
                             break;
                         case 6:
-                            app->GetSystem()->SetIntegrationType(ChSystem::INT_TRAPEZOIDAL_LINEARIZED);
+                            app->GetSystem()->SetTimestepperType(ChTimestepper::Type::HEUN);
                             break;
                         case 7:
-                            app->GetSystem()->SetIntegrationType(ChSystem::INT_HHT);
+                            app->GetSystem()->SetTimestepperType(ChTimestepper::Type::RUNGEKUTTA45);
                             break;
                         case 8:
-                            app->GetSystem()->SetIntegrationType(ChSystem::INT_HEUN);
+                            app->GetSystem()->SetTimestepperType(ChTimestepper::Type::EULER_EXPLICIT);
                             break;
                         case 9:
-                            app->GetSystem()->SetIntegrationType(ChSystem::INT_RUNGEKUTTA45);
+                            app->GetSystem()->SetTimestepperType(ChTimestepper::Type::LEAPFROG);
                             break;
                         case 10:
-                            app->GetSystem()->SetIntegrationType(ChSystem::INT_EULER_EXPLICIT);
+                            app->GetSystem()->SetTimestepperType(ChTimestepper::Type::NEWMARK);
                             break;
                         case 11:
-                            app->GetSystem()->SetIntegrationType(ChSystem::INT_LEAPFROG);
-                            break;
-                        case 12:
-                            app->GetSystem()->SetIntegrationType(ChSystem::INT_NEWMARK);
-                            break;
-                        case 13:
-                            GetLog() << "WARNING.\nYou cannot change to a custom timestepper using the GUI. Use C++ instead.\n";
+                            GetLog() << "WARNING.\nYou cannot change to a custom timestepper using the GUI. Use C++ "
+                                        "instead.\n";
                             break;
                     }
                     break;
@@ -298,7 +313,7 @@ bool ChIrrAppEventReceiver::OnEvent(const irr::SEvent& event) {
             case irr::gui::EGET_CHECKBOX_CHANGED:
                 switch (id) {
                     case 9906:
-                        app->GetSystem()->SetIterLCPwarmStarting(
+                        app->GetSystem()->SetSolverWarmStarting(
                             ((irr::gui::IGUICheckBox*)event.GUIEvent.Caller)->isChecked());
                         break;
                     case 9913:
@@ -323,10 +338,14 @@ bool ChIrrAppEventReceiver::OnEvent(const irr::SEvent& event) {
 
                 if (id == 9921) {
                     double scale = 0.01;
-                    scale = atof(irr::core::stringc(((irr::gui::IGUIEditBox*)event.GUIEvent.Caller)->getText()).c_str());
+                    scale =
+                        atof(irr::core::stringc(((irr::gui::IGUIEditBox*)event.GUIEvent.Caller)->getText()).c_str());
                     app->SetSymbolscale(scale);
                     break;
                 }
+
+            default:
+                break;
         }
     }
 
@@ -343,6 +362,7 @@ ChIrrAppInterface::ChIrrAppInterface(ChSystem* psystem,
                                      irr::core::dimension2d<irr::u32> dimens,
                                      bool do_fullscreen,
                                      bool do_shadows,
+                                     bool do_antialias,
                                      irr::video::E_DRIVER_TYPE mydriver)
     : step_manage(true),
       try_realtime(false),
@@ -353,22 +373,39 @@ ChIrrAppInterface::ChIrrAppInterface(ChSystem* psystem,
       videoframe_num(0),
       videoframe_each(1),
       symbolscale(1.0),
+      camera_auto_rotate_speed(0.0),
       selectedtruss(0),
       selectedspring(0),
       selectedmover(0) {
-    device = irr::createDevice(mydriver, dimens, 32, do_fullscreen, do_shadows);
+    irr::SIrrlichtCreationParameters params = irr::SIrrlichtCreationParameters();
+    params.AntiAlias = do_antialias;
+    params.Bits = 32;
+    params.Fullscreen = do_fullscreen;
+    params.DriverType = mydriver;
+    params.WindowSize = dimens;
+    params.Stencilbuffer = do_shadows;
+
+    device = irr::createDeviceEx(params);
 
     if (device == 0) {
         GetLog() << "Cannot use default video driver - fall back to OpenGL \n";
-        device = irr::createDevice(irr::video::EDT_OPENGL, dimens, 32, do_fullscreen, do_shadows);
+        params.DriverType = irr::video::EDT_OPENGL;
+
+        device = irr::createDeviceEx(params);
+
         if (!device)
             return;
     }
 
     // Xeffects for shadow maps!
-    effect = new EffectHandler(device, device->getVideoDriver()->getScreenSize(), true, false, true);
+    if (do_antialias)
+        effect = new EffectHandler(device, device->getVideoDriver()->getScreenSize() * 2, true, false, true);
+    else
+        effect = new EffectHandler(device, device->getVideoDriver()->getScreenSize(), true, false, true);
+    // note: Irrlicht antialiasing does not work with Xeffects, but we could fake AA in Xeffects
+    // by doubling the size of its buffer:  EffectHandler(device, device->getVideoDriver()->getScreenSize()*2
     effect->setAmbientColor(irr::video::SColor(255, 122, 122, 122));
-    use_effects = false;  // will be true as sson as a lightwith shadow is added.
+    use_effects = false;  // will be true as sson as a light with shadow is added.
 
     if (title)
         device->setWindowCaption(title);
@@ -383,16 +420,18 @@ ChIrrAppInterface::ChIrrAppInterface(ChSystem* psystem,
     skin->setColor(irr::gui::EGDC_HIGH_LIGHT, irr::video::SColor(255, 40, 70, 250));
     skin->setColor(irr::gui::EGDC_FOCUSED_EDITABLE, irr::video::SColor(255, 0, 255, 255));
     skin->setColor(irr::gui::EGDC_3D_HIGH_LIGHT, irr::video::SColor(200, 210, 210, 210));
-  
+
     gad_tabbed = GetIGUIEnvironment()->addTabControl(irr::core::rect<irr::s32>(2, 70, 220, 496), 0, true, true);
     gad_tab1 = gad_tabbed->addTab(L"Stats");
     gad_tab2 = gad_tabbed->addTab(L"System");
     gad_tab3 = gad_tabbed->addTab(L"Help");
 
     // create GUI gadgets
-    gad_textFPS = GetIGUIEnvironment()->addStaticText(L"FPS", irr::core::rect<irr::s32>(10, 10, 200, 230), true, true, gad_tab1);
+    gad_textFPS =
+        GetIGUIEnvironment()->addStaticText(L"FPS", irr::core::rect<irr::s32>(10, 10, 200, 230), true, true, gad_tab1);
 
-    gad_labelcontacts = GetIGUIEnvironment()->addComboBox(irr::core::rect<irr::s32>(10, 240, 200, 240 + 20), gad_tab1, 9901);
+    gad_labelcontacts =
+        GetIGUIEnvironment()->addComboBox(irr::core::rect<irr::s32>(10, 240, 200, 240 + 20), gad_tab1, 9901);
     gad_labelcontacts->addItem(L"Contact distances");
     gad_labelcontacts->addItem(L"Contact force modulus");
     gad_labelcontacts->addItem(L"Contact force (normal)");
@@ -403,7 +442,8 @@ ChIrrAppInterface::ChIrrAppInterface(ChSystem* psystem,
     gad_labelcontacts->addItem(L"Don't print contact values");
     gad_labelcontacts->setSelected(7);
 
-    gad_drawcontacts = GetIGUIEnvironment()->addComboBox(irr::core::rect<irr::s32>(10, 260, 200, 260 + 20), gad_tab1, 9901);
+    gad_drawcontacts =
+        GetIGUIEnvironment()->addComboBox(irr::core::rect<irr::s32>(10, 260, 200, 260 + 20), gad_tab1, 9901);
     gad_drawcontacts->addItem(L"Contact normals");
     gad_drawcontacts->addItem(L"Contact distances");
     gad_drawcontacts->addItem(L"Contact N forces");
@@ -411,7 +451,8 @@ ChIrrAppInterface::ChIrrAppInterface(ChSystem* psystem,
     gad_drawcontacts->addItem(L"Don't draw contacts");
     gad_drawcontacts->setSelected(4);
 
-    gad_labellinks = GetIGUIEnvironment()->addComboBox(irr::core::rect<irr::s32>(10, 280, 200, 280 + 20), gad_tab1, 9923);
+    gad_labellinks =
+        GetIGUIEnvironment()->addComboBox(irr::core::rect<irr::s32>(10, 280, 200, 280 + 20), gad_tab1, 9923);
     gad_labellinks->addItem(L"Link react.force modulus");
     gad_labellinks->addItem(L"Link react.force X");
     gad_labellinks->addItem(L"Link react.force Y");
@@ -423,20 +464,21 @@ ChIrrAppInterface::ChIrrAppInterface(ChSystem* psystem,
     gad_labellinks->addItem(L"Don't print link values");
     gad_labellinks->setSelected(8);
 
-    gad_drawlinks = GetIGUIEnvironment()->addComboBox(irr::core::rect<irr::s32>(10, 300, 200, 300 + 20), gad_tab1, 9924);
+    gad_drawlinks =
+        GetIGUIEnvironment()->addComboBox(irr::core::rect<irr::s32>(10, 300, 200, 300 + 20), gad_tab1, 9924);
     gad_drawlinks->addItem(L"Link reaction forces");
     gad_drawlinks->addItem(L"Link reaction torques");
     gad_drawlinks->addItem(L"Don't draw link vectors");
     gad_drawlinks->setSelected(2);
 
-    gad_plot_aabb =
-        GetIGUIEnvironment()->addCheckBox(false, irr::core::rect<irr::s32>(10, 330, 200, 330 + 15), gad_tab1, 9914, L"Draw AABB");
+    gad_plot_aabb = GetIGUIEnvironment()->addCheckBox(false, irr::core::rect<irr::s32>(10, 330, 200, 330 + 15),
+                                                      gad_tab1, 9914, L"Draw AABB");
 
-    gad_plot_cogs =
-        GetIGUIEnvironment()->addCheckBox(false, irr::core::rect<irr::s32>(10, 345, 200, 345 + 15), gad_tab1, 9915, L"Draw COGs");
+    gad_plot_cogs = GetIGUIEnvironment()->addCheckBox(false, irr::core::rect<irr::s32>(10, 345, 200, 345 + 15),
+                                                      gad_tab1, 9915, L"Draw COGs");
 
-    gad_plot_linkframes = GetIGUIEnvironment()->addCheckBox(false, irr::core::rect<irr::s32>(10, 360, 200, 360 + 15), gad_tab1,
-                                                            9920, L"Draw link frames");
+    gad_plot_linkframes = GetIGUIEnvironment()->addCheckBox(false, irr::core::rect<irr::s32>(10, 360, 200, 360 + 15),
+                                                            gad_tab1, 9920, L"Draw link frames");
 
     gad_symbolscale =
         GetIGUIEnvironment()->addEditBox(L"", irr::core::rect<irr::s32>(170, 330, 200, 330 + 15), true, gad_tab1, 9921);
@@ -444,30 +486,31 @@ ChIrrAppInterface::ChIrrAppInterface(ChSystem* psystem,
         L"Symbols scale", irr::core::rect<irr::s32>(110, 330, 170, 330 + 15), false, false, gad_tab1);
     SetSymbolscale(symbolscale);
 
-    gad_plot_convergence = GetIGUIEnvironment()->addCheckBox(false, irr::core::rect<irr::s32>(10, 375, 200, 375 + 15), gad_tab1,
-                                                             9902, L"Plot convergence");
+    gad_plot_convergence = GetIGUIEnvironment()->addCheckBox(false, irr::core::rect<irr::s32>(10, 375, 200, 375 + 15),
+                                                             gad_tab1, 9902, L"Plot convergence");
 
     // --
 
     gad_speed_iternumber =
         GetIGUIEnvironment()->addScrollBar(true, irr::core::rect<irr::s32>(10, 10, 150, 10 + 20), gad_tab2, 9904);
     gad_speed_iternumber->setMax(120);
-    gad_speed_iternumber_info =
-        GetIGUIEnvironment()->addStaticText(L"", irr::core::rect<irr::s32>(155, 10, 220, 10 + 20), false, false, gad_tab2);
+    gad_speed_iternumber_info = GetIGUIEnvironment()->addStaticText(
+        L"", irr::core::rect<irr::s32>(155, 10, 220, 10 + 20), false, false, gad_tab2);
 
     gad_pos_iternumber =
         GetIGUIEnvironment()->addScrollBar(true, irr::core::rect<irr::s32>(10, 40, 150, 40 + 20), gad_tab2, 9905);
     gad_pos_iternumber->setMax(120);
-    gad_pos_iternumber_info =
-        GetIGUIEnvironment()->addStaticText(L"", irr::core::rect<irr::s32>(155, 40, 220, 40 + 20), false, false, gad_tab2);
+    gad_pos_iternumber_info = GetIGUIEnvironment()->addStaticText(L"", irr::core::rect<irr::s32>(155, 40, 220, 40 + 20),
+                                                                  false, false, gad_tab2);
 
-    gad_warmstart = GetIGUIEnvironment()->addCheckBox(false, irr::core::rect<irr::s32>(10, 70, 200, 70 + 20), gad_tab2, 9906,
-                                                      L"Warm starting");
+    gad_warmstart = GetIGUIEnvironment()->addCheckBox(false, irr::core::rect<irr::s32>(10, 70, 200, 70 + 20), gad_tab2,
+                                                      9906, L"Warm starting");
 
-    gad_usesleep = GetIGUIEnvironment()->addCheckBox(false, irr::core::rect<irr::s32>(10, 100, 200, 100 + 20), gad_tab2, 9913,
-                                                     L"Enable sleeping");
+    gad_usesleep = GetIGUIEnvironment()->addCheckBox(false, irr::core::rect<irr::s32>(10, 100, 200, 100 + 20), gad_tab2,
+                                                     9913, L"Enable sleeping");
 
-    gad_ccpsolver = GetIGUIEnvironment()->addComboBox(irr::core::rect<irr::s32>(10, 130, 200, 130 + 20), gad_tab2, 9907);
+    gad_ccpsolver =
+        GetIGUIEnvironment()->addComboBox(irr::core::rect<irr::s32>(10, 130, 200, 130 + 20), gad_tab2, 9907);
     gad_ccpsolver->addItem(L"Projected SOR");
     gad_ccpsolver->addItem(L"Projected SSOR");
     gad_ccpsolver->addItem(L"Projected Jacobi");
@@ -481,8 +524,6 @@ ChIrrAppInterface::ChIrrAppInterface(ChSystem* psystem,
     gad_ccpsolver->setSelected(5);
 
     gad_stepper = GetIGUIEnvironment()->addComboBox(irr::core::rect<irr::s32>(10, 160, 200, 160 + 20), gad_tab2, 9908);
-    gad_stepper->addItem(L"Anitescu stepper");
-    gad_stepper->addItem(L"Tasora stepper");
     gad_stepper->addItem(L"Euler implicit");
     gad_stepper->addItem(L"Euler semimplicit (linearized)");
     gad_stepper->addItem(L"Euler semimplicit projected");
@@ -498,37 +539,42 @@ ChIrrAppInterface::ChIrrAppInterface(ChSystem* psystem,
 
     gad_stepper->setSelected(0);
 
-    gad_omega = GetIGUIEnvironment()->addScrollBar(true, irr::core::rect<irr::s32>(10, 190, 150, 190 + 20), gad_tab2, 9909);
+    gad_omega =
+        GetIGUIEnvironment()->addScrollBar(true, irr::core::rect<irr::s32>(10, 190, 150, 190 + 20), gad_tab2, 9909);
     gad_omega->setMax(100);
-    gad_omega_info =
-        GetIGUIEnvironment()->addStaticText(L"", irr::core::rect<irr::s32>(155, 190, 220, 190 + 20), false, false, gad_tab2);
+    gad_omega_info = GetIGUIEnvironment()->addStaticText(L"", irr::core::rect<irr::s32>(155, 190, 220, 190 + 20), false,
+                                                         false, gad_tab2);
 
-    gad_lambda = GetIGUIEnvironment()->addScrollBar(true, irr::core::rect<irr::s32>(10, 220, 150, 220 + 20), gad_tab2, 9910);
+    gad_lambda =
+        GetIGUIEnvironment()->addScrollBar(true, irr::core::rect<irr::s32>(10, 220, 150, 220 + 20), gad_tab2, 9910);
     gad_lambda->setMax(100);
-    gad_lambda_info =
-        GetIGUIEnvironment()->addStaticText(L"", irr::core::rect<irr::s32>(155, 220, 220, 220 + 20), false, false, gad_tab2);
+    gad_lambda_info = GetIGUIEnvironment()->addStaticText(L"", irr::core::rect<irr::s32>(155, 220, 220, 220 + 20),
+                                                          false, false, gad_tab2);
 
-    gad_clamping = GetIGUIEnvironment()->addScrollBar(true, irr::core::rect<irr::s32>(10, 250, 150, 250 + 20), gad_tab2, 9911);
+    gad_clamping =
+        GetIGUIEnvironment()->addScrollBar(true, irr::core::rect<irr::s32>(10, 250, 150, 250 + 20), gad_tab2, 9911);
     gad_clamping->setMax(100);
-    gad_clamping_info =
-        GetIGUIEnvironment()->addStaticText(L"", irr::core::rect<irr::s32>(155, 250, 220, 250 + 20), false, false, gad_tab2);
+    gad_clamping_info = GetIGUIEnvironment()->addStaticText(L"", irr::core::rect<irr::s32>(155, 250, 220, 250 + 20),
+                                                            false, false, gad_tab2);
 
-    gad_minbounce = GetIGUIEnvironment()->addScrollBar(true, irr::core::rect<irr::s32>(10, 280, 150, 280 + 20), gad_tab2, 9912);
+    gad_minbounce =
+        GetIGUIEnvironment()->addScrollBar(true, irr::core::rect<irr::s32>(10, 280, 150, 280 + 20), gad_tab2, 9912);
     gad_minbounce->setMax(100);
-    gad_minbounce_info =
-        GetIGUIEnvironment()->addStaticText(L"", irr::core::rect<irr::s32>(155, 280, 220, 280 + 20), false, false, gad_tab2);
+    gad_minbounce_info = GetIGUIEnvironment()->addStaticText(L"", irr::core::rect<irr::s32>(155, 280, 220, 280 + 20),
+                                                             false, false, gad_tab2);
 
     gad_timestep =
         GetIGUIEnvironment()->addEditBox(L"", irr::core::rect<irr::s32>(140, 320, 200, 320 + 15), true, gad_tab2, 9918);
-    gad_timestep_info = GetIGUIEnvironment()->addStaticText(L"Time step", irr::core::rect<irr::s32>(10, 320, 130, 320 + 15),
-                                                            false, false, gad_tab2);
+    gad_timestep_info = GetIGUIEnvironment()->addStaticText(
+        L"Time step", irr::core::rect<irr::s32>(10, 320, 130, 320 + 15), false, false, gad_tab2);
 
-    gad_try_realtime = GetIGUIEnvironment()->addCheckBox(false, irr::core::rect<irr::s32>(10, 340, 200, 340 + 15), gad_tab2, 9916,
-                                                         L"Realtime step");
-    gad_pause_step = GetIGUIEnvironment()->addCheckBox(false, irr::core::rect<irr::s32>(10, 355, 200, 355 + 15), gad_tab2, 9917,
-                                                       L"Pause physics");
+    gad_try_realtime = GetIGUIEnvironment()->addCheckBox(false, irr::core::rect<irr::s32>(10, 340, 200, 340 + 15),
+                                                         gad_tab2, 9916, L"Realtime step");
+    gad_pause_step = GetIGUIEnvironment()->addCheckBox(false, irr::core::rect<irr::s32>(10, 355, 200, 355 + 15),
+                                                       gad_tab2, 9917, L"Pause physics");
 
-    gad_textHelp = GetIGUIEnvironment()->addStaticText(L"FPS", irr::core::rect<irr::s32>(10, 10, 200, 350), true, true, gad_tab3);
+    gad_textHelp =
+        GetIGUIEnvironment()->addStaticText(L"FPS", irr::core::rect<irr::s32>(10, 10, 200, 380), true, true, gad_tab3);
     irr::core::stringw hstr = "Instructions for interface.\n\n";
     hstr += "MOUSE \n\n";
     hstr += " left button: camera rotation \n";
@@ -537,6 +583,7 @@ ChIrrAppInterface::ChIrrAppInterface(ChSystem* psystem,
     hstr += " wheel button: drag collision shapes\n";
     hstr += "\nKEYBOARD\n\n";
     hstr += " 'i' key: show/hide settings\n";
+    hstr += " 'o' key: show/hide profiler\n";
     hstr += " arrows keys: camera X/Z translate\n";
     hstr += " Pg Up/Dw keys: camera Y translate\n";
     hstr += " 'spacebar' key: stop/start simul.\n";
@@ -547,6 +594,7 @@ ChIrrAppInterface::ChIrrAppInterface(ChSystem* psystem,
     hstr += " 'F8' key: dump a .json file.\n";
     hstr += " 'F10' key: non-linear statics.\n";
     hstr += " 'F11' key: linear statics.\n";
+    hstr += " 'F2-F3-F4' key: auto rotate camera.\n";
     gad_textHelp->setText(hstr.c_str());
 
     ///
@@ -554,6 +602,7 @@ ChIrrAppInterface::ChIrrAppInterface(ChSystem* psystem,
     system = psystem;
 
     show_infos = false;
+    show_profiler = false;
 
     // the container, a level that contains all chrono nodes
     container = device->getSceneManager()->addEmptySceneNode();
@@ -596,16 +645,38 @@ void ChIrrAppInterface::SetFonts(const std::string& mfontdir) {
 
 // Clean canvas at beginning of scene.
 void ChIrrAppInterface::BeginScene(bool backBuffer, bool zBuffer, irr::video::SColor color) {
+    
+    utils::ChProfileManager::Reset();
+    utils::ChProfileManager::Start_Profile("Irrlicht loop");
+    utils::ChProfileManager::Increment_Frame_Counter();
+
     GetVideoDriver()->beginScene(backBuffer, zBuffer, color);
+
+    if (camera_auto_rotate_speed) {
+        irr::core::vector3df pos = GetSceneManager()->getActiveCamera()->getPosition();
+        irr::core::vector3df target = GetSceneManager()->getActiveCamera()->getTarget();
+        pos.rotateXZBy(camera_auto_rotate_speed, target);
+        GetSceneManager()->getActiveCamera()->setPosition(pos);
+        GetSceneManager()->getActiveCamera()->setTarget(target);
+    }
 }
 
 // Call this to end the scene draw at the end of each animation frame.
 void ChIrrAppInterface::EndScene() {
+
+    utils::ChProfileManager::Stop_Profile();
+    
+    if(show_profiler)
+        ChIrrTools::drawProfiler(this->GetDevice());
+
     GetVideoDriver()->endScene();
+
 }
 
 // Advance physics by one time step.
 void ChIrrAppInterface::DoStep() {
+    CH_PROFILE("DoStep");
+
     if (!step_manage)
         return;
 
@@ -617,7 +688,7 @@ void ChIrrAppInterface::DoStep() {
     }
 
     if (videoframe_save) {
-        if (videoframe_num % videoframe_each == 0) {          
+        if (videoframe_num % videoframe_each == 0) {
             ChFileutils::MakeDirectory("video_capture");
             irr::video::IImage* image = GetVideoDriver()->createScreenShot();
             char filename[100];
@@ -635,25 +706,31 @@ void ChIrrAppInterface::DoStep() {
     else
         dt = timestep;
 
-    system->DoStepDynamics(dt);
+    try {
+        system->DoStepDynamics(dt);
+    } catch (ChException my_exception) {
+        GetLog() << my_exception.what() << "\n";
+    }
 }
 
 // Redraw all 3D shapes and GUI elements
 void ChIrrAppInterface::DrawAll() {
+    CH_PROFILE("DrawAll");
+
     irr::core::stringw str = "World time   =";
     str += (int)(1000 * system->GetChTime());
     str += " ms  \n\nCPU step (total)      =";
     str += (int)(1000 * system->GetTimerStep());
     str += " ms \n  CPU Collision time =";
     str += (int)(1000 * system->GetTimerCollisionBroad());
-    str += " ms \n  CPU LCP time         =";
-    str += (int)(1000 * system->GetTimerLcp());
+    str += " ms \n  CPU Solver time         =";
+    str += (int)(1000 * system->GetTimerSolver());
     str += " ms \n  CPU Update time      =";
     str += (int)(1000 * system->GetTimerUpdate());
-    str += " ms \n\nLCP vel.iters : ";
-    str += system->GetIterLCPmaxItersSpeed();
-    str += "\nLCP pos.iters : ";
-    str += system->GetIterLCPmaxItersStab();
+    str += " ms \n\nSolver vel.iters : ";
+    str += system->GetMaxItersSolverSpeed();
+    str += "\nSolver pos.iters : ";
+    str += system->GetMaxItersSolverStab();
     str += "\n\nN.of active bodies  : ";
     str += system->GetNbodies();
     str += "\nN.of sleeping bodies  : ";
@@ -700,25 +777,25 @@ void ChIrrAppInterface::DrawAll() {
     gad_tabbed->setVisible(show_infos);
 
     if (gad_speed_iternumber_info->isVisible()) {
-        gad_warmstart->setChecked(GetSystem()->GetIterLCPwarmStarting());
+        gad_warmstart->setChecked(GetSystem()->GetSolverWarmStarting());
         gad_usesleep->setChecked(GetSystem()->GetUseSleeping());
 
         char message[50];
 
-        gad_speed_iternumber->setPos(GetSystem()->GetIterLCPmaxItersSpeed());
-        sprintf(message, "%i vel.iters", GetSystem()->GetIterLCPmaxItersSpeed());
+        gad_speed_iternumber->setPos(GetSystem()->GetMaxItersSolverSpeed());
+        sprintf(message, "%i vel.iters", GetSystem()->GetMaxItersSolverSpeed());
         gad_speed_iternumber_info->setText(irr::core::stringw(message).c_str());
 
-        gad_pos_iternumber->setPos(GetSystem()->GetIterLCPmaxItersStab());
-        sprintf(message, "%i pos.iters", GetSystem()->GetIterLCPmaxItersStab());
+        gad_pos_iternumber->setPos(GetSystem()->GetMaxItersSolverStab());
+        sprintf(message, "%i pos.iters", GetSystem()->GetMaxItersSolverStab());
         gad_pos_iternumber_info->setText(irr::core::stringw(message).c_str());
 
-        gad_omega->setPos((irr::s32)(50.0 * (GetSystem()->GetIterLCPomega())));
-        sprintf(message, "%g omega", GetSystem()->GetIterLCPomega());
+        gad_omega->setPos((irr::s32)(50.0 * (GetSystem()->GetSolverOverrelaxationParam())));
+        sprintf(message, "%g omega", GetSystem()->GetSolverOverrelaxationParam());
         gad_omega_info->setText(irr::core::stringw(message).c_str());
 
-        gad_lambda->setPos((irr::s32)(50.0 * (GetSystem()->GetIterLCPsharpnessLambda())));
-        sprintf(message, "%g lambda", GetSystem()->GetIterLCPsharpnessLambda());
+        gad_lambda->setPos((irr::s32)(50.0 * (GetSystem()->GetSolverSharpnessParam())));
+        sprintf(message, "%g lambda", GetSystem()->GetSolverSharpnessParam());
         gad_lambda_info->setText(irr::core::stringw(message).c_str());
 
         gad_clamping->setPos((irr::s32)((50.0 / 3.0) * (GetSystem()->GetMaxPenetrationRecoverySpeed())));
@@ -729,32 +806,32 @@ void ChIrrAppInterface::DrawAll() {
         sprintf(message, "%g min.bounce v", GetSystem()->GetMinBounceSpeed());
         gad_minbounce_info->setText(irr::core::stringw(message).c_str());
 
-        switch (GetSystem()->GetLcpSolverType()) {
-            case ChSystem::LCP_ITERATIVE_SOR:
+        switch (GetSystem()->GetSolverType()) {
+            case ChSolver::Type::SOR:
                 gad_ccpsolver->setSelected(0);
                 break;
-            case ChSystem::LCP_ITERATIVE_SYMMSOR:
+            case ChSolver::Type::SYMMSOR:
                 gad_ccpsolver->setSelected(1);
                 break;
-            case ChSystem::LCP_ITERATIVE_JACOBI:
+            case ChSolver::Type::JACOBI:
                 gad_ccpsolver->setSelected(2);
                 break;
-            case ChSystem::LCP_ITERATIVE_SOR_MULTITHREAD:
+            case ChSolver::Type::SOR_MULTITHREAD:
                 gad_ccpsolver->setSelected(3);
                 break;
-            case ChSystem::LCP_ITERATIVE_BARZILAIBORWEIN:
+            case ChSolver::Type::BARZILAIBORWEIN:
                 gad_ccpsolver->setSelected(4);
                 break;
-            case ChSystem::LCP_ITERATIVE_PCG:
+            case ChSolver::Type::PCG:
                 gad_ccpsolver->setSelected(5);
                 break;
-            case ChSystem::LCP_ITERATIVE_PMINRES:
+            case ChSolver::Type::PMINRES:
                 gad_ccpsolver->setSelected(6);
                 break;
-            case ChSystem::LCP_ITERATIVE_APGD:
+            case ChSolver::Type::APGD:
                 gad_ccpsolver->setSelected(7);
                 break;
-            case ChSystem::LCP_ITERATIVE_MINRES:
+            case ChSolver::Type::MINRES:
                 gad_ccpsolver->setSelected(8);
                 break;
             default:
@@ -762,48 +839,42 @@ void ChIrrAppInterface::DrawAll() {
                 break;
         }
 
-        switch (GetSystem()->GetIntegrationType()) {
-            case ChSystem::INT_ANITESCU:
+        switch (GetSystem()->GetTimestepperType()) {
+            case ChTimestepper::Type::EULER_IMPLICIT:
                 gad_stepper->setSelected(0);
                 break;
-            case ChSystem::INT_TASORA:
+            case ChTimestepper::Type::EULER_IMPLICIT_LINEARIZED:
                 gad_stepper->setSelected(1);
                 break;
-            case ChSystem::INT_EULER_IMPLICIT:
+            case ChTimestepper::Type::EULER_IMPLICIT_PROJECTED:
                 gad_stepper->setSelected(2);
                 break;
-            case ChSystem::INT_EULER_IMPLICIT_LINEARIZED:
+            case ChTimestepper::Type::TRAPEZOIDAL:
                 gad_stepper->setSelected(3);
                 break;
-            case ChSystem::INT_EULER_IMPLICIT_PROJECTED:
+            case ChTimestepper::Type::TRAPEZOIDAL_LINEARIZED:
                 gad_stepper->setSelected(4);
                 break;
-            case ChSystem::INT_TRAPEZOIDAL:
+            case ChTimestepper::Type::HHT:
                 gad_stepper->setSelected(5);
                 break;
-            case ChSystem::INT_TRAPEZOIDAL_LINEARIZED:
+            case ChTimestepper::Type::HEUN:
                 gad_stepper->setSelected(6);
                 break;
-            case ChSystem::INT_HHT:
+            case ChTimestepper::Type::RUNGEKUTTA45:
                 gad_stepper->setSelected(7);
                 break;
-            case ChSystem::INT_HEUN:
+            case ChTimestepper::Type::EULER_EXPLICIT:
                 gad_stepper->setSelected(8);
                 break;
-            case ChSystem::INT_RUNGEKUTTA45:
+            case ChTimestepper::Type::LEAPFROG:
                 gad_stepper->setSelected(9);
                 break;
-            case ChSystem::INT_EULER_EXPLICIT:
+            case ChTimestepper::Type::NEWMARK:
                 gad_stepper->setSelected(10);
                 break;
-            case ChSystem::INT_LEAPFROG:
-                gad_stepper->setSelected(11);
-                break;
-            case ChSystem::INT_NEWMARK:
-                gad_stepper->setSelected(12);
-                break;
             default:
-                gad_stepper->setSelected(13);
+                gad_stepper->setSelected(11);
                 break;
         }
 
@@ -821,33 +892,25 @@ void ChIrrAppInterface::DrawAll() {
         gad_timestep->setEnabled(GetStepManage());
     }
 
+    
+
     // if(show_infos)
     GetIGUIEnvironment()->drawAll();
 }
 
 // Dump the last used system matrices and vectors in the current directory,
-void ChIrrAppInterface::DumpMatrices() {
+void ChIrrAppInterface::DumpSystemMatrices() {
     // For safety
     GetSystem()->Setup();
     GetSystem()->Update();
 
-    // Save the current speeds, maybe these are needed.
     try {
-        ChMatrixDynamic<double> mvold;
-        GetSystem()->GetLcpSystemDescriptor()->FromVariablesToVector(mvold);
-        ChStreamOutAsciiFile file_vold("dump_v_old.dat");
-        mvold.StreamOUTdenseMatlabFormat(file_vold);
+        // Save M mass matrix, K stiffness matrix, R damping matrix, Cq jacobians:
+        GetSystem()->DumpSystemMatrices(true, true, true, true, "dump_");
+
     } catch (ChException myexc) {
         GetLog() << myexc.what();
     }
-
-    // This DoStep() is necessary because we want to get the matrices as they
-    // are set-up for the time stepping LCP/CCP problem.
-    // (If we avoid this, the previous 'mvold' vector won't be in-sync.)
-    DoStep();
-
-    // Now save the matrices - as they were setup by the previous time stepping scheme.
-    GetSystem()->GetLcpSystemDescriptor()->DumpLastMatrices("dump_");
 }
 
 }  // end namespace irrlicht

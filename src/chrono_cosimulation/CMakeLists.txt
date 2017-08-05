@@ -60,6 +60,7 @@ ELSEIF(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
 	SET (CH_SOCKET_LIB "")		  # not needed?
 ENDIF()
 			
+SET(CH_SOCKET_LIB ${CH_SOCKET_LIB} PARENT_SCOPE)
 
 #-----------------------------------------------------------------------------	
 # In most cases, you do not need to edit the lines below.
@@ -83,8 +84,8 @@ ADD_DEPENDENCIES (ChronoEngine_cosimulation ChronoEngine)
 	
 INSTALL(TARGETS ChronoEngine_cosimulation
         RUNTIME DESTINATION bin
-        LIBRARY DESTINATION lib
-        ARCHIVE DESTINATION lib)		
+        LIBRARY DESTINATION lib64
+        ARCHIVE DESTINATION lib64)		
 
 INSTALL(FILES ${ChronoEngine_COSIMULATION_HEADERS}
         DESTINATION include/chrono_cosimulation)

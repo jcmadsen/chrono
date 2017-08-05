@@ -2,7 +2,7 @@
 // PROJECT CHRONO - http://projectchrono.org
 //
 // Copyright (c) 2014 projectchrono.org
-// All right reserved.
+// All rights reserved.
 //
 // Use of this source code is governed by a BSD-style license that can be found
 // in the LICENSE file at the top level of the distribution and at
@@ -16,6 +16,7 @@
 // implements the basic functionality to control the error between the location
 // of a sentinel point (a point at a look-ahead distance in front of the vehicle)
 // and the current target point.
+//
 // Derived classes differ in how they specify the target point.  This can be the
 // closest point to the sentinel point on a pre-defined curve path (currently
 // using a ChBezierCurve) or from some other external sources (e.g. interfacing
@@ -32,8 +33,8 @@
 
 #include "chrono_vehicle/utils/ChSteeringController.h"
 
-#include "thirdparty/rapidjson/document.h"
-#include "thirdparty/rapidjson/filereadstream.h"
+#include "chrono_thirdparty/rapidjson/document.h"
+#include "chrono_thirdparty/rapidjson/filereadstream.h"
 
 using namespace rapidjson;
 
@@ -59,7 +60,7 @@ ChSteeringController::ChSteeringController(const std::string& filename)
     fclose(fp);
 
     Document d;
-    d.ParseStream(is);
+    d.ParseStream<ParseFlag::kParseCommentsFlag>(is);
 
     m_Kp = d["Gains"]["Kp"].GetDouble();
     m_Ki = d["Gains"]["Ki"].GetDouble();
@@ -76,7 +77,7 @@ ChSteeringController::~ChSteeringController() {
 
 void ChSteeringController::Reset(const ChVehicle& vehicle) {
     // Base class only calculates an updated sentinel location.
-    m_sentinel = vehicle.GetChassis()->GetFrame_REF_to_abs().TransformPointLocalToParent(ChVector<>(m_dist, 0, 0));
+    m_sentinel = vehicle.GetChassisBody()->GetFrame_REF_to_abs().TransformPointLocalToParent(ChVector<>(m_dist, 0, 0));
     m_err = 0;
     m_erri = 0;
     m_errd = 0;
@@ -85,7 +86,7 @@ void ChSteeringController::Reset(const ChVehicle& vehicle) {
 double ChSteeringController::Advance(const ChVehicle& vehicle, double step) {
     // Calculate current "sentinel" location.  This is a point at the look-ahead
     // distance in front of the vehicle.
-    m_sentinel = vehicle.GetChassis()->GetFrame_REF_to_abs().TransformPointLocalToParent(ChVector<>(m_dist, 0, 0));
+    m_sentinel = vehicle.GetChassisBody()->GetFrame_REF_to_abs().TransformPointLocalToParent(ChVector<>(m_dist, 0, 0));
 
     // Calculate current "target" location.
     CalcTargetLocation();
@@ -98,14 +99,14 @@ double ChSteeringController::Advance(const ChVehicle& vehicle, double step) {
     // The "error" vector is the projection onto the horizontal plane (z=0) of
     // the vector between sentinel and target.
     ChVector<> err_vec = m_target - m_sentinel;
-    err_vec.z = 0;
+    err_vec.z() = 0;
 
     // Calculate the sign of the angle between the projections of the sentinel
     // vector and the target vector (with origin at vehicle location).
-    ChVector<> sentinel_vec = m_sentinel - vehicle.GetChassisPos();
-    sentinel_vec.z = 0;
-    ChVector<> target_vec = m_target - vehicle.GetChassisPos();
-    target_vec.z = 0;
+    ChVector<> sentinel_vec = m_sentinel - vehicle.GetVehiclePos();
+    sentinel_vec.z() = 0;
+    ChVector<> target_vec = m_target - vehicle.GetVehiclePos();
+    target_vec.z() = 0;
 
     double temp = Vdot(Vcross(sentinel_vec, target_vec), ChVector<>(0, 0, 1));
 
@@ -153,19 +154,18 @@ void ChSteeringController::WriteOutputFile(const std::string& filename) {
 // -----------------------------------------------------------------------------
 // Implementation of the derived class ChPathSteeringController.
 // -----------------------------------------------------------------------------
-ChPathSteeringController::ChPathSteeringController(ChBezierCurve* path) : m_path(path) {
+ChPathSteeringController::ChPathSteeringController(std::shared_ptr<ChBezierCurve> path, bool isClosedPath)
+    : m_path(path) {
     // Create a tracker object associated with the given path.
-    m_tracker = new ChBezierCurveTracker(path);
+    m_tracker = std::unique_ptr<ChBezierCurveTracker>(new ChBezierCurveTracker(path, isClosedPath));
 }
 
-ChPathSteeringController::ChPathSteeringController(const std::string& filename, ChBezierCurve* path)
+ChPathSteeringController::ChPathSteeringController(const std::string& filename,
+                                                   std::shared_ptr<ChBezierCurve> path,
+                                                   bool isClosedPath)
     : ChSteeringController(filename), m_path(path) {
     // Create a tracker object associated with the given path.
-    m_tracker = new ChBezierCurveTracker(path);
-}
-
-ChPathSteeringController::~ChPathSteeringController() {
-    delete m_tracker;
+    m_tracker = std::unique_ptr<ChBezierCurveTracker>(new ChBezierCurveTracker(path, isClosedPath));
 }
 
 void ChPathSteeringController::CalcTargetLocation() {

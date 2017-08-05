@@ -2,7 +2,7 @@
 // PROJECT CHRONO - http://projectchrono.org
 //
 // Copyright (c) 2014 projectchrono.org
-// All right reserved.
+// All rights reserved.
 //
 // Use of this source code is governed by a BSD-style license that can be found
 // in the LICENSE file at the top level of the distribution and at
@@ -21,7 +21,7 @@
 
 #include "chrono/core/ChCoordsys.h"
 #include "chrono/physics/ChSystem.h"
-#include "chrono/physics/ChMaterialSurfaceBase.h"
+#include "chrono/physics/ChMaterialSurface.h"
 
 #include "chrono_vehicle/wheeled_vehicle/ChWheeledVehicle.h"
 
@@ -31,11 +31,11 @@ namespace vehicle {
 /// @addtogroup vehicle_wheeled
 /// @{
 
-/// Wheeled vehicle model constructed from a JSON specification file
+/// Wheeled vehicle model constructed from a JSON specification file.
 class CH_VEHICLE_API WheeledVehicle : public ChWheeledVehicle {
   public:
     WheeledVehicle(const std::string& filename,
-                   ChMaterialSurfaceBase::ContactMethod contact_method = ChMaterialSurfaceBase::DVI);
+                   ChMaterialSurface::ContactMethod contact_method = ChMaterialSurface::NSC);
 
     WheeledVehicle(ChSystem* system, const std::string& filename);
 
@@ -43,17 +43,12 @@ class CH_VEHICLE_API WheeledVehicle : public ChWheeledVehicle {
 
     virtual int GetNumberAxles() const override { return m_num_axles; }
 
-    virtual ChCoordsys<> GetLocalDriverCoordsys() const override { return m_driverCsys; }
-
-    virtual void Initialize(const ChCoordsys<>& chassisPos) override;
-
-    bool UseVisualizationMesh() const { return m_chassisUseMesh; }
-    const std::string& GetMeshFilename() const { return m_chassisMeshFile; }
-    const std::string& GetMeshName() const { return m_chassisMeshName; }
+    virtual void Initialize(const ChCoordsys<>& chassisPos, double chassisFwdVel = 0) override;
 
   private:
     void Create(const std::string& filename);
 
+    void LoadChassis(const std::string& filename);
     void LoadSteering(const std::string& filename, int which);
     void LoadDriveline(const std::string& filename);
     void LoadSuspension(const std::string& filename, int axle);
@@ -74,16 +69,6 @@ class CH_VEHICLE_API WheeledVehicle : public ChWheeledVehicle {
     std::vector<ChQuaternion<> > m_strRotations;  // orientations of the steering subsystems relative to chassis
 
     std::vector<int> m_driven_susp;  // indexes of the driven suspensions
-
-    bool m_chassisUseMesh;          // true if using a mesh for chassis visualization
-    std::string m_chassisMeshName;  // name of the chassis visualization mesh
-    std::string m_chassisMeshFile;  // name of the Waveform file with the chassis mesh
-
-    double m_chassisMass;         // chassis mass
-    ChVector<> m_chassisCOM;      // location of the chassis COM in the chassis reference frame
-    ChVector<> m_chassisInertia;  // moments of inertia of the chassis
-
-    ChCoordsys<> m_driverCsys;  // driver position and orientation relative to chassis
 };
 
 /// @} vehicle_wheeled

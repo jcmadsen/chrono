@@ -2,7 +2,7 @@
 // PROJECT CHRONO - http://projectchrono.org
 //
 // Copyright (c) 2014 projectchrono.org
-// All right reserved.
+// All rights reserved.
 //
 // Use of this source code is governed by a BSD-style license that can be found
 // in the LICENSE file at the top level of the distribution and at
@@ -23,14 +23,8 @@
 #include "chrono/physics/ChShaft.h"
 
 #include "chrono_vehicle/ChApiVehicle.h"
+#include "chrono_vehicle/ChPart.h"
 #include "chrono_vehicle/wheeled_vehicle/ChSuspension.h"
-
-/**
-    @addtogroup vehicle_wheeled
-    @{
-        @defgroup vehicle_wheeled_driveline Driveline subsystem
-    @}
-*/
 
 namespace chrono {
 namespace vehicle {
@@ -39,9 +33,11 @@ namespace vehicle {
 /// @{
 
 /// Base class for a driveline subsystem.
-class CH_VEHICLE_API ChDriveline {
+class CH_VEHICLE_API ChDriveline : public ChPart {
   public:
-    ChDriveline();
+    ChDriveline(const std::string& name  ///< [in] name of the subsystem
+                );
+
     virtual ~ChDriveline() {}
 
     /// Return the number of driven axles.
@@ -70,7 +66,7 @@ class CH_VEHICLE_API ChDriveline {
     /// This represents the input to the driveline subsystem from the powertrain
     /// system. The default implementation applies this torque to the driveline's
     /// driveshaft.
-    virtual void Update(double torque) { m_driveshaft->SetAppliedTorque(torque); }
+    virtual void Synchronize(double torque) { m_driveshaft->SetAppliedTorque(torque); }
 
     /// Get the indexes of the vehicle's axles driven by this driveline subsystem.
     const std::vector<int>& GetDrivenAxleIndexes() const { return m_driven_axles; }

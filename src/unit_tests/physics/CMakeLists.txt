@@ -2,8 +2,11 @@ SET(LIBRARIES ChronoEngine)
 INCLUDE_DIRECTORIES( ${CH_INCLUDES} )
 
 SET(TESTS
-    test_slider_pend
-    test_double_pend
+    utest_CH_slider_pend
+    utest_CH_double_pend
+    utest_CH_compute_contact
+    utest_CH_assembly
+    utest_CH_composite_inertia
 )
 
 MESSAGE(STATUS "Unit test programs for PHYSICS module...")
@@ -23,6 +26,6 @@ FOREACH(PROGRAM ${TESTS})
     TARGET_LINK_LIBRARIES(${PROGRAM} ${LIBRARIES})
     ADD_DEPENDENCIES(${PROGRAM} ${LIBRARIES})
 
-    INSTALL(TARGETS ${PROGRAM} DESTINATION bin)
+    INSTALL(TARGETS ${PROGRAM} DESTINATION ${CH_INSTALL_DEMO})
     ADD_TEST(${PROGRAM} ${PROJECT_BINARY_DIR}/bin/${PROGRAM})
 ENDFOREACH(PROGRAM)

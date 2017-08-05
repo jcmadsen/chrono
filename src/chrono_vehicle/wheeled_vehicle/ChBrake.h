@@ -2,7 +2,7 @@
 // PROJECT CHRONO - http://projectchrono.org
 //
 // Copyright (c) 2014 projectchrono.org
-// All right reserved.
+// All rights reserved.
 //
 // Use of this source code is governed by a BSD-style license that can be found
 // in the LICENSE file at the top level of the distribution and at
@@ -24,13 +24,7 @@
 #include "chrono/physics/ChLinkLock.h"
 
 #include "chrono_vehicle/ChApiVehicle.h"
-
-/**
-    @addtogroup vehicle_wheeled
-    @{
-        @defgroup vehicle_wheeled_brake Brake subsystem
-    @}
-*/
+#include "chrono_vehicle/ChPart.h"
 
 namespace chrono {
 namespace vehicle {
@@ -39,9 +33,11 @@ namespace vehicle {
 /// @{
 
 /// Base class for a brake subsystem
-class CH_VEHICLE_API ChBrake {
+class CH_VEHICLE_API ChBrake : public ChPart {
   public:
-    ChBrake();
+    ChBrake(const std::string& name  ///< [in] name of the subsystem
+            );
+
     virtual ~ChBrake() {}
 
     /// Initialize the brake by providing the wheel's revolute link.
@@ -51,7 +47,7 @@ class CH_VEHICLE_API ChBrake {
     /// The input value is in the range [0,1].<br>
     ///   modulation = 0 indicates no braking<br>
     ///   modulation = 1 indicates that the subsystem should provide maximum braking torque
-    virtual void Update(double modulation) = 0;
+    virtual void Synchronize(double modulation) = 0;
 
     /// Get the current brake torque.
     virtual double GetBrakeTorque() = 0;

@@ -64,7 +64,7 @@ int main(int argc, char *argv[]) {
 
 		ChOgre::ChOgreBodyHandle hillsyo = app.getScene()->loadHeightMap("example3.png", chrono::ChVector<>(10, 20, 10));
 		hillsyo->SetPos(chrono::ChVector<>(0, 0, 0));
-		hillsyo->GetMaterialSurface()->SetFriction(0.9);
+        hillsyo->GetMaterialSurfaceNSC()->SetFriction(0.9);
 		//ChOgre::ChOgreBodyHandle Alpha = app.getScene()->spawnBox("Boox", 1, chrono::ChVector<>(0, 0, 0), chrono::ChVector<>(50, 0.5, 50), chrono::ChQuaternion<>(), true);
 
 		/*EnvironmentCore::ECBody& Theta = app.getScene()->spawnEllipsoid("Theta", 1.0, chrono::ChVector<>(0, 30, 0), chrono::ChVector<>(2, 5, 2));
@@ -149,9 +149,9 @@ int main(int argc, char *argv[]) {
 
 		unsigned int deleteSpheres = 0;
 
-		app.getChSystem()->SetIterLCPmaxItersSpeed(800);
+		app.getChSystem()->SetMaxItersSolverSpeed(800);
 		app.getChSystem()->SetMaxPenetrationRecoverySpeed(100000);
-		//app.getChSystem()->SetLcpSolverType(chrono::ChSystem::LCP_ITERATIVE_SYMMSOR);
+		//app.getChSystem()->SetSolverType(chrono::ChSystem::SOLVER_SYMMSOR);
 		app.getChSystem()->SetTol(0);
 
 

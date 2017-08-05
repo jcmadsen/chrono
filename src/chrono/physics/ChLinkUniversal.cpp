@@ -1,20 +1,23 @@
-//
+// =============================================================================
 // PROJECT CHRONO - http://projectchrono.org
 //
 // Copyright (c) 2014 projectchrono.org
 // All rights reserved.
 //
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE file at the top level of the distribution
-// and at http://projectchrono.org/license-chrono.txt.
+// Use of this source code is governed by a BSD-style license that can be found
+// in the LICENSE file at the top level of the distribution and at
+// http://projectchrono.org/license-chrono.txt.
 //
+// =============================================================================
+// Authors: Radu Serban
+// =============================================================================
 
-#include "physics/ChLinkUniversal.h"
+#include "chrono/physics/ChLinkUniversal.h"
 
 namespace chrono {
 
 // Register into the object factory.
-ChClassRegister<ChLinkUniversal> a_registration_ChLinkUniversal;
+CH_FACTORY_REGISTER(ChLinkUniversal)
 
 // -----------------------------------------------------------------------------
 // Constructor and destructor
@@ -22,15 +25,29 @@ ChClassRegister<ChLinkUniversal> a_registration_ChLinkUniversal;
 ChLinkUniversal::ChLinkUniversal() {
     m_C = new ChMatrixDynamic<>(4, 1);
 
-    m_cache_speed[0] = 0;
-    m_cache_speed[1] = 0;
-    m_cache_speed[2] = 0;
-    m_cache_speed[3] = 0;
+    m_multipliers[0] = 0;
+    m_multipliers[1] = 0;
+    m_multipliers[2] = 0;
+    m_multipliers[3] = 0;
+}
 
-    m_cache_pos[0] = 0;
-    m_cache_pos[1] = 0;
-    m_cache_pos[2] = 0;
-    m_cache_pos[3] = 0;
+ChLinkUniversal::ChLinkUniversal(const ChLinkUniversal& other) : ChLink(other) {
+    Body1 = other.Body1;
+    Body2 = other.Body2;
+    system = other.system;
+
+    m_frame1 = other.m_frame1;
+    m_frame2 = other.m_frame2;
+
+    m_cnstr_x.SetVariables(&other.Body1->Variables(), &other.Body2->Variables());
+    m_cnstr_y.SetVariables(&other.Body1->Variables(), &other.Body2->Variables());
+    m_cnstr_z.SetVariables(&other.Body1->Variables(), &other.Body2->Variables());
+    m_cnstr_dot.SetVariables(&other.Body1->Variables(), &other.Body2->Variables());
+
+    m_multipliers[0] = other.m_multipliers[0];
+    m_multipliers[1] = other.m_multipliers[1];
+    m_multipliers[2] = other.m_multipliers[2];
+    m_multipliers[3] = other.m_multipliers[3];
 }
 
 ChLinkUniversal::~ChLinkUniversal() {
@@ -38,46 +55,11 @@ ChLinkUniversal::~ChLinkUniversal() {
 }
 
 // -----------------------------------------------------------------------------
-// -----------------------------------------------------------------------------
-void ChLinkUniversal::Copy(ChLinkUniversal* source) {
-    ChLink::Copy(source);
-
-    Body1 = source->Body1;
-    Body2 = source->Body2;
-    system = source->system;
-
-    m_frame1 = source->m_frame1;
-    m_frame2 = source->m_frame2;
-
-    m_cnstr_x.SetVariables(&Body1->Variables(), &Body2->Variables());
-    m_cnstr_y.SetVariables(&Body1->Variables(), &Body2->Variables());
-    m_cnstr_z.SetVariables(&Body1->Variables(), &Body2->Variables());
-    m_cnstr_dot.SetVariables(&Body1->Variables(), &Body2->Variables());
-
-    m_cache_speed[0] = source->m_cache_speed[0];
-    m_cache_speed[1] = source->m_cache_speed[1];
-    m_cache_speed[2] = source->m_cache_speed[2];
-    m_cache_speed[3] = source->m_cache_speed[3];
-
-    m_cache_pos[0] = source->m_cache_pos[0];
-    m_cache_pos[1] = source->m_cache_pos[1];
-    m_cache_pos[2] = source->m_cache_pos[2];
-    m_cache_pos[3] = source->m_cache_pos[3];
-}
-
-ChLink* ChLinkUniversal::new_Duplicate() {
-    ChLinkUniversal* link = new ChLinkUniversal;
-    link->Copy(this);
-    return (link);
-}
-
-// -----------------------------------------------------------------------------
 // Link initialization functions
 // -----------------------------------------------------------------------------
-void ChLinkUniversal::Initialize(std::shared_ptr<ChBodyFrame> body1,  // first body frame
-                                 std::shared_ptr<ChBodyFrame> body2,  // second body frame
-                                 const ChFrame<>& frame)          // joint frame (in absolute frame)
-{
+void ChLinkUniversal::Initialize(std::shared_ptr<ChBodyFrame> body1,
+                                 std::shared_ptr<ChBodyFrame> body2,
+                                 const ChFrame<>& frame) {
     Body1 = body1.get();
     Body2 = body2.get();
 
@@ -98,12 +80,11 @@ void ChLinkUniversal::Initialize(std::shared_ptr<ChBodyFrame> body1,  // first b
     m_C->SetElement(3, 0, 0.0);
 }
 
-void ChLinkUniversal::Initialize(std::shared_ptr<ChBodyFrame> body1,  // first body frame
-                                 std::shared_ptr<ChBodyFrame> body2,  // second body frame
-                                 bool local,                      // true if data given in body local frames
-                                 const ChFrame<>& frame1,         // joint frame on body 1
-                                 const ChFrame<>& frame2)         // joint frame on body 2
-{
+void ChLinkUniversal::Initialize(std::shared_ptr<ChBodyFrame> body1,
+                                 std::shared_ptr<ChBodyFrame> body2,
+                                 bool local,
+                                 const ChFrame<>& frame1,
+                                 const ChFrame<>& frame2) {
     Body1 = body1.get();
     Body2 = body2.get();
 
@@ -130,9 +111,9 @@ void ChLinkUniversal::Initialize(std::shared_ptr<ChBodyFrame> body1,  // first b
     m_u1_tilde.Set_X_matrix(m_frame1.GetA().Get_A_Xaxis());
     m_v2_tilde.Set_X_matrix(m_frame2.GetA().Get_A_Yaxis());
 
-    m_C->SetElement(0, 0, frame2_abs.coord.pos.x - frame1_abs.coord.pos.x);
-    m_C->SetElement(1, 0, frame2_abs.coord.pos.y - frame1_abs.coord.pos.y);
-    m_C->SetElement(2, 0, frame2_abs.coord.pos.z - frame1_abs.coord.pos.z);
+    m_C->SetElement(0, 0, frame2_abs.coord.pos.x() - frame1_abs.coord.pos.x());
+    m_C->SetElement(1, 0, frame2_abs.coord.pos.y() - frame1_abs.coord.pos.y());
+    m_C->SetElement(2, 0, frame2_abs.coord.pos.z() - frame1_abs.coord.pos.z());
     m_C->SetElement(3, 0, Vdot(frame1_abs.GetA().Get_A_Xaxis(), frame2_abs.GetA().Get_A_Yaxis()));
 }
 
@@ -148,9 +129,9 @@ void ChLinkUniversal::Update(double time, bool update_assets) {
     ChFrame<> frame2_abs = m_frame2 >> *Body2;
 
     // Calculate violations of the spherical constraints
-    m_C->SetElement(0, 0, frame2_abs.coord.pos.x - frame1_abs.coord.pos.x);
-    m_C->SetElement(1, 0, frame2_abs.coord.pos.y - frame1_abs.coord.pos.y);
-    m_C->SetElement(2, 0, frame2_abs.coord.pos.z - frame1_abs.coord.pos.z);
+    m_C->SetElement(0, 0, frame2_abs.coord.pos.x() - frame1_abs.coord.pos.x());
+    m_C->SetElement(1, 0, frame2_abs.coord.pos.y() - frame1_abs.coord.pos.y());
+    m_C->SetElement(2, 0, frame2_abs.coord.pos.z() - frame1_abs.coord.pos.z());
 
     // Compute Jacobian of the spherical constraints
     //    pos2_abs - pos1_abs = 0
@@ -219,16 +200,16 @@ void ChLinkUniversal::Update(double time, bool update_assets) {
         m_cnstr_dot.Get_Cq_a()->ElementN(0) = 0;
         m_cnstr_dot.Get_Cq_a()->ElementN(1) = 0;
         m_cnstr_dot.Get_Cq_a()->ElementN(2) = 0;
-        m_cnstr_dot.Get_Cq_a()->ElementN(3) = -Phi_pi1.x;
-        m_cnstr_dot.Get_Cq_a()->ElementN(4) = -Phi_pi1.y;
-        m_cnstr_dot.Get_Cq_a()->ElementN(5) = -Phi_pi1.z;
+        m_cnstr_dot.Get_Cq_a()->ElementN(3) = -Phi_pi1.x();
+        m_cnstr_dot.Get_Cq_a()->ElementN(4) = -Phi_pi1.y();
+        m_cnstr_dot.Get_Cq_a()->ElementN(5) = -Phi_pi1.z();
 
         m_cnstr_dot.Get_Cq_b()->ElementN(0) = 0;
         m_cnstr_dot.Get_Cq_b()->ElementN(1) = 0;
         m_cnstr_dot.Get_Cq_b()->ElementN(2) = 0;
-        m_cnstr_dot.Get_Cq_b()->ElementN(3) = -Phi_pi2.x;
-        m_cnstr_dot.Get_Cq_b()->ElementN(4) = -Phi_pi2.y;
-        m_cnstr_dot.Get_Cq_b()->ElementN(5) = -Phi_pi2.z;
+        m_cnstr_dot.Get_Cq_b()->ElementN(3) = -Phi_pi2.x();
+        m_cnstr_dot.Get_Cq_b()->ElementN(4) = -Phi_pi2.y();
+        m_cnstr_dot.Get_Cq_b()->ElementN(5) = -Phi_pi2.z();
     }
 }
 
@@ -238,27 +219,27 @@ void ChLinkUniversal::IntStateGatherReactions(const unsigned int off_L, ChVector
     if (!this->IsActive())
         return;
 
-    L(off_L) = m_cache_speed[0];
-    L(off_L + 1) = m_cache_speed[1];
-    L(off_L + 2) = m_cache_speed[2];
-    L(off_L + 3) = m_cache_speed[3];
+    L(off_L + 0) = m_multipliers[0];
+    L(off_L + 1) = m_multipliers[1];
+    L(off_L + 2) = m_multipliers[2];
+    L(off_L + 3) = m_multipliers[3];
 }
 
 void ChLinkUniversal::IntStateScatterReactions(const unsigned int off_L, const ChVectorDynamic<>& L) {
     if (!this->IsActive())
         return;
 
-    m_cache_speed[0] = L(off_L);
-    m_cache_speed[1] = L(off_L + 1);
-    m_cache_speed[2] = L(off_L + 2);
-    m_cache_speed[3] = L(off_L + 3);
+    m_multipliers[0] = L(off_L + 0);
+    m_multipliers[1] = L(off_L + 1);
+    m_multipliers[2] = L(off_L + 2);
+    m_multipliers[3] = L(off_L + 3);
 
     // Also compute 'intuitive' reactions:
 
     // Extract the Lagrange multipliers for the 3 spherical constraints and for
     // the dot constraint.
-    ChVector<> lam_sph(m_cache_speed[0], m_cache_speed[1], m_cache_speed[2]);
-    double lam_dot = m_cache_speed[3];
+    ChVector<> lam_sph(m_multipliers[0], m_multipliers[1], m_multipliers[2]);
+    double lam_dot = m_multipliers[3];
 
     // Calculate the reaction force and torque acting on the 2nd body at the joint
     // location, expressed in the joint reference frame.  Taking into account the
@@ -321,12 +302,12 @@ void ChLinkUniversal::IntLoadConstraint_C(const unsigned int off_L,  ///< offset
     Qc(off_L + 3) += cnstr_dot_violation;
 }
 
-void ChLinkUniversal::IntToLCP(const unsigned int off_v,  ///< offset in v, R
-                               const ChStateDelta& v,
-                               const ChVectorDynamic<>& R,
-                               const unsigned int off_L,  ///< offset in L, Qc
-                               const ChVectorDynamic<>& L,
-                               const ChVectorDynamic<>& Qc) {
+void ChLinkUniversal::IntToDescriptor(const unsigned int off_v,
+                                      const ChStateDelta& v,
+                                      const ChVectorDynamic<>& R,
+                                      const unsigned int off_L,
+                                      const ChVectorDynamic<>& L,
+                                      const ChVectorDynamic<>& Qc) {
     if (!IsActive())
         return;
 
@@ -341,10 +322,10 @@ void ChLinkUniversal::IntToLCP(const unsigned int off_v,  ///< offset in v, R
     m_cnstr_dot.Set_b_i(Qc(off_L + 3));
 }
 
-void ChLinkUniversal::IntFromLCP(const unsigned int off_v,  ///< offset in v
-                                 ChStateDelta& v,
-                                 const unsigned int off_L,  ///< offset in L
-                                 ChVectorDynamic<>& L) {
+void ChLinkUniversal::IntFromDescriptor(const unsigned int off_v,
+                                        ChStateDelta& v,
+                                        const unsigned int off_L,
+                                        ChVectorDynamic<>& L) {
     if (!IsActive())
         return;
 
@@ -357,7 +338,7 @@ void ChLinkUniversal::IntFromLCP(const unsigned int off_v,  ///< offset in v
 // -----------------------------------------------------------------------------
 // Implementation of solver interface functions
 // -----------------------------------------------------------------------------
-void ChLinkUniversal::InjectConstraints(ChLcpSystemDescriptor& descriptor) {
+void ChLinkUniversal::InjectConstraints(ChSystemDescriptor& descriptor) {
     if (!IsActive())
         return;
 
@@ -432,46 +413,9 @@ void ChLinkUniversal::ConstraintsFetch_react(double factor) {
     react_torque = -m_frame2.GetA().MatrT_x_Vect(T2);
 }
 
-// -----------------------------------------------------------------------------
-// Load and store multipliers (caching to allow warm starting)
-// -----------------------------------------------------------------------------
-void ChLinkUniversal::ConstraintsLiLoadSuggestedSpeedSolution() {
-    // Set multipliers to those cached at previous step.
-    m_cnstr_x.Set_l_i(m_cache_speed[0]);
-    m_cnstr_y.Set_l_i(m_cache_speed[1]);
-    m_cnstr_z.Set_l_i(m_cache_speed[2]);
-    m_cnstr_dot.Set_l_i(m_cache_speed[3]);
-}
-
-void ChLinkUniversal::ConstraintsLiLoadSuggestedPositionSolution() {
-    // Set multipliers to those cached at previous step.
-    m_cnstr_x.Set_l_i(m_cache_pos[0]);
-    m_cnstr_y.Set_l_i(m_cache_pos[1]);
-    m_cnstr_z.Set_l_i(m_cache_pos[2]);
-    m_cnstr_dot.Set_l_i(m_cache_pos[3]);
-}
-
-void ChLinkUniversal::ConstraintsLiFetchSuggestedSpeedSolution() {
-    // Cache current multipliers.
-    m_cache_speed[0] = m_cnstr_x.Get_l_i();
-    m_cache_speed[1] = m_cnstr_y.Get_l_i();
-    m_cache_speed[2] = m_cnstr_z.Get_l_i();
-    m_cache_speed[3] = m_cnstr_dot.Get_l_i();
-}
-
-void ChLinkUniversal::ConstraintsLiFetchSuggestedPositionSolution() {
-    // Cache current multipliers.
-    m_cache_pos[0] = m_cnstr_x.Get_l_i();
-    m_cache_pos[1] = m_cnstr_y.Get_l_i();
-    m_cache_pos[2] = m_cnstr_z.Get_l_i();
-    m_cache_pos[3] = m_cnstr_dot.Get_l_i();
-}
-
-
-void ChLinkUniversal::ArchiveOUT(ChArchiveOut& marchive)
-{
+void ChLinkUniversal::ArchiveOUT(ChArchiveOut& marchive) {
     // version number
-    marchive.VersionWrite(1);
+    marchive.VersionWrite<ChLinkUniversal>();
 
     // serialize parent class
     ChLink::ArchiveOUT(marchive);
@@ -482,10 +426,9 @@ void ChLinkUniversal::ArchiveOUT(ChArchiveOut& marchive)
 }
 
 /// Method to allow de serialization of transient data from archives.
-void ChLinkUniversal::ArchiveIN(ChArchiveIn& marchive) 
-{
+void ChLinkUniversal::ArchiveIN(ChArchiveIn& marchive) {
     // version number
-    int version = marchive.VersionRead();
+    int version = marchive.VersionRead<ChLinkUniversal>();
 
     // deserialize parent class
     ChLink::ArchiveIN(marchive);
@@ -495,5 +438,4 @@ void ChLinkUniversal::ArchiveIN(ChArchiveIn& marchive)
     marchive >> CHNVP(m_frame2);
 }
 
-
-}  // END_OF_NAMESPACE____
+}  // end namespace chrono

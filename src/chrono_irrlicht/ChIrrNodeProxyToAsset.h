@@ -1,12 +1,14 @@
-//
+// =============================================================================
 // PROJECT CHRONO - http://projectchrono.org
 //
-// Copyright (c) 2013 Project Chrono
+// Copyright (c) 2014 projectchrono.org
 // All rights reserved.
 //
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE file at the top level of the distribution
-// and at http://projectchrono.org/license-chrono.txt.
+// Use of this source code is governed by a BSD-style license that can be found
+// in the LICENSE file at the top level of the distribution and at
+// http://projectchrono.org/license-chrono.txt.
+//
+// =============================================================================
 
 #ifndef CHIRRNODEPROXYTOASSET_H
 #define CHIRRNODEPROXYTOASSET_H
@@ -20,7 +22,7 @@
 namespace chrono {
 namespace irrlicht {
 
-/// @addtogroup irrlicht
+/// @addtogroup irrlicht_module
 /// @{
 
 /// Class for proxy to ChAsset, it is a node with mesh in Irrlicht system
@@ -44,8 +46,10 @@ class ChApiIrr ChIrrNodeProxyToAsset : public irr::scene::ISceneNode {
 
   public:
     /// Constructor
-    ChIrrNodeProxyToAsset(std::shared_ptr<ChAsset> myvisualization,  ///< pointer to the Chrono::Engine visualization asset
-                          irr::scene::ISceneNode* parent);           ///< the parent node in Irrlicht hierarchy
+    ChIrrNodeProxyToAsset(
+        std::shared_ptr<ChAsset> myvisualization,  ///< pointer to the ChronoEngine visualization asset
+        irr::scene::ISceneNode* parent           ///< the parent node in Irrlicht hierarchy
+    );
 
     /// Destructor.
     ~ChIrrNodeProxyToAsset() {}
@@ -76,10 +80,12 @@ class ChApiIrr ChIrrNodeProxyToAsset : public irr::scene::ISceneNode {
     /// Updates the child mesh to reflect the ChAsset.
     virtual void Update();
 
-    virtual irr::scene::ESCENE_NODE_TYPE getType() const { return (irr::scene::ESCENE_NODE_TYPE)ESNT_CHIRRNODEPROXYTOASSET; }
+    virtual irr::scene::ESCENE_NODE_TYPE getType() const {
+        return (irr::scene::ESCENE_NODE_TYPE)ESNT_CHIRRNODEPROXYTOASSET;
+    }
 };
 
-/// @} irrlicht
+/// @} irrlicht_module
 
 }  // end namespace irrrlicht
 }  // end namespace chrono

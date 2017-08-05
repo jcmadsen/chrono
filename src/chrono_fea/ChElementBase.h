@@ -1,14 +1,16 @@
-//
+// =============================================================================
 // PROJECT CHRONO - http://projectchrono.org
 //
-// Copyright (c) 2013 Project Chrono
+// Copyright (c) 2014 projectchrono.org
 // All rights reserved.
 //
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE file at the top level of the distribution
-// and at http://projectchrono.org/license-chrono.txt.
+// Use of this source code is governed by a BSD-style license that can be found
+// in the LICENSE file at the top level of the distribution and at
+// http://projectchrono.org/license-chrono.txt.
 //
-// File authors: Andrea Favali, Alessandro Tasora
+// =============================================================================
+// Authors: Andrea Favali, Alessandro Tasora
+// =============================================================================
 
 #ifndef CHELEMENTBASE_H
 #define CHELEMENTBASE_H
@@ -16,7 +18,7 @@
 #include "chrono/physics/ChContinuumMaterial.h"
 #include "chrono/physics/ChLoadable.h"
 #include "chrono/core/ChMath.h"
-#include "chrono/lcp/ChLcpSystemDescriptor.h"
+#include "chrono/solver/ChSystemDescriptor.h"
 #include "chrono_fea/ChNodeFEAbase.h"
 
 namespace chrono {
@@ -25,26 +27,26 @@ namespace fea {
 /// @addtogroup fea_elements
 /// @{
 
-/// Base class for all finite elements, that can be
-/// used in the ChMesh physics item.
+/// Base class for all finite elements, that can be used in the ChMesh physics item.
 class ChApiFea ChElementBase {
   protected:
   public:
     ChElementBase(){};
     virtual ~ChElementBase(){};
 
-    /// Gets the number of coordinates of the node positions in space;
-    /// note this is not the coordinates of the field, use GetNdofs() instead
-    virtual int GetNcoords() = 0;
-
-    /// Gets the number of nodes used by this element
+    /// Gets the number of nodes used by this element.
     virtual int GetNnodes() = 0;
 
-    /// Gets the number of coordinates in the field used by the referenced nodes,
-    /// this is for example the size (n.of rows/columns) of the local stiffness matrix
+    /// Gets the number of coordinates in the field used by the referenced nodes.
+    /// This is for example the size (n.of rows/columns) of the local stiffness matrix.
     virtual int GetNdofs() = 0;
 
-    /// Access the nth node
+    /// Get the number of coordinates from the n-th node that are used by this element.
+    /// Note that this may be different from the value returned by
+    ///    GetNodeN(n)->Get_ndof_w();
+    virtual int GetNodeNdofs(int n) = 0;
+
+    /// Access the nth node.
     virtual std::shared_ptr<ChNodeFEAbase> GetNodeN(int n) = 0;
 
     //
@@ -63,6 +65,9 @@ class ChApiFea ChElementBase {
     /// CHLDREN CLASSES MUST IMPLEMENT THIS!!!
     virtual void ComputeMmatrixGlobal(ChMatrix<>& M) = 0;
 
+    /// Compute element's nodal masses.
+    virtual void ComputeNodalMass() {}
+
     /// Sets H as the stiffness matrix K, scaled  by Kfactor. Optionally, also
     /// superimposes global damping matrix R, scaled by Rfactor, and mass matrix M,
     /// scaled by Mfactor. Matrices are expressed in global reference.
@@ -72,7 +77,7 @@ class ChApiFea ChElementBase {
 
     /// Computes the internal forces (ex. the actual position of
     /// nodes is not in relaxed reference position) and set values
-    /// in the Fi vector, whith n.rows = n.of dof of element.
+    /// in the Fi vector, with n.rows = n.of dof of element.
     /// CHLDREN CLASSES MUST IMPLEMENT THIS!!!
     virtual void ComputeInternalForces(ChMatrixDynamic<>& Fi) = 0;
 
@@ -101,21 +106,21 @@ class ChApiFea ChElementBase {
     virtual void EleIntLoadResidual_Mv(ChVectorDynamic<>& R, const ChVectorDynamic<>& w, const double c) {}
 
     //
-    // Functions for interfacing to the LCP solver
+    // Functions for interfacing to the solver
     //
 
     /// Tell to a system descriptor that there are item(s) of type
-    /// ChLcpKblock in this object (for further passing it to a LCP solver)
+    /// ChKblock in this object (for further passing it to a solver)
     /// Basically does nothing, but inherited classes must specialize this.
-    virtual void InjectKRMmatrices(ChLcpSystemDescriptor& mdescriptor) = 0;
+    virtual void InjectKRMmatrices(ChSystemDescriptor& mdescriptor) = 0;
 
     /// Adds the current stiffness K and damping R and mass M matrices in encapsulated
-    /// ChLcpKblock item(s), if any. The K, R, M matrices are added with scaling
+    /// ChKblock item(s), if any. The K, R, M matrices are added with scaling
     /// values Kfactor, Rfactor, Mfactor.
     virtual void KRMmatricesLoad(double Kfactor, double Rfactor, double Mfactor) = 0;
 
     /// Adds the internal forces, expressed as nodal forces, into the
-    /// encapsulated ChLcpVariables, in the 'fb' part: qf+=forces*factor
+    /// encapsulated ChVariables, in the 'fb' part: qf+=forces*factor
     /// WILL BE DEPRECATED - see EleIntLoadResidual_F
     virtual void VariablesFbLoadInternalForces(double factor = 1.) {}
 
@@ -128,7 +133,7 @@ class ChApiFea ChElementBase {
 
 /// @} fea_elements
 
-}  // END_OF_NAMESPACE____
-}  // END_OF_NAMESPACE____
+}  // end namespace fea
+}  // end namespace chrono
 
 #endif

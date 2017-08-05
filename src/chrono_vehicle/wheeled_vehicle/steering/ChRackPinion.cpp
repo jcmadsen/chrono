@@ -2,7 +2,7 @@
 // PROJECT CHRONO - http://projectchrono.org
 //
 // Copyright (c) 2014 projectchrono.org
-// All right reserved.
+// All rights reserved.
 //
 // Use of this source code is governed by a BSD-style license that can be found
 // in the LICENSE file at the top level of the distribution and at
@@ -36,14 +36,15 @@ namespace vehicle {
 
 // -----------------------------------------------------------------------------
 // -----------------------------------------------------------------------------
-ChRackPinion::ChRackPinion(const std::string& name) : ChSteering(name) {
-}
+ChRackPinion::ChRackPinion(const std::string& name) : ChSteering(name) {}
 
 // -----------------------------------------------------------------------------
 // -----------------------------------------------------------------------------
 void ChRackPinion::Initialize(std::shared_ptr<ChBodyAuxRef> chassis,
                               const ChVector<>& location,
                               const ChQuaternion<>& rotation) {
+    m_position = ChCoordsys<>(location, rotation);
+
     // Express the steering reference frame in the absolute coordinate system.
     ChFrame<> steering_to_abs(location, rotation);
     steering_to_abs.ConcatenatePreTransformation(chassis->GetFrame_REF_to_abs());
@@ -52,13 +53,12 @@ void ChRackPinion::Initialize(std::shared_ptr<ChBodyAuxRef> chassis,
     ChVector<> link_local(0, GetSteeringLinkCOM(), 0);
     ChVector<> link_abs = steering_to_abs.TransformPointLocalToParent(link_local);
 
-    m_link = std::make_shared<ChBody>(chassis->GetSystem()->GetContactMethod());
+    m_link = std::shared_ptr<ChBody>(chassis->GetSystem()->NewBody());
     m_link->SetNameString(m_name + "_link");
     m_link->SetPos(link_abs);
     m_link->SetRot(steering_to_abs.GetRot());
     m_link->SetMass(GetSteeringLinkMass());
     m_link->SetInertiaXX(GetSteeringLinkInertia());
-    AddVisualizationSteeringLink();
     chassis->GetSystem()->AddBody(m_link);
 
     // Create and initialize the prismatic joint between chassis and link.
@@ -85,7 +85,7 @@ void ChRackPinion::Initialize(std::shared_ptr<ChBodyAuxRef> chassis,
 
 // -----------------------------------------------------------------------------
 // -----------------------------------------------------------------------------
-void ChRackPinion::Update(double time, double steering) {
+void ChRackPinion::Synchronize(double time, double steering) {
     // Convert the steering input into an angle of the pinion and then into a
     // displacement of the rack.
     double angle = steering * GetMaxAngle();
@@ -96,8 +96,25 @@ void ChRackPinion::Update(double time, double steering) {
 }
 
 // -----------------------------------------------------------------------------
+// Get the total mass of the steering subsystem
 // -----------------------------------------------------------------------------
-void ChRackPinion::AddVisualizationSteeringLink() {
+double ChRackPinion::GetMass() const {
+    return GetSteeringLinkMass();
+}
+
+// -----------------------------------------------------------------------------
+// Get the current COM location of the steering subsystem.
+// -----------------------------------------------------------------------------
+ChVector<> ChRackPinion::GetCOMPos() const {
+    return m_link->GetPos();
+}
+
+// -----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
+void ChRackPinion::AddVisualizationAssets(VisualizationType vis) {
+    if (vis == VisualizationType::NONE)
+        return;
+
     double length = GetSteeringLinkLength();
 
     auto cyl = std::make_shared<ChCylinderShape>();
@@ -109,6 +126,10 @@ void ChRackPinion::AddVisualizationSteeringLink() {
     auto col = std::make_shared<ChColorAsset>();
     col->SetColor(ChColor(0.8f, 0.8f, 0.2f));
     m_link->AddAsset(col);
+}
+
+void ChRackPinion::RemoveVisualizationAssets() {
+    m_link->GetAssets().clear();
 }
 
 // -----------------------------------------------------------------------------

@@ -2,7 +2,7 @@
 // PROJECT CHRONO - http://projectchrono.org
 //
 // Copyright (c) 2014 projectchrono.org
-// All right reserved.
+// All rights reserved.
 //
 // Use of this source code is governed by a BSD-style license that can be found
 // in the LICENSE file at the top level of the distribution and at
@@ -19,11 +19,11 @@
 
 #include <vector>
 
+#include "chrono/core/ChQuadrature.h"
 #include "chrono_fea/ChApiFEA.h"
 #include "chrono_fea/ChElementShell.h"
 #include "chrono_fea/ChNodeFEAxyzD.h"
 #include "chrono_fea/ChUtilsFEA.h"
-#include "core/ChQuadrature.h"
 
 namespace chrono {
 namespace fea {
@@ -66,6 +66,16 @@ class ChApiFea ChMaterialShellANCF {
 // ----------------------------------------------------------------------------
 /// ANCF laminated shell element with four nodes.
 /// This class implements composite material elastic force formulations.
+///
+/// The node numbering is in ccw fashion as in the following scheme:
+///         v
+///         ^
+/// D o-----+-----o C
+///   |     |     |
+/// --+-----+-----+-> u
+///   |     |     |
+/// A o-----+-----o B
+///
 class ChApiFea ChElementShellANCF : public ChElementShell, public ChLoadableUV, public ChLoadableUVW {
   public:
     ChElementShellANCF();
@@ -113,12 +123,11 @@ class ChApiFea ChElementShellANCF : public ChElementShell, public ChLoadableUV, 
     /// Get the number of nodes used by this element.
     virtual int GetNnodes() override { return 4; }
 
-    /// Get the number of coordinates of the node positions in space.
-    /// Note this is not the coordinates of the field, use GetNdofs() instead.
-    virtual int GetNcoords() override { return 4 * 6; }
-
     /// Get the number of coordinates in the field used by the referenced nodes.
     virtual int GetNdofs() override { return 4 * 6; }
+
+    /// Get the number of coordinates from the n-th node used by this element.
+    virtual int GetNodeNdofs(int n) override { return 6; }
 
     /// Specify the nodes of this element.
     void SetNodes(std::shared_ptr<ChNodeFEAxyzD> nodeA,
@@ -196,6 +205,8 @@ class ChApiFea ChElementShellANCF : public ChElementShell, public ChLoadableUV, 
     /// NOTE! to avoid wasting zero and repeated elements, here
     /// it stores only the four values in a 1 row, 8 columns matrix!
     void ShapeFunctionsDerivativeZ(ChMatrix<>& Nz, double x, double y, double z);
+    /// Return a vector with three strain components
+    ChVector<> EvaluateSectionStrains();
 
   private:
     std::vector<std::shared_ptr<ChNodeFEAxyzD> > m_nodes;  ///< element nodes
@@ -224,6 +235,7 @@ class ChApiFea ChElementShellANCF : public ChElementShell, public ChLoadableUV, 
     static const double m_toleranceEAS;   ///< tolerance for nonlinear EAS solver (on residual)
     static const int m_maxIterationsEAS;  ///< maximum number of nonlinear EAS iterations
 
+  public:
     // Interface to ChElementBase base class
     // -------------------------------------
 
@@ -243,6 +255,9 @@ class ChApiFea ChElementShellANCF : public ChElementShell, public ChLoadableUV, 
 
     // Set M as the global mass matrix.
     virtual void ComputeMmatrixGlobal(ChMatrix<>& M) override;
+
+    /// Add contribution of element inertia to total nodal masses
+    virtual void ComputeNodalMass() override;
 
     /// Computes the internal forces.
     /// (E.g. the actual position of nodes is not in relaxed reference position) and set values
@@ -283,7 +298,7 @@ class ChApiFea ChElementShellANCF : public ChElementShell, public ChLoadableUV, 
     /// Compute Jacobians of the internal forces.
     /// This function calculates a linear combination of the stiffness (K) and damping (R) matrices,
     ///     J = Kfactor * K + Rfactor * R
-    /// for given coeficients Kfactor and Rfactor.
+    /// for given coefficients Kfactor and Rfactor.
     /// This Jacobian will be further combined with the global mass matrix M and included in the global
     /// stiffness matrix H in the function ComputeKRMmatricesGlobal().
     void ComputeInternalJacobians(double Kfactor, double Rfactor);
@@ -329,7 +344,7 @@ class ChApiFea ChElementShellANCF : public ChElementShell, public ChLoadableUV, 
     // Helper functions
     // ----------------
 
-    /// Numerial inverse for a 5x5 matrix.
+    /// Numerical inverse for a 5x5 matrix.
     static void Inverse55_Numerical(ChMatrixNM<double, 5, 5>& a, int n);
 
     /// Analytical inverse for a 5x5 matrix.
@@ -339,34 +354,37 @@ class ChApiFea ChElementShellANCF : public ChElementShell, public ChLoadableUV, 
     // ----------------------------------
 
     /// Gets the number of DOFs affected by this element (position part).
-    virtual int LoadableGet_ndof_x() { return 4 * 6; }
+    virtual int LoadableGet_ndof_x() override { return 4 * 6; }
 
     /// Gets the number of DOFs affected by this element (velocity part).
-    virtual int LoadableGet_ndof_w() { return 4 * 6; }
+    virtual int LoadableGet_ndof_w() override { return 4 * 6; }
 
     /// Gets all the DOFs packed in a single vector (position part).
-    virtual void LoadableGetStateBlock_x(int block_offset, ChVectorDynamic<>& mD) override;
+    virtual void LoadableGetStateBlock_x(int block_offset, ChState& mD) override;
 
     /// Gets all the DOFs packed in a single vector (velocity part).
-    virtual void LoadableGetStateBlock_w(int block_offset, ChVectorDynamic<>& mD) override;
+    virtual void LoadableGetStateBlock_w(int block_offset, ChStateDelta& mD) override;
+
+    /// Increment all DOFs using a delta.
+    virtual void LoadableStateIncrement(const unsigned int off_x, ChState& x_new, const ChState& x, const unsigned int off_v, const ChStateDelta& Dv) override;
 
     /// Number of coordinates in the interpolated field, ex=3 for a
     /// tetrahedron finite element or a cable, = 1 for a thermal problem, etc.
-    virtual int Get_field_ncoords() { return 6; }
+    virtual int Get_field_ncoords() override { return 6; }
 
     /// Tell the number of DOFs blocks (ex. =1 for a body, =4 for a tetrahedron, etc.)
-    virtual int GetSubBlocks() { return 4; }
+    virtual int GetSubBlocks() override { return 4; }
 
     /// Get the offset of the i-th sub-block of DOFs in global vector.
-    virtual unsigned int GetSubBlockOffset(int nblock) { return m_nodes[nblock]->NodeGetOffset_w(); }
+    virtual unsigned int GetSubBlockOffset(int nblock) override { return m_nodes[nblock]->NodeGetOffset_w(); }
 
     /// Get the size of the i-th sub-block of DOFs in global vector.
-    virtual unsigned int GetSubBlockSize(int nblock) { return 6; }
+    virtual unsigned int GetSubBlockSize(int nblock) override { return 6; }
 
     virtual void EvaluateSectionVelNorm(double U, double V, ChVector<>& Result) override;
 
-    /// Get the pointers to the contained ChLcpVariables, appending to the mvars vector.
-    virtual void LoadableGetVariables(std::vector<ChLcpVariables*>& mvars) override;
+    /// Get the pointers to the contained ChVariables, appending to the mvars vector.
+    virtual void LoadableGetVariables(std::vector<ChVariables*>& mvars) override;
 
     /// Evaluate N'*F , where N is some type of shape function
     /// evaluated at U,V coordinates of the surface, each ranging in -1..+1

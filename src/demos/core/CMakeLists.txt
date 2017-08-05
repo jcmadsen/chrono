@@ -2,10 +2,15 @@
 # Add executables
 
 SET(DEMOS
-  demo_coords
-  demo_math
-  demo_stream
-  demo_archive
+  demo_CH_coords
+  demo_CH_math
+  demo_CH_stream
+  demo_CH_archive
+  demo_CH_buildsystem
+  demo_CH_powertrain
+  demo_CH_functions
+  demo_CH_solver
+  demo_CH_EulerAngles
 )
 
 
@@ -26,6 +31,6 @@ FOREACH(PROGRAM ${DEMOS})
     TARGET_LINK_LIBRARIES(${PROGRAM} ChronoEngine)
     ADD_DEPENDENCIES(${PROGRAM} ChronoEngine)
 
-    INSTALL(TARGETS ${PROGRAM} DESTINATION bin)
+    INSTALL(TARGETS ${PROGRAM} DESTINATION ${CH_INSTALL_DEMO})
 
 ENDFOREACH(PROGRAM)

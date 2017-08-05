@@ -2,7 +2,7 @@
 // PROJECT CHRONO - http://projectchrono.org
 //
 // Copyright (c) 2014 projectchrono.org
-// All right reserved.
+// All rights reserved.
 //
 // Use of this source code is governed by a BSD-style license that can be found
 // in the LICENSE file at the top level of the distribution and at
@@ -67,6 +67,8 @@ bool ChCameraEventReceiver::OnEvent(const SEvent& event) {
             case KEY_RIGHT:
                 m_app->m_camera.Turn(-1);
                 return true;
+            default:
+                break;
         }
     } else {
         switch (event.KeyInput.Key) {
@@ -85,6 +87,8 @@ bool ChCameraEventReceiver::OnEvent(const SEvent& event) {
             case KEY_KEY_V:
                 m_app->m_vehicle->LogConstraintViolations();
                 return true;
+            default:
+                break;
         }
     }
 
@@ -98,23 +102,21 @@ ChVehicleIrrApp::ChVehicleIrrApp(ChVehicle* vehicle,
                                  ChPowertrain* powertrain,
                                  const wchar_t* title,
                                  irr::core::dimension2d<irr::u32> dims)
-    : ChIrrApp(vehicle->GetSystem(), title, dims, false, false, irr::video::EDT_OPENGL),
+    : ChIrrApp(vehicle->GetSystem(), title, dims, false, false, true, irr::video::EDT_OPENGL),
       m_vehicle(vehicle),
       m_powertrain(powertrain),
-      m_camera(vehicle->GetChassis()),
+      m_camera(vehicle->GetChassisBody()),
       m_stepsize(1e-3),
       m_HUD_x(700),
       m_HUD_y(20),
       m_renderGrid(false),
-      m_renderLinks(true),
-      m_renderSprings(true),
       m_renderStats(true),
       m_gridHeight(0.02),
       m_steering(0),
       m_throttle(0),
       m_braking(0) {
     // Initialize the chase camera with default values.
-    m_camera.Initialize(ChVector<>(0, 0, 1), vehicle->GetLocalDriverCoordsys(), 6.0, 0.5);
+    m_camera.Initialize(ChVector<>(0, 0, 1), vehicle->GetChassis()->GetLocalDriverCoordsys(), 6.0, 0.5);
     ChVector<> cam_pos = m_camera.GetCameraPos();
     ChVector<> cam_target = m_camera.GetTargetPos();
 
@@ -127,8 +129,8 @@ ChVehicleIrrApp::ChVehicleIrrApp(ChVehicle* vehicle,
         GetSceneManager()->getRootSceneNode(), core::vector3df(0, 0, 0), core::vector3df(0, 0, 0));
 
     camera->setUpVector(core::vector3df(0, 0, 1));
-    camera->setPosition(core::vector3df((f32)cam_pos.x, (f32)cam_pos.y, (f32)cam_pos.z));
-    camera->setTarget(core::vector3df((f32)cam_target.x, (f32)cam_target.y, (f32)cam_target.z));
+    camera->setPosition(core::vector3df((f32)cam_pos.x(), (f32)cam_pos.y(), (f32)cam_pos.z()));
+    camera->setTarget(core::vector3df((f32)cam_target.x(), (f32)cam_target.y(), (f32)cam_target.z()));
 
 #ifdef CHRONO_IRRKLANG
     m_sound_engine = 0;
@@ -185,14 +187,14 @@ void ChVehicleIrrApp::SetSkyBox() {
 // Set parameters for the underlying chase camera.
 // -----------------------------------------------------------------------------
 void ChVehicleIrrApp::SetChaseCamera(const ChVector<>& ptOnChassis, double chaseDist, double chaseHeight) {
-    m_camera.Initialize(ptOnChassis, m_vehicle->GetLocalDriverCoordsys(), chaseDist, chaseHeight);
+    m_camera.Initialize(ptOnChassis, m_vehicle->GetChassis()->GetLocalDriverCoordsys(), chaseDist, chaseHeight);
     ChVector<> cam_pos = m_camera.GetCameraPos();
     ChVector<> cam_target = m_camera.GetTargetPos();
 }
 
 // -----------------------------------------------------------------------------
 // -----------------------------------------------------------------------------
-void ChVehicleIrrApp::Update(const std::string& msg, double steering, double throttle, double braking) {
+void ChVehicleIrrApp::Synchronize(const std::string& msg, double steering, double throttle, double braking) {
     m_driver_msg = msg;
     m_steering = steering;
     m_throttle = throttle;
@@ -220,8 +222,8 @@ void ChVehicleIrrApp::Advance(double step) {
 
     scene::ICameraSceneNode* camera = GetSceneManager()->getActiveCamera();
 
-    camera->setPosition(core::vector3df((f32)cam_pos.x, (f32)cam_pos.y, (f32)cam_pos.z));
-    camera->setTarget(core::vector3df((f32)cam_target.x, (f32)cam_target.y, (f32)cam_target.z));
+    camera->setPosition(core::vector3df((f32)cam_pos.x(), (f32)cam_pos.y(), (f32)cam_pos.z()));
+    camera->setTarget(core::vector3df((f32)cam_target.x(), (f32)cam_target.y(), (f32)cam_target.z()));
 
 #ifdef CHRONO_IRRKLANG
     static int stepsbetweensound = 0;
@@ -252,43 +254,11 @@ void ChVehicleIrrApp::DrawAll() {
 
     ChIrrAppInterface::DrawAll();
 
-    if (m_renderSprings)
-        renderSprings();
-    if (m_renderLinks)
-        renderLinks();
     if (m_renderStats)
         renderStats();
 
     // Allow derived classes to render additional graphical elements
     renderOtherGraphics();
-}
-
-// Render springs in the vehicle model.
-void ChVehicleIrrApp::renderSprings() {
-    auto ilink = GetSystem()->Get_linklist()->begin();
-    for (; ilink != GetSystem()->Get_linklist()->end(); ++ilink) {
-        if (ChLinkSpring* link = dynamic_cast<ChLinkSpring*>((*ilink).get())) {
-            irrlicht::ChIrrTools::drawSpring(GetVideoDriver(), 0.05, link->GetEndPoint1Abs(), link->GetEndPoint2Abs(),
-                                             video::SColor(255, 150, 20, 20), 80, 15, true);
-        } else if (ChLinkSpringCB* link = dynamic_cast<ChLinkSpringCB*>((*ilink).get())) {
-            irrlicht::ChIrrTools::drawSpring(GetVideoDriver(), 0.05, link->GetEndPoint1Abs(), link->GetEndPoint2Abs(),
-                                             video::SColor(255, 150, 20, 20), 80, 15, true);
-        }
-    }
-}
-
-// render specialized joints in the vehicle model.
-void ChVehicleIrrApp::renderLinks() {
-    auto ilink = GetSystem()->Get_linklist()->begin();
-    for (; ilink != GetSystem()->Get_linklist()->end(); ++ilink) {
-        if (ChLinkDistance* link = dynamic_cast<ChLinkDistance*>((*ilink).get())) {
-            irrlicht::ChIrrTools::drawSegment(GetVideoDriver(), link->GetEndPoint1Abs(), link->GetEndPoint2Abs(),
-                                              video::SColor(255, 0, 20, 0), true);
-        } else if (ChLinkRevoluteSpherical* link = dynamic_cast<ChLinkRevoluteSpherical*>((*ilink).get())) {
-            irrlicht::ChIrrTools::drawSegment(GetVideoDriver(), link->GetPoint1Abs(), link->GetPoint2Abs(),
-                                              video::SColor(255, 180, 0, 0), true);
-        }
-    }
 }
 
 // Render a horizontal grid.

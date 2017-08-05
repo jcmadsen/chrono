@@ -2,7 +2,7 @@
 // PROJECT CHRONO - http://projectchrono.org
 //
 // Copyright (c) 2014 projectchrono.org
-// All right reserved.
+// All rights reserved.
 //
 // Use of this source code is governed by a BSD-style license that can be found
 // in the LICENSE file at the top level of the distribution and at
@@ -57,6 +57,9 @@
 
 // If module VEHICLE was enabled, define CHRONO_VEHICLE
 @CHRONO_VEHICLE@
+
+// If module FSI was enabled, define CHRONO_FSI
+@CHRONO_FSI@
 
 // -----------------------------------------------------------------------------
 // OpenMP settings
@@ -132,5 +135,9 @@
 @CHRONO_AVX_2_0@
 
 
+// If FMA support was found, then
+//   #define CHRONO_HAS_FMA
+
+@CHRONO_HAS_FMA@
 
 #endif

@@ -2,7 +2,7 @@
 // PROJECT CHRONO - http://projectchrono.org
 //
 // Copyright (c) 2014 projectchrono.org
-// All right reserved.
+// All rights reserved.
 //
 // Use of this source code is governed by a BSD-style license that can be found
 // in the LICENSE file at the top level of the distribution and at
@@ -31,7 +31,7 @@ ChSimplePowertrain::ChSimplePowertrain() : ChPowertrain(), m_motorSpeed(0), m_mo
 
 // -----------------------------------------------------------------------------
 // -----------------------------------------------------------------------------
-void ChSimplePowertrain::Initialize() {
+void ChSimplePowertrain::Initialize(std::shared_ptr<ChBody> chassis, std::shared_ptr<ChShaft> driveshaft) {
     m_current_gear_ratio = GetForwardGearRatio();
 }
 
@@ -54,8 +54,8 @@ void ChSimplePowertrain::SetDriveMode(ChPowertrain::DriveMode mode) {
 
 // -----------------------------------------------------------------------------
 // -----------------------------------------------------------------------------
-void ChSimplePowertrain::Update(double time, double throttle, double shaft_speed) {
-    // The motorspeed is the shaft speed multiplied by gear ratio inversed:
+void ChSimplePowertrain::Synchronize(double time, double throttle, double shaft_speed) {
+    // The motor speed is the shaft speed multiplied by gear ratio inversed:
     m_motorSpeed = shaft_speed / m_current_gear_ratio;
 
     // The torque depends on speed-torque curve of the motor; here we assume a

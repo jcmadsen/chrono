@@ -2,7 +2,7 @@
 // PROJECT CHRONO - http://projectchrono.org
 //
 // Copyright (c) 2014 projectchrono.org
-// All right reserved.
+// All rights reserved.
 //
 // Use of this source code is governed by a BSD-style license that can be found
 // in the LICENSE file at the top level of the distribution and at
@@ -20,6 +20,7 @@
 #include <vector>
 
 #include "chrono/assets/ChCylinderShape.h"
+#include "chrono/assets/ChPointPointDrawing.h"
 #include "chrono/assets/ChColorAsset.h"
 
 #include "chrono_vehicle/wheeled_vehicle/steering/ChPitmanArm.h"
@@ -29,14 +30,20 @@ namespace vehicle {
 
 // -----------------------------------------------------------------------------
 // -----------------------------------------------------------------------------
-ChPitmanArm::ChPitmanArm(const std::string& name) : ChSteering(name) {
-}
+ChPitmanArm::ChPitmanArm(const std::string& name, bool vehicle_frame_inertia)
+    : ChSteering(name), m_vehicle_frame_inertia(vehicle_frame_inertia) {}
 
 // -----------------------------------------------------------------------------
 // -----------------------------------------------------------------------------
 void ChPitmanArm::Initialize(std::shared_ptr<ChBodyAuxRef> chassis,
                              const ChVector<>& location,
                              const ChQuaternion<>& rotation) {
+    m_position = ChCoordsys<>(location, rotation);
+
+    // Chassis orientation (expressed in absolute frame)
+    // Recall that the suspension reference frame is aligned with the chassis.
+    ChQuaternion<> chassisRot = chassis->GetFrame_REF_to_abs().GetRot();
+
     // Express the steering reference frame in the absolute coordinate system.
     ChFrame<> steering_to_abs(location, rotation);
     steering_to_abs.ConcatenatePreTransformation(chassis->GetFrame_REF_to_abs());
@@ -62,25 +69,46 @@ void ChPitmanArm::Initialize(std::shared_ptr<ChBodyAuxRef> chassis,
     ChMatrix33<> rot;
 
     // Create and initialize the steering link body
-    m_link = std::make_shared<ChBody>(chassis->GetSystem()->GetContactMethod());
+    m_link = std::shared_ptr<ChBody>(chassis->GetSystem()->NewBody());
     m_link->SetNameString(m_name + "_link");
     m_link->SetPos(points[STEERINGLINK]);
     m_link->SetRot(steering_to_abs.GetRot());
     m_link->SetMass(getSteeringLinkMass());
-    m_link->SetInertiaXX(getSteeringLinkInertia());
-    AddVisualizationSteeringLink(m_link, points[UNIV], points[REVSPH_S], points[TIEROD_PA], points[TIEROD_IA],
-                                 getSteeringLinkRadius());
+    if (m_vehicle_frame_inertia) {
+        ChMatrix33<> inertia = TransformInertiaMatrix(getSteeringLinkInertiaMoments(), getSteeringLinkInertiaProducts(),
+                                                      chassisRot, steering_to_abs.GetRot());
+        m_link->SetInertia(inertia);
+    } else {
+        m_link->SetInertiaXX(getSteeringLinkInertiaMoments());
+        m_link->SetInertiaXY(getSteeringLinkInertiaProducts());
+    }
     chassis->GetSystem()->AddBody(m_link);
 
+    m_pP = m_link->TransformPointParentToLocal(points[UNIV]);
+    m_pI = m_link->TransformPointParentToLocal(points[REVSPH_S]);
+    m_pTP = m_link->TransformPointParentToLocal(points[TIEROD_PA]);
+    m_pTI = m_link->TransformPointParentToLocal(points[TIEROD_IA]);
+
     // Create and initialize the Pitman arm body
-    m_arm = std::make_shared<ChBody>(chassis->GetSystem()->GetContactMethod());
+    m_arm = std::shared_ptr<ChBody>(chassis->GetSystem()->NewBody());
     m_arm->SetNameString(m_name + "_arm");
     m_arm->SetPos(points[PITMANARM]);
     m_arm->SetRot(steering_to_abs.GetRot());
     m_arm->SetMass(getPitmanArmMass());
-    m_arm->SetInertiaXX(getPitmanArmInertia());
-    AddVisualizationPitmanArm(m_arm, points[REV], points[UNIV], getPitmanArmRadius());
+    if (m_vehicle_frame_inertia) {
+        ChMatrix33<> inertia = TransformInertiaMatrix(getPitmanArmInertiaMoments(), getPitmanArmInertiaProducts(),
+                                                      chassisRot, steering_to_abs.GetRot());
+        m_arm->SetInertia(inertia);
+    } else {
+        m_arm->SetInertiaXX(getPitmanArmInertiaMoments());
+        m_arm->SetInertiaXY(getPitmanArmInertiaProducts());
+    }
     chassis->GetSystem()->AddBody(m_arm);
+
+    // Cache points for arm visualization (expressed in the arm frame)
+    m_pC = m_arm->TransformPointParentToLocal(points[REV]);
+    m_pL = m_arm->TransformPointParentToLocal(points[UNIV]);
+
 
     // Create and initialize the revolute joint between chassis and Pitman arm.
     // Note that this is modeled as a ChLinkEngine to allow driving it with
@@ -132,65 +160,79 @@ void ChPitmanArm::Initialize(std::shared_ptr<ChBodyAuxRef> chassis,
 
 // -----------------------------------------------------------------------------
 // -----------------------------------------------------------------------------
-void ChPitmanArm::Update(double time, double steering) {
+void ChPitmanArm::Synchronize(double time, double steering) {
     if (auto fun = std::dynamic_pointer_cast<ChFunction_Const>(m_revolute->Get_rot_funct()))
         fun->Set_yconst(getMaxAngle() * steering);
 }
 
 // -----------------------------------------------------------------------------
+// Get the total mass of the steering subsystem
 // -----------------------------------------------------------------------------
-void ChPitmanArm::AddVisualizationPitmanArm(std::shared_ptr<ChBody> arm,
-                                            const ChVector<>& pt_C,
-                                            const ChVector<>& pt_L,
-                                            double radius) {
-    // Express hardpoint locations in body frame.
-    ChVector<> p_C = arm->TransformPointParentToLocal(pt_C);
-    ChVector<> p_L = arm->TransformPointParentToLocal(pt_L);
-
-    auto cyl = std::make_shared<ChCylinderShape>();
-    cyl->GetCylinderGeometry().p1 = p_C;
-    cyl->GetCylinderGeometry().p2 = p_L;
-    cyl->GetCylinderGeometry().rad = radius;
-    arm->AddAsset(cyl);
-
-    auto col = std::make_shared<ChColorAsset>();
-    col->SetColor(ChColor(0.7f, 0.7f, 0.2f));
-    arm->AddAsset(col);
+double ChPitmanArm::GetMass() const {
+    return getSteeringLinkMass() + getPitmanArmMass();
 }
 
-void ChPitmanArm::AddVisualizationSteeringLink(std::shared_ptr<ChBody> link,
-                                               const ChVector<>& pt_P,
-                                               const ChVector<>& pt_I,
-                                               const ChVector<>& pt_TP,
-                                               const ChVector<>& pt_TI,
-                                               double radius) {
-    // Express hardpoint locations in body frame.
-    ChVector<> p_P = link->TransformPointParentToLocal(pt_P);
-    ChVector<> p_I = link->TransformPointParentToLocal(pt_I);
-    ChVector<> p_TP = link->TransformPointParentToLocal(pt_TP);
-    ChVector<> p_TI = link->TransformPointParentToLocal(pt_TI);
+// -----------------------------------------------------------------------------
+// Get the current COM location of the steering subsystem.
+// -----------------------------------------------------------------------------
+ChVector<> ChPitmanArm::GetCOMPos() const {
+    ChVector<> com = getSteeringLinkMass() * m_link->GetPos() + getPitmanArmMass() * m_arm->GetPos();
 
-    auto cyl = std::make_shared<ChCylinderShape>();
-    cyl->GetCylinderGeometry().p1 = p_P;
-    cyl->GetCylinderGeometry().p2 = p_I;
-    cyl->GetCylinderGeometry().rad = radius;
-    link->AddAsset(cyl);
+    return com / GetMass();
+}
 
-    auto cyl_P = std::make_shared<ChCylinderShape>();
-    cyl_P->GetCylinderGeometry().p1 = p_P;
-    cyl_P->GetCylinderGeometry().p2 = p_TP;
-    cyl_P->GetCylinderGeometry().rad = radius;
-    link->AddAsset(cyl_P);
+// -----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
+void ChPitmanArm::AddVisualizationAssets(VisualizationType vis) {
+    if (vis == VisualizationType::NONE)
+        return;
 
-    auto cyl_I = std::make_shared<ChCylinderShape>();
-    cyl_I->GetCylinderGeometry().p1 = p_I;
-    cyl_I->GetCylinderGeometry().p2 = p_TI;
-    cyl_I->GetCylinderGeometry().rad = radius;
-    link->AddAsset(cyl_I);
+    // Visualization for link
+    {
+        auto cyl = std::make_shared<ChCylinderShape>();
+        cyl->GetCylinderGeometry().p1 = m_pP;
+        cyl->GetCylinderGeometry().p2 = m_pI;
+        cyl->GetCylinderGeometry().rad = getSteeringLinkRadius();
+        m_link->AddAsset(cyl);
 
-    auto col = std::make_shared<ChColorAsset>();
-    col->SetColor(ChColor(0.2f, 0.7f, 0.7f));
-    link->AddAsset(col);
+        auto cyl_P = std::make_shared<ChCylinderShape>();
+        cyl_P->GetCylinderGeometry().p1 = m_pP;
+        cyl_P->GetCylinderGeometry().p2 = m_pTP;
+        cyl_P->GetCylinderGeometry().rad = getSteeringLinkRadius();
+        m_link->AddAsset(cyl_P);
+
+        auto cyl_I = std::make_shared<ChCylinderShape>();
+        cyl_I->GetCylinderGeometry().p1 = m_pI;
+        cyl_I->GetCylinderGeometry().p2 = m_pTI;
+        cyl_I->GetCylinderGeometry().rad = getSteeringLinkRadius();
+        m_link->AddAsset(cyl_I);
+
+        auto col = std::make_shared<ChColorAsset>();
+        col->SetColor(ChColor(0.2f, 0.7f, 0.7f));
+        m_link->AddAsset(col);
+    }
+
+    // Visualization for arm
+    {
+        auto cyl = std::make_shared<ChCylinderShape>();
+        cyl->GetCylinderGeometry().p1 = m_pC;
+        cyl->GetCylinderGeometry().p2 = m_pL;
+        cyl->GetCylinderGeometry().rad = getPitmanArmRadius();
+        m_arm->AddAsset(cyl);
+
+        auto col = std::make_shared<ChColorAsset>();
+        col->SetColor(ChColor(0.7f, 0.7f, 0.2f));
+        m_arm->AddAsset(col);
+    }
+
+    // Visualization for rev-sph link
+    m_revsph->AddAsset(std::make_shared<ChPointPointSegment>());
+}
+
+void ChPitmanArm::RemoveVisualizationAssets() {
+    m_link->GetAssets().clear();
+    m_arm->GetAssets().clear();
+    m_revsph->GetAssets().clear();
 }
 
 // -----------------------------------------------------------------------------

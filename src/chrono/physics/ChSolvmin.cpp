@@ -1,45 +1,44 @@
-//
+// =============================================================================
 // PROJECT CHRONO - http://projectchrono.org
 //
-// Copyright (c) 2010, 2012 Alessandro Tasora
+// Copyright (c) 2014 projectchrono.org
 // All rights reserved.
 //
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE file at the top level of the distribution
-// and at http://projectchrono.org/license-chrono.txt.
+// Use of this source code is governed by a BSD-style license that can be found
+// in the LICENSE file at the top level of the distribution and at
+// http://projectchrono.org/license-chrono.txt.
 //
+// =============================================================================
+// Authors: Alessandro Tasora, Radu Serban
+// =============================================================================
 
-//////////////////////////////////////////////////
-//
-//   ChSolvmin.cpp
-//
-// ------------------------------------------------
-//             www.deltaknowledge.com
-// ------------------------------------------------
-///////////////////////////////////////////////////
-
-#include <stdlib.h>
-#include <math.h>
-#include <stdio.h>
+#include <cmath>
+#include <cstdio>
+#include <cstdlib>
 
 #if !(defined(__APPLE__) || defined(__FreeBSD__))
 #include <malloc.h>
 #endif
-#include "core/ChLog.h"
-#include "physics/ChSolvmin.h"
+
+#include "chrono/core/ChLog.h"
+#include "chrono/physics/ChSolvmin.h"
 
 namespace chrono {
 
-void null_entry_solv_opt(double x[], double g[]) {
-}
+#define OPT_ERR_OK 0
+#define OPT_ERR_NOVARS 1
+#define OPT_ERR_NOMEMORY 2
+#define OPT_ERR_INFINITY 3
+#define OPT_ERR_CANNOTEVALFX 4
+#define OPT_ERR_CANNOTEVALVAR 5
+#define OPT_ERR_INVALIDSYS 6
 
-///////////////////////////////////////////////////////////
-///
-/// Ch_optimizer
-///           Base optimization engine member functions
-///
+#define OPT_IMPOSSIBLE +999999
+#define OPT_PENALTY_POS +999998
+#define OPT_PENALTY_NEG -999998
 
-// build
+void null_entry_solv_opt(double x[], double g[]) {}
+
 ChOptimizer::ChOptimizer() {
     strcpy(err_message, "");
     C_vars = 0;
@@ -50,7 +49,7 @@ ChOptimizer::ChOptimizer() {
     xv_sup = NULL;
     xv_inf = NULL;
 
-    minimize = FALSE;
+    minimize = false;
     opt_fx = 0;
     error_code = 0;
     fx_evaluations = 0;
@@ -63,47 +62,39 @@ ChOptimizer::ChOptimizer() {
     user_break = 0;
 }
 
-// destroy
-ChOptimizer::~ChOptimizer() {
-}
-
-// copy
-void ChOptimizer::Copy(ChOptimizer* source) {
-    // first copy the parent class data...
-    ChObj::Copy(source);
-
+ChOptimizer::ChOptimizer(const ChOptimizer& other) : ChObj(other) {
     // copy error message
-    strcpy(err_message, source->err_message);
+    strcpy(err_message, other.err_message);
 
-    minimize = source->minimize;
-    error_code = source->error_code;
-    fx_evaluations = source->fx_evaluations;
-    grad_evaluations = source->grad_evaluations;
-    grad_step = source->grad_step;
-    C_vars = source->C_vars;
+    minimize = other.minimize;
+    error_code = other.error_code;
+    fx_evaluations = other.fx_evaluations;
+    grad_evaluations = other.grad_evaluations;
+    grad_step = other.grad_step;
+    C_vars = other.C_vars;
 
-    xv = source->xv;
-    xv_sup = source->xv_sup;
-    xv_inf = source->xv_inf;
+    xv = other.xv;
+    xv_sup = other.xv_sup;
+    xv_inf = other.xv_inf;
 
-    break_funct = source->break_funct;
-    break_cycles = source->break_cycles;
-    break_cyclecounter = source->break_cyclecounter;
-    user_break = source->user_break;
+    break_funct = other.break_funct;
+    break_cycles = other.break_cycles;
+    break_cyclecounter = other.break_cyclecounter;
+    user_break = other.user_break;
 }
 
 // Evaluates the function ("function" string) in database, with given state
 // of variables.
 
 double ChOptimizer::Eval_fx(double x[]) {
-    ChMatrixDynamic<> Vin(this->C_vars, 1);
+    ChMatrixDynamic<> Vin(C_vars, 1);
     ChMatrixDynamic<> Vout(1, 1);
 
     for (int i = 0; i < Vin.GetRows(); i++)
         Vin(i, 0) = x[i];
-    this->afunction->Eval(Vout, Vin);
+    afunction->Eval(Vout, Vin);
 
-    this->fx_evaluations++;
+    fx_evaluations++;
 
     return Vout(0, 0);
 }
@@ -112,13 +103,13 @@ double ChOptimizer::Eval_fx(double x[]) {
 // of variables.
 
 void ChOptimizer::Eval_grad(double x[], double gr[]) {
-    if (this->afunctionGrad) {
-        ChMatrixDynamic<> Vin(this->C_vars, 1);
-        ChMatrixDynamic<> Vout(this->C_vars, 1);
+    if (afunctionGrad) {
+        ChMatrixDynamic<> Vin(C_vars, 1);
+        ChMatrixDynamic<> Vout(C_vars, 1);
 
         for (int i = 0; i < Vin.GetRows(); i++)
             Vin(i, 0) = x[i];
-        this->afunctionGrad->Eval(Vout, Vin);
+        afunctionGrad->Eval(Vout, Vin);
         for (int i = 0; i < Vin.GetRows(); i++)
             gr[i] = Vout(i, 0);
     } else {
@@ -133,28 +124,28 @@ void ChOptimizer::Eval_grad(double x[], double gr[]) {
         for (int mvar = 0; mvar < mtotvars; mvar++) {
             oldval = x[mvar];
             // increment one variable
-            x[mvar] = oldval + this->grad_step;
+            x[mvar] = oldval + grad_step;
             mfd = Eval_fx(x);
             // %%%%%%%%%%%%% compute gradient by BDF
-            gr[mvar] = ((mfd - mf) / (this->grad_step));
+            gr[mvar] = ((mfd - mf) / (grad_step));
             // back to original value
             x[mvar] = oldval;
         }
     }
-    this->grad_evaluations++;  // increment the counter of total number of gradient evaluations
+    grad_evaluations++;  // increment the counter of total number of gradient evaluations
 }
 
 double ChOptimizer::Eval_fx(const ChMatrix<>* x) {
     ChMatrixDynamic<> out(1, 1);
-    this->afunction->Eval(out, *x);
-    this->fx_evaluations++;
+    afunction->Eval(out, *x);
+    fx_evaluations++;
     return out(0, 0);
 }
 
 void ChOptimizer::Eval_grad(const ChMatrix<>* x, ChMatrix<>* gr) {
     // Eval_grad(x->GetAddress(), gr->GetAddress());
-    if (this->afunctionGrad) {
-        this->afunctionGrad->Eval(*gr, *x);
+    if (afunctionGrad) {
+        afunctionGrad->Eval(*gr, *x);
     } else {
         // ------ otherwise use BDF  ---------------------
         int mtotvars = GetNumOfVars();
@@ -168,10 +159,10 @@ void ChOptimizer::Eval_grad(const ChMatrix<>* x, ChMatrix<>* gr) {
         for (int mvar = 0; mvar < mtotvars; mvar++) {
             oldval = (*x)(mvar);
             // increment one variable
-            mdx(mvar) = oldval + this->grad_step;
+            mdx(mvar) = oldval + grad_step;
             mfd = Eval_fx(x);
             // compute gradient by BDF
-            (*gr)(mvar) = ((mfd - mf) / (this->grad_step));
+            (*gr)(mvar) = ((mfd - mf) / (grad_step));
             // back to original value
             mdx(mvar) = oldval;
         }
@@ -183,7 +174,7 @@ void ChOptimizer::Eval_grad(const ChMatrix<>* x, ChMatrix<>* gr) {
 void ChOptimizer::DoBreakCheck() {
     break_cyclecounter++;
     if (break_cyclecounter > break_cycles)
-        if (this->break_funct) {
+        if (break_funct) {
             break_cyclecounter = 0;
             user_break = break_funct();
         }
@@ -191,7 +182,7 @@ void ChOptimizer::DoBreakCheck() {
 
 //// OPTIMIZE FUNCTION
 
-int ChOptimizer::PreOptimize() {
+bool ChOptimizer::PreOptimize() {
     // reset the counter of number of evaluations.
     fx_evaluations = 0;
     grad_evaluations = 0;
@@ -208,35 +199,35 @@ int ChOptimizer::PreOptimize() {
     if (nv < 1) {
         error_code = OPT_ERR_NOVARS;
         strcpy(err_message, "Error: no variables defined");
-        return FALSE;
+        return false;
     }
 
-    return TRUE;
+    return true;
 }
 
-int ChOptimizer::DoOptimize() {
+bool ChOptimizer::DoOptimize() {
     //////
     //////  Must be implemented by child class!!!
     //////  ..............................
-    return TRUE;
+    return true;
 }
 
-int ChOptimizer::PostOptimize() {
+bool ChOptimizer::PostOptimize() {
     // *** TO DO ***//
-    return TRUE;
+    return true;
 }
 
 // DO all the tree steps in sequence
 //
 
-int ChOptimizer::Optimize() {
-    if (!this->PreOptimize())
-        return FALSE;  // 1-
-    if (!this->DoOptimize())
-        return FALSE;  // 2-
-    if (!this->PostOptimize())
-        return FALSE;  // 3-
-    return TRUE;
+bool ChOptimizer::Optimize() {
+    if (!PreOptimize())
+        return false;  // 1-
+    if (!DoOptimize())
+        return false;  // 2-
+    if (!PostOptimize())
+        return false;  // 3-
+    return true;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -260,14 +251,11 @@ double CalcFO(double x[], void* idData) {
     return -(moptimizer->Eval_fx(x));
 }
 
-void showVarFun(){}
+void showVarFun() {}
 
-//// $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+// -----------------------------------------------------------------------------
 
-// build
-ChOptimizerLocal::ChOptimizerLocal()
-    : ChOptimizer()  // note: implicit
-{
+ChOptimizerLocal::ChOptimizerLocal() : ChOptimizer() {
     initial_step = 1.0;
     arg_tol = 1.e-6;
     fun_tol = 1.e-7;
@@ -280,32 +268,22 @@ ChOptimizerLocal::ChOptimizerLocal()
     iters_done = 0;
 }
 
-// destroy
-ChOptimizerLocal::~ChOptimizerLocal() {
-    // first, delete parent class
-    // Ch_optimizer::~Ch_optimizer();
-}
+ChOptimizerLocal::ChOptimizerLocal(const ChOptimizerLocal& other) : ChOptimizer(other) {
+    initial_step = other.initial_step;
+    arg_tol = other.arg_tol;
+    fun_tol = other.fun_tol;
+    maxiters = other.maxiters;
+    maxevaluations = other.maxevaluations;
+    gamma = other.gamma;
+    dilation = other.dilation;
+    gradstep = other.gradstep;
 
-// copy
-void ChOptimizerLocal::Copy(ChOptimizerLocal* source) {
-    // first, copy  parent class
-    ChOptimizer::Copy(source);
-
-    initial_step = source->initial_step;
-    arg_tol = source->arg_tol;
-    fun_tol = source->fun_tol;
-    maxiters = source->maxiters;
-    maxevaluations = source->maxevaluations;
-    gamma = source->gamma;
-    dilation = source->dilation;
-    gradstep = source->gradstep;
-
-    iters_done = source->iters_done;
+    iters_done = other.iters_done;
 }
 
 //// OPTIMIZE FUNCTION  , locally with pseudo-NR method
 
-int ChOptimizerLocal::DoOptimize() {
+bool ChOptimizerLocal::DoOptimize() {
     double solvopt_options[12];
     double nstep;
     int err_code = 0;
@@ -314,7 +292,7 @@ int ChOptimizerLocal::DoOptimize() {
     int nv = GetNumOfVars();
     if (nv < 1) {
         error_code = OPT_ERR_NOVARS;
-        return FALSE;
+        return false;
     }
 
     // nstep = fabs(initial_step);
@@ -342,7 +320,7 @@ int ChOptimizerLocal::DoOptimize() {
     int everyTotStep = 1;
     int breakCicle = 0;
 
-    if (!this->C_vars) {
+    if (!C_vars) {
         // allocate variables vector
         if (xv)
             delete[] xv;
@@ -353,7 +331,7 @@ int ChOptimizerLocal::DoOptimize() {
         //	System_to_Vars(xv);
     }
 
-    double inires = this->Eval_fx(xv);
+    double inires = Eval_fx(xv);
 
     // call solver !!!!
 
@@ -382,32 +360,34 @@ int ChOptimizerLocal::DoOptimize() {
     */
 
     // delete variables vector
-    if (!this->C_vars) {
+    if (!C_vars) {
         // Vars_to_System(xv);
         if (xv)
             delete[] xv;
         xv = NULL;
     }
 
-    return TRUE;
+    return true;
 }
 
-///////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////
-///
-/// Ch_genetic_optimizer
-///           global optimization engine - member functions
-///
-
-// build/destroy genotypes objects (the individuals)
+// -----------------------------------------------------------------------------
+// Ch_genetic_optimizer
+//           global optimization engine - member functions
 
 ChGenotype::ChGenotype(int number_of_genes) {
     genes = new ChMatrixDynamic<>(number_of_genes, 1);  // instance matrix of genes
     fitness = 0;
     rel_fitness = 0;
     cum_fitness = 0;
-    need_eval = TRUE;
+    need_eval = true;
+}
+
+ChGenotype::ChGenotype(const ChGenotype& other) {
+    genes->CopyFromMatrix(*other.genes);
+    fitness = other.fitness;
+    rel_fitness = other.rel_fitness;
+    cum_fitness = other.cum_fitness;
+    need_eval = other.need_eval;
 }
 
 ChGenotype::~ChGenotype() {
@@ -423,23 +403,19 @@ void ChGenotype::Copy(ChGenotype* source) {
     need_eval = source->need_eval;
 }
 
-// build/destroy the optimizer engine
+// -----------------------------------------------------------------------------
 
 ChOptimizerGenetic::ChOptimizerGenetic() {
-    // first, build parent class
-    // Ch_optimizer::Ch_optimizer();
-
-    // initialize
     popsize = 50;
     population = NULL;
     best_indiv = new ChGenotype(1);
     max_generations = 100;
-    selection = SELEC_ROULETTEBEST;
-    crossover = CROSSOVER_BLEND;
-    mutation = MUTATION_UNIFORM;
-    elite = ELITE_FALSE;
-    crossv_change = CRO_CHANGE_NULL;
-    crossv_changeto = CROSSOVER_BLEND;
+    selection = SelectionType::ROULETTEBEST;
+    crossover = CrossoverType::BLEND;
+    mutation = MutationType::UNIFORM;
+    elite = false;
+    crossv_change = CrossoverChangeType::NO_CHANGE;
+    crossv_changeto = CrossoverType::BLEND;
     crossv_changewhen = 40;
     average = 0;
     stdeviation = 0;
@@ -448,14 +424,14 @@ ChOptimizerGenetic::ChOptimizerGenetic() {
     generations_done = 0;
     mutation_prob = 0.006;
     crossover_prob = 0.3;
-    speciation_mating = FALSE;
-    incest_taboo = TRUE;
-    replacement = REPLA_PARENTS;
+    speciation_mating = false;
+    incest_taboo = true;
+    replacement = ReplaceMode::PARENTS;
     eugenetics = 0.0;
 
-    stop_by_stdeviation = FALSE;
+    stop_by_stdeviation = false;
     stop_stdeviation = 0.0001;
-    stop_by_fitness = FALSE;
+    stop_by_fitness = false;
     stop_fitness = 0;
 
     his_average = NULL;
@@ -464,43 +440,30 @@ ChOptimizerGenetic::ChOptimizerGenetic() {
     his_minfitness = NULL;
 }
 
-// destroy
-ChOptimizerGenetic::~ChOptimizerGenetic() {
-    // first, delete parent class
-    // Ch_optimizer::~Ch_optimizer();
-
-    // delete the instance of best individual
-    delete best_indiv;
-}
-
-// copy
-void ChOptimizerGenetic::Copy(ChOptimizerGenetic* source) {
-    // first, copy  parent class
-    ChOptimizer::Copy(source);
-
+ChOptimizerGenetic::ChOptimizerGenetic(const ChOptimizerGenetic& other) : ChOptimizer(other) {
     population = NULL;
-    best_indiv->Copy(source->best_indiv);
+    best_indiv = other.best_indiv->Clone();
 
-    popsize = source->popsize;
-    max_generations = source->max_generations;
-    selection = source->selection;
-    crossover = source->crossover;
-    mutation = source->mutation;
-    mutation_prob = source->mutation_prob;
-    crossover_prob = source->crossover_prob;
-    elite = source->elite;
-    crossv_change = source->crossv_change;
-    crossv_changeto = source->crossv_changeto;
-    crossv_changewhen = source->crossv_changewhen;
-    speciation_mating = source->speciation_mating;
-    incest_taboo = source->incest_taboo;
-    replacement = source->replacement;
-    eugenetics = source->eugenetics;
+    popsize = other.popsize;
+    max_generations = other.max_generations;
+    selection = other.selection;
+    crossover = other.crossover;
+    mutation = other.mutation;
+    mutation_prob = other.mutation_prob;
+    crossover_prob = other.crossover_prob;
+    elite = other.elite;
+    crossv_change = other.crossv_change;
+    crossv_changeto = other.crossv_changeto;
+    crossv_changewhen = other.crossv_changewhen;
+    speciation_mating = other.speciation_mating;
+    incest_taboo = other.incest_taboo;
+    replacement = other.replacement;
+    eugenetics = other.eugenetics;
 
-    stop_by_stdeviation = source->stop_by_stdeviation;
-    stop_stdeviation = source->stop_stdeviation;
-    stop_by_fitness = source->stop_by_fitness;
-    stop_fitness = source->stop_fitness;
+    stop_by_stdeviation = other.stop_by_stdeviation;
+    stop_stdeviation = other.stop_stdeviation;
+    stop_by_fitness = other.stop_by_fitness;
+    stop_fitness = other.stop_fitness;
 
     average = 0;
     stdeviation = 0;
@@ -514,9 +477,17 @@ void ChOptimizerGenetic::Copy(ChOptimizerGenetic* source) {
     his_minfitness = NULL;
 }
 
+ChOptimizerGenetic::~ChOptimizerGenetic() {
+    // first, delete parent class
+    // Ch_optimizer::~Ch_optimizer();
+
+    // delete the instance of best individual
+    delete best_indiv;
+}
+
 // Genetic operations
 
-int ChOptimizerGenetic::CreatePopulation(ChGenotype**& my_population, int my_popsize) {
+bool ChOptimizerGenetic::CreatePopulation(ChGenotype**& my_population, int my_popsize) {
     // create the array of pointers;
     my_population = (ChGenotype**)calloc(my_popsize, sizeof(ChGenotype*));
 
@@ -527,12 +498,12 @@ int ChOptimizerGenetic::CreatePopulation(ChGenotype**& my_population, int my_pop
         mygen = new ChGenotype(nvars);
         my_population[i] = mygen;
     }
-    return TRUE;
+    return true;
 }
 
-int ChOptimizerGenetic::DeletePopulation(ChGenotype**& my_population, int my_popsize) {
+bool ChOptimizerGenetic::DeletePopulation(ChGenotype**& my_population, int my_popsize) {
     if (my_population == NULL)
-        return FALSE;
+        return false;
 
     // delete all the individuals (the genotypes)
     ChGenotype* mygen;
@@ -545,33 +516,33 @@ int ChOptimizerGenetic::DeletePopulation(ChGenotype**& my_population, int my_pop
     free(my_population);
     my_population = NULL;
 
-    return TRUE;
+    return true;
 }
 
-int ChOptimizerGenetic::InitializePopulation() {
+bool ChOptimizerGenetic::InitializePopulation() {
     int nv = GetNumOfVars();
     int mind;
     int varindex;
     double mvalue, a1, a2;
 
     if (population == NULL)
-        return FALSE;
+        return false;
     if (population[0]->genes->GetRows() != nv)
-        return FALSE;
+        return false;
 
     for (mind = 0; mind < popsize; mind++) {
         varindex = 0;
-        population[mind]->need_eval = TRUE;
+        population[mind]->need_eval = true;
         for (varindex = 0; varindex < nv; varindex++) {
-            a1 = this->xv_inf[varindex];  // the random value of each variable
-            a2 = this->xv_sup[varindex];  // must lie within the max/min limits
+            a1 = xv_inf[varindex];  // the random value of each variable
+            a2 = xv_sup[varindex];  // must lie within the max/min limits
             mvalue = a1 + (ChRandom() * (a2 - a1));
             population[mind]->genes->SetElement(varindex, 0, mvalue);
             varindex++;
         }
     }
 
-    return TRUE;
+    return true;
 }
 
 double ChOptimizerGenetic::ComputeFitness(ChGenotype* mygen) {
@@ -589,18 +560,18 @@ double ChOptimizerGenetic::ComputeFitness(ChGenotype* mygen) {
     // impose these variables to the system,
     //  Vars_to_System(myvars);
     // evaluate functional,
-    mfitness = this->Eval_fx(myvars);  // ++++++ HERE THE FITNESS IS EVALUATED
+    mfitness = Eval_fx(myvars);  // ++++++ HERE THE FITNESS IS EVALUATED
 
     mygen->fitness = mfitness;
     // set flag for speed reasons..
-    mygen->need_eval = FALSE;
+    mygen->need_eval = false;
 
     free(myvars);  // delete the array of variables
 
     return mfitness;
 }
 
-int ChOptimizerGenetic::ComputeAllFitness() {
+bool ChOptimizerGenetic::ComputeAllFitness() {
     int nv = GetNumOfVars();
     int mvar, mind;
     // create temporary array of variables for function-parameter-passing purposes.
@@ -615,17 +586,17 @@ int ChOptimizerGenetic::ComputeAllFitness() {
             // impose these variables to the system,
             // Vars_to_System(myvars);
             // evaluate functional,
-            population[mind]->fitness = this->Eval_fx(myvars);  // ++++++ HERE THE FITNESS IS EVALUATED
+            population[mind]->fitness = Eval_fx(myvars);  // ++++++ HERE THE FITNESS IS EVALUATED
             // set flag for speed reasons..
-            population[mind]->need_eval = FALSE;
+            population[mind]->need_eval = false;
             // user break?
-            if (this->user_break)
+            if (user_break)
                 break;
         }
     }
     free(myvars);  // delete the array of variables
 
-    return TRUE;
+    return true;
 }
 
 ChGenotype* ChOptimizerGenetic::Select_best(ChGenotype** my_population) {
@@ -662,7 +633,7 @@ double ChOptimizerGenetic::Get_fitness_interval(ChGenotype** my_population) {
     return (Select_best(my_population)->fitness - Select_worst(my_population)->fitness);
 }
 
-int ChOptimizerGenetic::PopulationStats(double& average, double& max, double& min, double& stdeviation) {
+void ChOptimizerGenetic::PopulationStats(double& average, double& max, double& min, double& stdeviation) {
     average = 0;
     max = -999999999;
     min = +999999999;
@@ -690,8 +661,6 @@ int ChOptimizerGenetic::PopulationStats(double& average, double& max, double& mi
     }
     variance = variance / (double)(sumind - 1);
     stdeviation = sqrt(variance);
-
-    return TRUE;
 }
 
 ChGenotype* ChOptimizerGenetic::Select_roulette(ChGenotype** my_population) {
@@ -702,7 +671,7 @@ ChGenotype* ChOptimizerGenetic::Select_roulette(ChGenotype** my_population) {
     double norm_fitness;
     double minf_fit = Select_worst(my_population)->fitness;
     double msup_fit = Select_best(my_population)->fitness;
-    double clamp_fit = minf_fit + this->eugenetics * (msup_fit - minf_fit);
+    double clamp_fit = minf_fit + eugenetics * (msup_fit - minf_fit);
 
     int i;
     for (i = 0; i < popsize; i++) {
@@ -730,19 +699,19 @@ ChGenotype* ChOptimizerGenetic::Select_roulette(ChGenotype** my_population) {
     return mselected;
 }
 
-int ChOptimizerGenetic::Selection() {
+void ChOptimizerGenetic::Selection() {
     // create the selected population:
     ChGenotype** selected_population;
     CreatePopulation(selected_population, popsize);
     int i;
 
     // move the good elements into the new temp array of selected elements
-    switch (this->selection) {
-        case SELEC_ROULETTE:
+    switch (selection) {
+        case SelectionType::ROULETTE:
             for (i = 0; i < popsize; i++)
                 selected_population[i]->Copy(Select_roulette(population));
             break;
-        case SELEC_ROULETTEBEST:
+        case SelectionType::ROULETTEBEST:
             for (i = 0; i < popsize; i++)
                 selected_population[i]->Copy(Select_roulette(population));
             Select_worst(selected_population)->Copy(Select_best(population));
@@ -755,27 +724,25 @@ int ChOptimizerGenetic::Selection() {
     // set the tmp_population as new population, deleting the old.
     DeletePopulation(population, popsize);
     population = selected_population;
-
-    return TRUE;
 }
 
-int ChOptimizerGenetic::ApplyCrossover(ChGenotype* par1, ChGenotype* par2, ChGenotype& child1, ChGenotype& child2) {
+void ChOptimizerGenetic::ApplyCrossover(ChGenotype* par1, ChGenotype* par2, ChGenotype& child1, ChGenotype& child2) {
     int nvars = par1->genes->GetRows();
     int mv;
     double fen1, fen2, newfen1, newfen2, w1, w2;
     ChMatrixDynamic<> mtemp(nvars, 1);
 
-    switch (this->crossover) {
-        case CROSSOVER_DISABLED:
+    switch (crossover) {
+        case CrossoverType::DISABLED:
             // do not perform crossover, return same as parent without need of evaluation
             child1.Copy(par1);
             child2.Copy(par2);
-            child1.need_eval = FALSE;
-            child2.need_eval = FALSE;
-            return TRUE;  // %%%%
+            child1.need_eval = false;
+            child2.need_eval = false;
+            return;  // %%%%
 
-        case CROSSOVER_ARITMETIC:
-            // 'Aritmetic' crossover:
+        case CrossoverType::ARITMETIC:
+            // 'Arithmetic' crossover:
             // average of fenotypes with random wheight
             for (mv = 0; mv < nvars; mv++) {
                 w1 = ChRandom();
@@ -789,7 +756,7 @@ int ChOptimizerGenetic::ApplyCrossover(ChGenotype* par1, ChGenotype* par2, ChGen
             }
             break;
 
-        case CROSSOVER_BLEND:
+        case CrossoverType::BLEND:
             // 'Blend' crossover:
             // linear average of two fenotypes with constant weights 0.3 and 0.7 (children are linear
             // interpolation of parents 0...0.3...0.7...1)
@@ -804,7 +771,7 @@ int ChOptimizerGenetic::ApplyCrossover(ChGenotype* par1, ChGenotype* par2, ChGen
                 child2.genes->SetElement(mv, 0, newfen2);
             }
             break;
-        case CROSSOVER_BLEND_RANDOM:
+        case CrossoverType::BLEND_RANDOM:
             // 'Blend random' crossover:
             // linear average of two fenotypes with random weights 0.3 and 0.7 (children are linear
             // interpolation of parents 0...rnd...rnd...1)
@@ -819,7 +786,7 @@ int ChOptimizerGenetic::ApplyCrossover(ChGenotype* par1, ChGenotype* par2, ChGen
                 child2.genes->SetElement(mv, 0, newfen2);
             }
             break;
-        case CROSSOVER_HEURISTIC:
+        case CrossoverType::HEURISTIC:
             // 'heuristic crossover' extrapolates the child in the direction of
             // the parent with best fitness
             ChGenotype* lead_par;
@@ -838,18 +805,18 @@ int ChOptimizerGenetic::ApplyCrossover(ChGenotype* par1, ChGenotype* par2, ChGen
 
                 w1 = ChRandom();
                 newfen1 = fen1 + w1 * (fen1 - fen2);
-                if (newfen1 > this->xv_sup[mv])
-                    newfen1 = this->xv_sup[mv];
-                if (newfen1 < this->xv_inf[mv])
-                    newfen1 = this->xv_inf[mv];
+                if (newfen1 > xv_sup[mv])
+                    newfen1 = xv_sup[mv];
+                if (newfen1 < xv_inf[mv])
+                    newfen1 = xv_inf[mv];
                 child1.genes->SetElement(mv, 0, newfen1);
 
                 w2 = ChRandom();
                 newfen2 = fen1 + w2 * (fen1 - fen2);
-                if (newfen2 > this->xv_sup[mv])
-                    newfen2 = this->xv_sup[mv];
-                if (newfen2 < this->xv_inf[mv])
-                    newfen2 = this->xv_inf[mv];
+                if (newfen2 > xv_sup[mv])
+                    newfen2 = xv_sup[mv];
+                if (newfen2 < xv_inf[mv])
+                    newfen2 = xv_inf[mv];
                 child2.genes->SetElement(mv, 0, newfen2);
             }
             break;
@@ -860,13 +827,11 @@ int ChOptimizerGenetic::ApplyCrossover(ChGenotype* par1, ChGenotype* par2, ChGen
 
     // set flags: the chromosomes has been changed,
     // and fitness should be computed!
-    child1.need_eval = TRUE;
-    child2.need_eval = TRUE;
-
-    return TRUE;
+    child1.need_eval = true;
+    child2.need_eval = true;
 }
 
-int ChOptimizerGenetic::Crossover() {
+void ChOptimizerGenetic::Crossover() {
     int nv = GetNumOfVars();
     ChGenotype* par1;
     ChGenotype* par2;
@@ -897,7 +862,7 @@ int ChOptimizerGenetic::Crossover() {
     */
 
     for (int i = 0; i < popsize; i++) {
-        if (ChRandom() <= this->crossover_prob) {
+        if (ChRandom() <= crossover_prob) {
             if ((par1 == NULL) && (par2 == NULL))
                 par1 = population[i];
             else if ((par1 != NULL) && (par2 == NULL))
@@ -912,13 +877,13 @@ int ChOptimizerGenetic::Crossover() {
 
             // replacement of children data  ##########
             switch (replacement) {
-                case REPLA_PARENTS:
+                case ReplaceMode::PARENTS:
                     par1->Copy(&child1);
                     par2->Copy(&child2);
                     break;
-                case REPLA_WORST:
-                    Select_worst(this->population)->Copy(&child1);
-                    Select_worst(this->population)->Copy(&child2);
+                case ReplaceMode::WORST:
+                    Select_worst(population)->Copy(&child1);
+                    Select_worst(population)->Copy(&child2);
                     break;
                 default:
                     break;
@@ -929,29 +894,27 @@ int ChOptimizerGenetic::Crossover() {
             par2 = NULL;
         }
     }
-
-    return TRUE;
 }
 
-int ChOptimizerGenetic::Mutation() {
+void ChOptimizerGenetic::Mutation() {
     int nv = GetNumOfVars();
     double a1, a2, mutval;
-    int had_mutation;
+    bool had_mutation;
 
     for (int i = 0; i < popsize; i++) {
-        had_mutation = FALSE;
+        had_mutation = false;
         for (int mvar = 0; mvar < nv; mvar++) {
-            if (ChRandom() <= this->mutation_prob) {
+            if (ChRandom() <= mutation_prob) {
                 // MUTATION of the fenotype variable...
                 // Find the variable structure in variable linked list, with limits
-                a1 = this->xv_inf[mvar];  // the random value of each variable
-                a2 = this->xv_sup[mvar];  // must lie within the max/min
+                a1 = xv_inf[mvar];  // the random value of each variable
+                a2 = xv_sup[mvar];  // must lie within the max/min
                 // Perform mutation:
-                switch (this->mutation) {
-                    case MUTATION_UNIFORM:
+                switch (mutation) {
+                    case MutationType::UNIFORM:
                         mutval = a1 + ChRandom() * (a2 - a1);
                         break;
-                    case MUTATION_BOUNDARY:
+                    case MutationType::BOUNDARY:
                         if (ChRandom() < 0.5)
                             mutval = a1;
                         else
@@ -964,19 +927,17 @@ int ChOptimizerGenetic::Mutation() {
 
                 // the chromosomes have been changed, remember that
                 // new fitness will be computed:
-                population[i]->need_eval = TRUE;
+                population[i]->need_eval = true;
 
-                had_mutation = TRUE;
+                had_mutation = true;
             }
         }
         if (had_mutation)
-            this->mutants++;
+            mutants++;
     }
-
-    return TRUE;
 }
 
-int ChOptimizerGenetic::LogOut(int filelog) {
+void ChOptimizerGenetic::LogOut(bool filelog) {
     if (his_average)
         if (his_average->GetRows() >= generations_done)
             his_average->SetElement(generations_done - 1, 0, average);
@@ -1011,49 +972,48 @@ int ChOptimizerGenetic::LogOut(int filelog) {
 
         GetLog().SetCurrentLevel(oldfilemode);
     }
-    return TRUE;
 }
 
-int ChOptimizerGenetic::DoOptimize() {
+bool ChOptimizerGenetic::DoOptimize() {
     GetLog() << "\n\n\nGENETIC OPTIMIZATION STARTED.............\n\n";
 
     int nv = GetNumOfVars();
 
     // allocate -if needed- the upper-lower boundaries arrays
     /*
-        if (!this->C_vars)
+        if (!C_vars)
         {
-            this->xv_sup = (double*) calloc (nv, sizeof(double));
-            this->xv_inf = (double*) calloc (nv, sizeof(double));
+            xv_sup = (double*) calloc (nv, sizeof(double));
+            xv_inf = (double*) calloc (nv, sizeof(double));
             int mvar = 0;
 
             for (ChOptVar* Vovar = optvarlist; Vovar != NULL; Vovar = (ChOptVar*) Vovar->GetNext())
             {
-                this->xv_sup[mvar] = Vovar->GetLimSup();
-                this->xv_inf[mvar] = Vovar->GetLimInf();
+                xv_sup[mvar] = Vovar->GetLimSup();
+                xv_inf[mvar] = Vovar->GetLimInf();
                 mvar++;
             }
         }
     */
 
-    this->CreatePopulation(population, popsize);
-    this->InitializePopulation();
+    CreatePopulation(population, popsize);
+    InitializePopulation();
 
-    this->mutants = 0;
+    mutants = 0;
 
     // avoid complete streaming of log during optimization;
     ChLog::eChLogLevel oldfilemode = GetLog().GetCurrentLevel();
     GetLog().SetCurrentLevel(ChLog::CHQUIET);
 
     // -- COMPUTE FITNESS  (for all individuals of brand-new population, 1st time)
-    this->ComputeAllFitness();
+    ComputeAllFitness();
 
     //
     // THE CYCLE OF OPTIMIZATION,
     // GENERATION BY GENERATION
     //
     for (generations_done = 1; generations_done <= max_generations; generations_done++) {
-        if (crossv_change == CRO_CHANGE_DATE)
+        if (crossv_change == CrossoverChangeType::DATE)
             if (generations_done > crossv_changewhen)
                 crossover = crossv_changeto;
 
@@ -1067,7 +1027,7 @@ int ChOptimizerGenetic::DoOptimize() {
         PopulationStats(average, max_fitness, min_fitness, stdeviation);
 
         // -- log
-        LogOut(TRUE);
+        LogOut(true);
 
         // -- break cycle conditions
         if (stop_by_stdeviation)
@@ -1083,25 +1043,25 @@ int ChOptimizerGenetic::DoOptimize() {
             }
 
         // -- user break?
-        if (this->user_break) {
+        if (user_break) {
             if (*err_message == 0)
                 sprintf(err_message, "OK, user break");
             break;
         }
 
         // -- CROSSOVER
-        this->Crossover();
+        Crossover();
 
         // -- MUTATION
-        this->Mutation();
+        Mutation();
 
         // -- COMPUTE FITNESS
-        this->ComputeAllFitness();
+        ComputeAllFitness();
 
         // -- SELECTION
-        this->Selection();
+        Selection();
 
-        if (elite == ELITE_TRUE) {
+        if (elite) {
             if (Select_best(population)->fitness < best_indiv->fitness) {
                 Select_worst(population)->Copy(best_indiv);
             }
@@ -1128,7 +1088,7 @@ int ChOptimizerGenetic::DoOptimize() {
         GetLog() << myvars[mvar];
     }
 
-    memcpy(this->xv, myvars, (sizeof(double) * nv));
+    memcpy(xv, myvars, (sizeof(double) * nv));
     //	Vars_to_System(myvars);
 
     free(myvars);  // delete the array of variables
@@ -1138,25 +1098,21 @@ int ChOptimizerGenetic::DoOptimize() {
     GetLog() << "\n\n\n";
 
     // delete the population, useful anymore...
-    this->DeletePopulation(population, popsize);
+    DeletePopulation(population, popsize);
 
-    if (!this->C_vars) {
-        free(this->xv_sup);
-        free(this->xv_inf);
+    if (!C_vars) {
+        free(xv_sup);
+        free(xv_inf);
     }
 
-    return TRUE;
+    return true;
 }
 
-///////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////
-///
-/// Ch_gradb_optimizer
-///           Local optimization engine member functions
-///
+// ----------------------------------------------------------------------------
+// Ch_gradb_optimizer
+//           Local optimization engine member functions
+//
 
-// build
 ChOptimizerGradient::ChOptimizerGradient()
     : ChOptimizer()  // note: implicit
 {
@@ -1168,37 +1124,30 @@ ChOptimizerGradient::ChOptimizerGradient()
     maxdilationsteps = 8;
     maxbisections = 10;
     dilation = 2.1;
-    do_conjugate = FALSE;
+    do_conjugate = false;
 }
 
 // destroy
-ChOptimizerGradient::~ChOptimizerGradient() {
-}
-
-// copy
-void ChOptimizerGradient::Copy(ChOptimizerGradient* source) {
-    // first, copy  parent class
-    ChOptimizer::Copy(source);
-
-    initial_step = source->initial_step;
-    arg_tol = source->arg_tol;
-    fun_tol = source->fun_tol;
-    maxevaluations = source->maxevaluations;
-    maxgradients = source->maxgradients;
-    maxdilationsteps = source->maxdilationsteps;
-    maxbisections = source->maxbisections;
-    dilation = source->dilation;
-    do_conjugate = source->do_conjugate;
+ChOptimizerGradient::ChOptimizerGradient(const ChOptimizerGradient& other) : ChOptimizer(other) {
+    initial_step = other.initial_step;
+    arg_tol = other.arg_tol;
+    fun_tol = other.fun_tol;
+    maxevaluations = other.maxevaluations;
+    maxgradients = other.maxgradients;
+    maxdilationsteps = other.maxdilationsteps;
+    maxbisections = other.maxbisections;
+    dilation = other.dilation;
+    do_conjugate = other.do_conjugate;
 }
 
 //// OPTIMIZE FUNCTION  , locally with pseudo-NR method
 
-int ChOptimizerGradient::DoOptimize() {
+bool ChOptimizerGradient::DoOptimize() {
     double nstep = initial_step;
     int dilationstep;
     int bisections;
     double fx, fxguess, fxmid, fx1, fx2, lastgood, normGold, normGnew;
-    int update_grad;
+    bool update_grad;
 
     // count vars
     int nv = GetNumOfVars();
@@ -1209,7 +1158,7 @@ int ChOptimizerGradient::DoOptimize() {
     ChMatrixDynamic<> mX(nv, 1);       // the variables
     ChMatrixDynamic<> mXguess(nv, 1);  // the guessed variables
     ChMatrixDynamic<> mG(nv, 1);       // the gradient
-    ChMatrixDynamic<> mGcn(nv, 1);     // the conjugategradient
+    ChMatrixDynamic<> mGcn(nv, 1);     // the conjugate gradient
     ChMatrixDynamic<> mGcnold(nv, 1);  // the old conjugate gradient
     ChMatrixDynamic<> mDx(nv, 1);      // the increment
     ChMatrixDynamic<> mXmid(nv, 1);    // the bisection center
@@ -1220,22 +1169,22 @@ int ChOptimizerGradient::DoOptimize() {
     // system->vector
 
     for (int i = 0; i < nv; i++) {
-        mX(i, 0) = this->xv[i];
+        mX(i, 0) = xv[i];
     };
     // System_to_Vars(&mX);
 
     fx = Eval_fx(&mX);
 
-    update_grad = TRUE;
+    update_grad = true;
 
     // perform iterative optimization..
 
-    while (TRUE) {
+    while (true) {
         // #### compute gradient here;
         Eval_grad(&mX, &mG);
 
         // correction for conjugate gradient method?
-        if (this->do_conjugate) {
+        if (do_conjugate) {
             normGnew = mG.NormTwo();
             mGcn.CopyFromMatrix(mG);
             if (grad_evaluations > 1) {
@@ -1250,7 +1199,7 @@ int ChOptimizerGradient::DoOptimize() {
         // Forward dilation search;
         dilationstep = 0;
         lastgood = fx;
-        while (TRUE) {
+        while (true) {
             if (dilationstep > maxdilationsteps)
                 break;
             dilationstep++;
@@ -1272,7 +1221,7 @@ int ChOptimizerGradient::DoOptimize() {
 
         // Backward bisection search;
         bisections = 0;
-        int gone;
+        bool gone;
 
         mDx.CopyFromMatrix(mG);  // initialize mid
         mDx.MatrScale(nstep * 0.5);
@@ -1280,7 +1229,7 @@ int ChOptimizerGradient::DoOptimize() {
 
         fxmid = Eval_fx(&mXmid);
 
-        while (TRUE) {
+        while (true) {
             if (bisections > maxbisections)
                 break;
             bisections++;
@@ -1299,29 +1248,29 @@ int ChOptimizerGradient::DoOptimize() {
 
             fx2 = Eval_fx(&mX2);
 
-            gone = FALSE;
-            if ((fx1 <= fxmid) && (fxmid <= fx2) && (gone == FALSE)) {
+            gone = false;
+            if ((fx1 <= fxmid) && (fxmid <= fx2) && !gone) {
                 mX.CopyFromMatrix(mXmid);
                 fx = fxmid;
                 mXmid.CopyFromMatrix(mX2);
                 fxmid = fx2;
-                gone = TRUE;
+                gone = true;
             }
-            if ((fx1 >= fxmid) && (fxmid >= fx2) && (gone == FALSE)) {
+            if ((fx1 >= fxmid) && (fxmid >= fx2) && !gone) {
                 mXguess.CopyFromMatrix(mXmid);
                 fxguess = fxmid;
                 mXmid.CopyFromMatrix(mX1);
                 fxmid = fx1;
-                gone = TRUE;
+                gone = true;
             }
-            if ((fx1 <= fxmid) && (fxmid >= fx2) && (gone == FALSE)) {
+            if ((fx1 <= fxmid) && (fxmid >= fx2) && !gone) {
                 mX.CopyFromMatrix(mX1);
                 fx = fx1;
                 mXguess.CopyFromMatrix(mX2);
                 fxguess = fx2;
-                gone = TRUE;
+                gone = true;
             }
-            if (gone == FALSE) {
+            if (!gone) {
                 nstep *= 0.25;
                 break;
             }
@@ -1348,16 +1297,16 @@ int ChOptimizerGradient::DoOptimize() {
 
         fx = Eval_fx(mX.GetAddress());
 
-        if (this->fx_evaluations > maxevaluations) {
+        if (fx_evaluations > maxevaluations) {
             // cout << "\n          limit on fx evals----= ";
             sprintf(err_message, "OK, limit on max number of fx evaluations reached in %ld steps",
-                    (long)this->grad_evaluations);
+                    (long)grad_evaluations);
             break;
         }
-        if (this->grad_evaluations > maxgradients) {
+        if (grad_evaluations > maxgradients) {
             // cout << "\n          limit on max gradients ---- ";
             sprintf(err_message, "OK, limit on max number of %ld gradient evaluations reached.",
-                    (long)this->grad_evaluations);
+                    (long)grad_evaluations);
             break;
         }
     }
@@ -1366,26 +1315,22 @@ int ChOptimizerGradient::DoOptimize() {
 
 end_opt:
     // ***TO DO*** set the system at best variables among fx, fxguess, fx1, fx2;
-    this->opt_fx = fx;
+    opt_fx = fx;
 
-    if (this->C_vars) {
+    if (C_vars) {
         for (int i = 0; i < nv; i++) {
-            this->xv[i] = mX(i, 0);
+            xv[i] = mX(i, 0);
         };
     }  // copy result into vector xv
 
-    return TRUE;
+    return true;
 }
 
-///////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////
-///
-/// Ch_hybrid_optimizer
-///           Hybrid (genetic+local) optimization engine
-///
+// -----------------------------------------------------------------------------
+// Ch_hybrid_optimizer
+//          Hybrid (genetic+local) optimization engine
+//
 
-// build
 ChOptimizerHybrid::ChOptimizerHybrid()
     : ChOptimizer()  // note: implicit
 {
@@ -1393,92 +1338,86 @@ ChOptimizerHybrid::ChOptimizerHybrid()
     local_opt = new ChOptimizerLocal();
 
     current_phase = 0;
-    use_genetic = TRUE;
-    use_local = TRUE;
+    use_genetic = true;
+    use_local = true;
 }
 
-// destroy
+ChOptimizerHybrid::ChOptimizerHybrid(const ChOptimizerHybrid& other) : ChOptimizer(other) {
+    current_phase = other.current_phase;
+    use_genetic = other.use_genetic;
+    use_local = other.use_local;
+
+    genetic_opt = other.genetic_opt->Clone();
+    local_opt = other.local_opt->Clone();
+}
+
 ChOptimizerHybrid::~ChOptimizerHybrid() {
-    // delete the two incapsulated optimizers;
+    // delete the two encapsulated optimizers;
     delete genetic_opt;
     delete local_opt;
 }
 
-// copy
-void ChOptimizerHybrid::Copy(ChOptimizerHybrid* source) {
-    // first, copy  parent class
-    ChOptimizer::Copy(source);
-
-    current_phase = source->current_phase;
-    use_genetic = source->use_genetic;
-    use_local = source->use_local;
-
-    // copy everything also in the two optmimizers
-    genetic_opt->Copy(source->genetic_opt);
-    local_opt->Copy(source->local_opt);
-}
-
 //// OPTIMIZE FUNCTION  ,
 
-int ChOptimizerHybrid::DoOptimize() {
+bool ChOptimizerHybrid::DoOptimize() {
     // set common optimization settings
-    genetic_opt->minimize = this->minimize;
-    local_opt->minimize = this->minimize;
-    genetic_opt->SetNumOfVars(this->C_vars);
-    local_opt->SetNumOfVars(this->C_vars);
-    genetic_opt->SetXv(this->xv);
-    genetic_opt->SetXv_sup(this->xv_sup);
-    genetic_opt->SetXv_inf(this->xv_inf);
-    local_opt->SetXv(this->xv);
-    local_opt->SetXv_sup(this->xv_sup);
-    local_opt->SetXv_inf(this->xv_inf);
+    genetic_opt->minimize = minimize;
+    local_opt->minimize = minimize;
+    genetic_opt->SetNumOfVars(C_vars);
+    local_opt->SetNumOfVars(C_vars);
+    genetic_opt->SetXv(xv);
+    genetic_opt->SetXv_sup(xv_sup);
+    genetic_opt->SetXv_inf(xv_inf);
+    local_opt->SetXv(xv);
+    local_opt->SetXv_sup(xv_sup);
+    local_opt->SetXv_inf(xv_inf);
 
-    genetic_opt->break_funct = this->break_funct;
-    local_opt->break_funct = this->break_funct;
-    genetic_opt->break_cycles = this->break_cycles;
-    local_opt->break_cycles = this->break_cycles;
+    genetic_opt->break_funct = break_funct;
+    local_opt->break_funct = break_funct;
+    genetic_opt->break_cycles = break_cycles;
+    local_opt->break_cycles = break_cycles;
 
     // 1)  optimization with genetic method
 
-    if (this->use_genetic) {
-        this->current_phase = 1;
+    if (use_genetic) {
+        current_phase = 1;
 
         if (!genetic_opt->Optimize()) {
-            strcpy(this->err_message, genetic_opt->err_message);
-            return FALSE;
+            strcpy(err_message, genetic_opt->err_message);
+            return false;
         }
 
-        this->fx_evaluations = genetic_opt->fx_evaluations;
-        this->grad_evaluations = genetic_opt->grad_evaluations;
-        this->opt_fx = genetic_opt->opt_fx;
+        fx_evaluations = genetic_opt->fx_evaluations;
+        grad_evaluations = genetic_opt->grad_evaluations;
+        opt_fx = genetic_opt->opt_fx;
     }
 
     // 2)  optimization with gradient method
 
-    if (this->use_local) {
-        this->current_phase = 2;
+    if (use_local) {
+        current_phase = 2;
 
         if (!local_opt->Optimize()) {
-            strcpy(this->err_message, local_opt->err_message);
-            return FALSE;
+            strcpy(err_message, local_opt->err_message);
+            return false;
         }
 
-        this->fx_evaluations = genetic_opt->fx_evaluations + local_opt->fx_evaluations;
-        this->grad_evaluations = genetic_opt->grad_evaluations + local_opt->grad_evaluations;
-        this->opt_fx = local_opt->opt_fx;
+        fx_evaluations = genetic_opt->fx_evaluations + local_opt->fx_evaluations;
+        grad_evaluations = genetic_opt->grad_evaluations + local_opt->grad_evaluations;
+        opt_fx = local_opt->opt_fx;
     }
 
-    this->current_phase = 0;
+    current_phase = 0;
 
     // set class values after optimization
-    strcpy(this->err_message, "Ok, hybrid optimization has been terminated");
+    strcpy(err_message, "Ok, hybrid optimization has been terminated");
 
     // on termination, reset the system at the value of the fenotypes of the best indiv.
     GetLog() << "\n\nHYBRID OPTIMIZATION TERMINATED.";
     GetLog() << "\nCurrent system variables after optimization:";
-    int nv = this->GetNumOfVars();
+    int nv = GetNumOfVars();
     double* myvars = (double*)calloc(nv, sizeof(double));
-    // this->System_to_Vars(myvars);
+    // System_to_Vars(myvars);
     for (int mvar = 0; mvar < nv; mvar++) {
         GetLog() << "\n   ";
         GetLog() << myvars[mvar];
@@ -1486,10 +1425,10 @@ int ChOptimizerHybrid::DoOptimize() {
     free(myvars);  // delete the array of variables
 
     GetLog() << "\n with objective fx obtained equal to = ";
-    GetLog() << this->opt_fx;
+    GetLog() << opt_fx;
     GetLog() << "\n\n\n";
 
-    return TRUE;
+    return true;
 }
 
 void ChOptimizerHybrid::SetObjective(ChFx* mformula) {
@@ -1549,7 +1488,7 @@ double solvopt(unsigned int n,
       options is a vector of optional parameters (see the description in SOLVOPT.H).
             Returned optional values:
             options[8], the number of iterations, options[8]<0 means
-                        an error occured
+                        an error occurred
             options[9], the number of objective function evaluations, and
             options[10],the number of gradient evaluations.
       idData rappresenta un dato a 32 bit per contenere particolari informazioni
@@ -1569,7 +1508,7 @@ double solvopt(unsigned int n,
     double dx, e2g, e2gt, e2z, e2g1, gnp = 5.1e0, xrb, xlb;
     const double zero = 0.e0, one = 1.e0, eps = 1.e-15, maxf = 1.e100;
     double* B;                         /* space transformation matrix (allocatable)      */
-    double* g, *g0, *g1, *gt, *z, *x1; /* allocatable working arrays                     */
+    double *g, *g0, *g1, *gt, *z, *x1; /* allocatable working arrays                     */
     // unsigned short k=0,           /* iteration counter                              */
     unsigned int k = 0,                                       /* iteration counter                              */
         kcheck = 0,                                           /* reset check counter                            */
@@ -2156,6 +2095,4 @@ endrun:
     return (f);
 }
 
-}  // END_OF_NAMESPACE____
-
-// eof
+}  // end namespace chrono

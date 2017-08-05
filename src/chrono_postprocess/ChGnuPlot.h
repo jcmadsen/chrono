@@ -1,32 +1,40 @@
-//
+// =============================================================================
 // PROJECT CHRONO - http://projectchrono.org
 //
-// Copyright (c) 2011-2012 Alessandro Tasora
+// Copyright (c) 2014 projectchrono.org
 // All rights reserved.
 //
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE file at the top level of the distribution
-// and at http://projectchrono.org/license-chrono.txt.
+// Use of this source code is governed by a BSD-style license that can be found
+// in the LICENSE file at the top level of the distribution and at
+// http://projectchrono.org/license-chrono.txt.
 //
+// =============================================================================
+// Authors: Alessandro Tasora
+// =============================================================================
 
 #ifndef CHGNUPLOT_H
 #define CHGNUPLOT_H
 
 #include <sstream>
 #include <iostream>
-#include "core/ChStream.h"
-#include "core/ChMatrixDynamic.h"
-#include "core/ChVectorDynamic.h"
+
+#include "chrono/core/ChStream.h"
+#include "chrono/core/ChMatrixDynamic.h"
+#include "chrono/core/ChVectorDynamic.h"
+#include "chrono/assets/ChColor.h"
+#include "chrono/motion_functions/ChFunction_Base.h"
+#include "chrono/motion_functions/ChFunction_Recorder.h"
+#include "chrono/motion_functions/ChFunction_Oscilloscope.h"
+
 #include "chrono_postprocess/ChApiPostProcess.h"
-#include "assets/ChColor.h"
-#include "motion_functions/ChFunction_Base.h"
-#include "motion_functions/ChFunction_Recorder.h"
-#include "motion_functions/ChFunction_Oscilloscope.h"
 
 namespace chrono {
 
 /// Namespace with classes for the postprocess unit.
 namespace postprocess {
+
+/// @addtogroup postprocess_module
+/// @{
 
 class ChGnuPlotDataplot {
   public:
@@ -114,8 +122,8 @@ class ChGnuPlot {
 
         ChGnuPlotDataplot mdataplot;
         mdataplot.data.Resize(mx.GetRows(), 2);
-        mdataplot.data.PasteMatrix(&mx, 0, 0);
-        mdataplot.data.PasteMatrix(&my, 0, 1);
+        mdataplot.data.PasteMatrix(mx, 0, 0);
+        mdataplot.data.PasteMatrix(my, 0, 1);
 
         mdataplot.command += " \"-\" using 1:2 ";
         mdataplot.command += customsettings;
@@ -131,21 +139,21 @@ class ChGnuPlot {
     void Plot(ChMatrix<>& mdata, int colX, int colY, const char* title, const char* customsettings = " with lines ") {
         ChVectorDynamic<> mx(mdata.GetRows());
         ChVectorDynamic<> my(mdata.GetRows());
-        mx.PasteClippedMatrix(&mdata, 0, colX, mdata.GetRows(), 1, 0, 0);
-        my.PasteClippedMatrix(&mdata, 0, colY, mdata.GetRows(), 1, 0, 0);
+        mx.PasteClippedMatrix(mdata, 0, colX, mdata.GetRows(), 1, 0, 0);
+        my.PasteClippedMatrix(mdata, 0, colY, mdata.GetRows(), 1, 0, 0);
         Plot(mx, my, title, customsettings);
     }
 
     /// Shortcut to easy 2D plot of x,y data
     /// from a ChFunction_recorder
     void Plot(ChFunction_Recorder& mrecorder, const char* title, const char* customsettings = " with lines ") {
-        ChVectorDynamic<> mx(mrecorder.GetPointList()->Count());
+        ChVectorDynamic<> mx((const int)mrecorder.GetPoints().size());
         ChVectorDynamic<> my(mx.GetRows());
 
         int i = 0;
-        for (ChNode<ChRecPoint>* mnode = mrecorder.GetPointList()->GetHead(); mnode != NULL; mnode = mnode->next) {
-            mx(i) = mnode->data->x;
-            my(i) = mnode->data->y;
+        for (auto iter = mrecorder.GetPoints().begin(); iter != mrecorder.GetPoints().end(); ++iter) {
+            mx(i) = iter->x;
+            my(i) = iter->y;
             ++i;
         }
         Plot(mx, my, title, customsettings);
@@ -284,7 +292,7 @@ class ChGnuPlot {
     }
 
     /// Set plot in a window.
-    /// For multiple windows, call this with icreasing windownum, interleaving with Plot() statements etc.
+    /// For multiple windows, call this with increasing windownum, interleaving with Plot() statements etc.
     /// Call this before Plot() statements. Otherwise call Replot() just after.
     void OutputWindow(int windownum = 0) {
         FlushPlots(commandfile);
@@ -434,7 +442,9 @@ class ChGnuPlot {
     bool persist;
 };
 
-}  // end namespace
-}  // end namespace
+/// @} postprocess_module
+
+}  // end namespace postprocess
+}  // end namespace chrono
 
 #endif

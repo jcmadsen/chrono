@@ -1,70 +1,61 @@
-//
+// =============================================================================
 // PROJECT CHRONO - http://projectchrono.org
 //
-// Copyright (c) 2013 Project Chrono
+// Copyright (c) 2014 projectchrono.org
 // All rights reserved.
 //
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE file at the top level of the distribution
-// and at http://projectchrono.org/license-chrono.txt.
+// Use of this source code is governed by a BSD-style license that can be found
+// in the LICENSE file at the top level of the distribution and at
+// http://projectchrono.org/license-chrono.txt.
 //
+// =============================================================================
+// Authors: Radu Serban
+// =============================================================================
 
-#ifndef CHLINKSPRINGCB_H
-#define CHLINKSPRINGCB_H
+#ifndef CH_LINK_SPRING_CB_H
+#define CH_LINK_SPRING_CB_H
 
-#include "physics/ChLinkMarkers.h"
+#include "chrono/physics/ChLinkMarkers.h"
 
 namespace chrono {
 
-///
-/// Base callback function for implementing a general spring-damper force
-/// A derived class must implement the virtual operator().
-///
-
-class ChSpringForceCallback {
-  public:
-    virtual double operator()(double time,         ///< current time
-                              double rest_length,  ///< undeformed length
-                              double length,       ///< current length
-                              double vel           ///< current velocity (positive when extending)
-                              ) = 0;
-};
-
-///
-/// Class for spring-damper systems with the force specified through a
-/// callback object.
-///
-
+/// Class for spring-damper systems with the force specified through a functor object.
 class ChApi ChLinkSpringCB : public ChLinkMarkers {
-    CH_RTTI(ChLinkSpringCB, ChLinkMarkers);
-
-  protected:
-    ChSpringForceCallback* m_force_fun;  ///< functor for force calculation
-    double m_rest_length;                ///< undeform length
-    double m_force;                      ///< resulting force in dist. coord
 
   public:
-    //
-    // FUNCTIONS
-    //
-
-    // builders and destroyers
     ChLinkSpringCB();
-    virtual ~ChLinkSpringCB();
-    virtual void Copy(ChLinkSpringCB* source);
-    virtual ChLink* new_Duplicate();  // always return base link class pointer
+    ChLinkSpringCB(const ChLinkSpringCB& other);
+    virtual ~ChLinkSpringCB() {}
 
-    virtual int GetType() { return LNK_SPRING_CALLBACK; }
+    /// "Virtual" copy constructor (covariant return type).
+    virtual ChLinkSpringCB* Clone() const override { return new ChLinkSpringCB(*this); }
 
     // data fetch/store
-    double Get_SpringRestLength() const { return m_rest_length; }
-    double Get_SpringDeform() const { return dist - m_rest_length; }
-    double Get_SpringLength() const { return dist; }
-    double Get_SpringVelocity() const { return dist_dt; }
-    double Get_SpringReact() const { return m_force; }
+    double GetSpringRestLength() const { return m_rest_length; }
+    double GetSpringDeform() const { return dist - m_rest_length; }
+    double GetSpringLength() const { return dist; }
+    double GetSpringVelocity() const { return dist_dt; }
+    double GetSpringReact() const { return m_force; }
 
-    void Set_SpringRestLength(double len) { m_rest_length = len; }
-    void Set_SpringCallback(ChSpringForceCallback* force) { m_force_fun = force; }
+    void SetSpringRestLength(double len) { m_rest_length = len; }
+
+    /// Class to be used as a functor interface for calculating the general spring-damper force.
+    /// A derived class must implement the virtual operator().
+    class ForceFunctor {
+      public:
+        virtual ~ForceFunctor() {}
+
+        /// Calculate and return the general spring-damper force at the specified configuration.
+        virtual double operator()(double time,          ///< current time
+                                  double rest_length,   ///< undeformed length
+                                  double length,        ///< current length
+                                  double vel,           ///< current velocity (positive when extending)
+                                  ChLinkSpringCB* link  ///< back-pointer to associated link
+                                  ) = 0;
+    };
+
+    /// Specify the functor object for calculating the force.
+    void RegisterForceFunctor(ForceFunctor* functor) { m_force_fun = functor; }
 
     /// Specialized initialization for springs, given the two bodies to be connected,
     /// the positions of the two anchor endpoints of the spring (each expressed
@@ -74,11 +65,11 @@ class ChApi ChLinkSpringCB : public ChLinkMarkers {
     void Initialize(
         std::shared_ptr<ChBody> body1,  ///< first body to link
         std::shared_ptr<ChBody> body2,  ///< second body to link
-        bool pos_are_relative,  ///< true: following pos. are considered relative to bodies. false: pos. are absolute
-        ChVector<> pos1,        ///< position of spring endpoint for 1st body (rel. or abs., see flag above)
-        ChVector<> pos2,        ///< position of spring endpoint for 2nd body (rel. or abs., see flag above)
-        bool auto_rest_length = true,  ///< if true, initializes the rest length as the distance between pos1 and pos2
-        double rest_length = 0         ///< rest length (no need to define if auto_rest_length=true.)
+        bool pos_are_relative,          ///< true: following pos. are relative to bodies
+        ChVector<> pos1,                ///< pos. of spring endpoint for 1st body (rel. or abs., see flag above)
+        ChVector<> pos2,                ///< pos. of spring endpoint for 2nd body (rel. or abs., see flag above)
+        bool auto_rest_length = true,   ///< if true, initializes the rest length as the distance between pos1 and pos2
+        double rest_length = 0          ///< rest length (no need to define if auto_rest_length=true.)
         );
 
     /// Get the 1st spring endpoint (expressed in Body1 coordinate system)
@@ -99,30 +90,23 @@ class ChApi ChLinkSpringCB : public ChLinkMarkers {
     /// Set the 1st spring endpoint (expressed in absolute coordinate system)
     void SetEndPoint2Abs(ChVector<>& mset) { marker2->Impose_Abs_Coord(ChCoordsys<>(mset, QUNIT)); }
 
-    //
-    // UPDATING FUNCTIONS
-    //
-
-    /// Inherits, then also adds the spring custom forces to
-    /// the C_force and C_torque.
-    virtual void UpdateForces(double time);
-
-    //
-    // STATE FUNCTIONS
-    //
-    // (override/implement interfaces for global state vectors, see ChPhysicsItem for comments.)
-
-    //
-    // SERIALIZATION
-    //
+    /// Inherits, then also adds the spring custom forces to the C_force and C_torque.
+    virtual void UpdateForces(double time) override;
 
     /// Method to allow serialization of transient data to archives.
-    virtual void ArchiveOUT(ChArchiveOut& marchive);
+    virtual void ArchiveOUT(ChArchiveOut& marchive) override;
 
     /// Method to allow deserialization of transient data from archives.
-    virtual void ArchiveIN(ChArchiveIn& marchive);
+    virtual void ArchiveIN(ChArchiveIn& marchive) override;
+
+  protected:
+    ForceFunctor* m_force_fun;  ///< functor for force calculation
+    double m_rest_length;       ///< undeform length
+    double m_force;             ///< resulting force in dist. coord
 };
 
-}  // END_OF_NAMESPACE____
+CH_CLASS_VERSION(ChLinkSpringCB, 0)
+
+}  // end namespace chrono
 
 #endif

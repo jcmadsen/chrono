@@ -1,46 +1,43 @@
-//
+// =============================================================================
 // PROJECT CHRONO - http://projectchrono.org
 //
-// Copyright (c) 2010 Alessandro Tasora
-// Copyright (c) 2013 Project Chrono
+// Copyright (c) 2014 projectchrono.org
 // All rights reserved.
 //
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE file at the top level of the distribution
-// and at http://projectchrono.org/license-chrono.txt.
+// Use of this source code is governed by a BSD-style license that can be found
+// in the LICENSE file at the top level of the distribution and at
+// http://projectchrono.org/license-chrono.txt.
 //
+// =============================================================================
+
 
 #ifndef CHLOAD_H
 #define CHLOAD_H
 
-
-
-#include "physics/ChLoader.h"
-#include "physics/ChLoaderU.h"
-#include "physics/ChLoaderUV.h"
-#include "physics/ChLoaderUVW.h"
-#include "lcp/ChLcpSystemDescriptor.h"
-#include "lcp/ChLcpKblockGeneric.h"
-#include "timestepper/ChState.h"
-
+#include "chrono/physics/ChLoader.h"
+#include "chrono/physics/ChLoaderU.h"
+#include "chrono/physics/ChLoaderUV.h"
+#include "chrono/physics/ChLoaderUVW.h"
+#include "chrono/solver/ChKblockGeneric.h"
+#include "chrono/solver/ChSystemDescriptor.h"
+#include "chrono/timestepper/ChState.h"
 
 namespace chrono {
 
-
 /// Utility class for storing jacobian matrices.
-/// This is automatically managed by the ChLoad, if needed 
+/// This is automatically managed by the ChLoad, if needed
 /// (ie. for stiff loads)
 
 class ChLoadJacobians {
-public:
-    ChLcpKblockGeneric KRM;  // sum of K,R,M, with pointers to sparse variables
-    ChMatrixDynamic<double> K; // dQ/dx
-    ChMatrixDynamic<double> R; // dQ/dv
-    ChMatrixDynamic<double> M; // dQ/da
+  public:
+    ChKblockGeneric KRM;        // sum of K,R,M, with pointers to sparse variables
+    ChMatrixDynamic<double> K;  // dQ/dx
+    ChMatrixDynamic<double> R;  // dQ/dv
+    ChMatrixDynamic<double> M;  // dQ/da
 
-    /// Set references to the constrained objects, each of ChLcpVariables type,
+    /// Set references to the constrained objects, each of ChVariables type,
     /// automatically creating/resizing K matrix if needed.
-    void SetVariables(std::vector<ChLcpVariables*> mvariables) {
+    void SetVariables(std::vector<ChVariables*> mvariables) {
         KRM.SetVariables(mvariables);
         int nscalar_coords = KRM.Get_K()->GetColumns();
         K.Reset(nscalar_coords,nscalar_coords);
@@ -57,9 +54,8 @@ public:
 /// It implements functionalities to perform automatic differentiation of
 /// the load so it optionally can compute the jacobian (the tangent stiffness
 /// matrix of the load) that can be used in implicit integrators, statics, etc.
-class ChLoadBase {
-    // Chrono simulation of RTTI, needed for serialization
-    CH_RTTI_ROOT(ChLoadBase);
+
+class ChApi ChLoadBase {
 
 protected:
     ChLoadJacobians* jacobians;
@@ -83,10 +79,15 @@ public:
     virtual int LoadGet_ndof_w() = 0;
 
         /// Gets all the current DOFs packed in a single vector (position part)
-    virtual void LoadGetStateBlock_x(ChVectorDynamic<>& mD) = 0;
+    virtual void LoadGetStateBlock_x(ChState& mD) = 0;
 
         /// Gets all the current DOFs packed in a single vector (speed part)
-    virtual void LoadGetStateBlock_w(ChVectorDynamic<>& mD) = 0;
+    virtual void LoadGetStateBlock_w(ChStateDelta& mD) = 0;
+
+        /// Increment a packed state (ex. as obtained by LoadGetStateBlock_x()) by a given packed state-delta.
+        /// Compute: x_new = x + dw. Ex. this is called by the BDF numerical differentiation routine that computes jacobian 
+        /// in the default ComputeJacobian() fallback, if not overriding ComputeJacobian() with an analytical form. 
+    virtual void LoadStateIncrement(const ChState& x, const ChStateDelta& dw, ChState& x_new) = 0;
 
         /// Number of coordinates in the interpolated field, ex=3 for a 
         /// tetrahedron finite element or a cable, = 1 for a thermal problem, etc.
@@ -112,7 +113,7 @@ public:
     ChLoadJacobians* GetJacobians() {return this->jacobians;}
 
         /// Create the jacobian loads if needed, and also
-        /// set the ChLcpVariables referenced by the sparse KRM block.
+        /// set the ChVariables referenced by the sparse KRM block.
     virtual void CreateJacobianMatrices() =0;
 
         /// Update: this is called at least at each time step. 
@@ -145,7 +146,7 @@ public:
     virtual bool IsStiff() = 0;
 
     //
-    // Functions for interfacing to the state bookkeeping and LCP solver
+    // Functions for interfacing to the state bookkeeping and solver
     //
 
         /// Adds the internal loads Q (pasted at global nodes offsets) into
@@ -154,16 +155,16 @@ public:
     virtual void LoadIntLoadResidual_F(ChVectorDynamic<>& R, const double c) =0;
 
         /// Tell to a system descriptor that there are item(s) of type
-        /// ChLcpKblock in this object (for further passing it to a LCP solver)
+        /// ChKblock in this object (for further passing it to a solver)
         /// Basically does nothing, but inherited classes must specialize this.
-    virtual void InjectKRMmatrices(ChLcpSystemDescriptor& mdescriptor)  {
+    virtual void InjectKRMmatrices(ChSystemDescriptor& mdescriptor)  {
         if (this->jacobians) {
             mdescriptor.InsertKblock(&this->jacobians->KRM);
         }
     } 
 
         /// Adds the current stiffness K and damping R and mass M matrices in encapsulated
-        /// ChLcpKblock item(s), if any. The K, R, M matrices are added with scaling
+        /// ChKblock item(s), if any. The K, R, M matrices are added with scaling
         /// values Kfactor, Rfactor, Mfactor.
     virtual void KRMmatricesLoad(double Kfactor, double Rfactor, double Mfactor) {
         if (this->jacobians) {
@@ -178,7 +179,7 @@ public:
 
 /// Class for a load acting on a single ChLoadable item, via ChLoader objects.
 /// There are various ChLoader interfaces ready to use, that can be used
-/// as 'building blocks'. These are expecially important for creating loads
+/// as 'building blocks'. These are especially important for creating loads
 /// that are distributed on surfaces, lines, volumes, since some ChLoaders implement quadrature.
 /// Create them as ChLoad< ChLoaderPressure > my_load(...); for example.
 
@@ -197,8 +198,9 @@ public:
 
     virtual int LoadGet_ndof_x() { return this->loader.GetLoadable()->LoadableGet_ndof_x();}
     virtual int LoadGet_ndof_w() { return this->loader.GetLoadable()->LoadableGet_ndof_w();}
-    virtual void LoadGetStateBlock_x(ChVectorDynamic<>& mD) { this->loader.GetLoadable()->LoadableGetStateBlock_x(0, mD);}
-    virtual void LoadGetStateBlock_w(ChVectorDynamic<>& mD) { this->loader.GetLoadable()->LoadableGetStateBlock_w(0, mD);}
+    virtual void LoadGetStateBlock_x(ChState& mD) { this->loader.GetLoadable()->LoadableGetStateBlock_x(0, mD);}
+    virtual void LoadGetStateBlock_w(ChStateDelta& mD) { this->loader.GetLoadable()->LoadableGetStateBlock_w(0, mD);}
+    virtual void LoadStateIncrement(const ChState& x, const ChStateDelta& dw, ChState& x_new) { this->loader.GetLoadable()->LoadableStateIncrement(0, x_new, x, 0, dw);};
     virtual int LoadGet_field_ncoords() { return this->loader.GetLoadable()->Get_field_ncoords();}
 
         /// Compute Q, the generalized load. 
@@ -224,6 +226,7 @@ public:
         double Delta = 1e-8;
 
         int mrows_w = this->LoadGet_ndof_w();
+        int mrows_x = this->LoadGet_ndof_x();
 
         // compute Q at current speed & position, x_0, v_0
         ChVectorDynamic<> Q0(mrows_w);
@@ -232,16 +235,19 @@ public:
 
         ChVectorDynamic<> Q1(mrows_w);
         ChVectorDynamic<> Jcolumn(mrows_w);
+        ChState       state_x_inc(mrows_x, nullptr);
+        ChStateDelta  state_delta(mrows_w, nullptr);
 
         // Compute K=-dQ(x,v)/dx by backward differentiation
         for (int i=0; i<mrows_w; ++i) {
-            (*state_x)(i)+= Delta; //***TODO*** use NodeIntStateIncrement
-            this->loader.ComputeQ(state_x, state_w);   // Q1 = Q(x+Dx, v)
+            state_delta(i)+= Delta;
+            this->LoadStateIncrement(*state_x, state_delta, state_x_inc);  // exponential, usually state_x_inc(i) = state_x(i) + Delta;
+            this->loader.ComputeQ(&state_x_inc, state_w);   // Q1 = Q(x+Dx, v)
             Q1 = this->loader.Q;
-            (*state_x)(i)-= Delta; //***TODO*** use NodeIntStateIncrement
+            state_delta(i)-= Delta;
             
             Jcolumn = (Q1 - Q0)*(-1.0/Delta);   // - sign because K=-dQ/dx
-            this->jacobians->K.PasteMatrix(&Jcolumn,0,i);
+            this->jacobians->K.PasteMatrix(Jcolumn,0,i);
         }
         // Compute R=-dQ(x,v)/dv by backward differentiation
         for (int i=0; i<mrows_w; ++i) {
@@ -251,7 +257,7 @@ public:
             (*state_w)(i)-= Delta;
             
             Jcolumn = (Q1 - Q0)*(-1.0/Delta);   // - sign because R=-dQ/dv
-            this->jacobians->R.PasteMatrix(&Jcolumn,0,i);
+            this->jacobians->R.PasteMatrix(Jcolumn,0,i);
         }
      }; 
 
@@ -272,13 +278,13 @@ public:
         return loader.IsStiff();
     }
         /// Create the jacobian loads if needed, and also
-        /// set the ChLcpVariables referenced by the sparse KRM block.
+        /// set the ChVariables referenced by the sparse KRM block.
     virtual void CreateJacobianMatrices() {
         if (!this->jacobians) {
             // create jacobian structure
             this->jacobians = new ChLoadJacobians;
             // set variables forsparse KRM block
-            std::vector<ChLcpVariables*> mvars;
+            std::vector<ChVariables*> mvars;
             loader.GetLoadable()->LoadableGetVariables(mvars);
             this->jacobians->SetVariables(mvars);
         }
@@ -309,8 +315,9 @@ public:
 
     virtual int LoadGet_ndof_x() { return loadable->LoadableGet_ndof_x();}
     virtual int LoadGet_ndof_w() { return loadable->LoadableGet_ndof_w();}
-    virtual void LoadGetStateBlock_x(ChVectorDynamic<>& mD) { loadable->LoadableGetStateBlock_x(0, mD);}
-    virtual void LoadGetStateBlock_w(ChVectorDynamic<>& mD) { loadable->LoadableGetStateBlock_w(0, mD);}
+    virtual void LoadGetStateBlock_x(ChState& mD) { loadable->LoadableGetStateBlock_x(0, mD);}
+    virtual void LoadGetStateBlock_w(ChStateDelta& mD) { loadable->LoadableGetStateBlock_w(0, mD);}
+    virtual void LoadStateIncrement(const ChState& x, const ChStateDelta& dw, ChState& x_new) { loadable->LoadableStateIncrement(0, x_new, x, 0, dw);};
     virtual int LoadGet_field_ncoords() { return loadable->Get_field_ncoords();}
 
         /// Compute Q, the generalized load. 
@@ -335,6 +342,7 @@ public:
         double Delta = 1e-8;
 
         int mrows_w = this->LoadGet_ndof_w();
+        int mrows_x = this->LoadGet_ndof_x();
 
         // compute Q at current speed & position, x_0, v_0
         ChVectorDynamic<> Q0(mrows_w);
@@ -343,16 +351,19 @@ public:
 
         ChVectorDynamic<> Q1(mrows_w);
         ChVectorDynamic<> Jcolumn(mrows_w);
+        ChState       state_x_inc(mrows_x, nullptr);
+        ChStateDelta  state_delta(mrows_w, nullptr);
 
         // Compute K=-dQ(x,v)/dx by backward differentiation
         for (int i=0; i<mrows_w; ++i) {
-            (*state_x)(i)+= Delta; //***TODO*** use NodeIntStateIncrement
-            this->ComputeQ(state_x, state_w);   // Q1 = Q(x+Dx, v)
+            state_delta(i)+= Delta;
+            this->LoadStateIncrement(*state_x, state_delta, state_x_inc);  // exponential, usually state_x_inc(i) = state_x(i) + Delta; 
+            this->ComputeQ(&state_x_inc, state_w);   // Q1 = Q(x+Dx, v)
             Q1 = this->load_Q;
-            (*state_x)(i)-= Delta; //***TODO*** use NodeIntStateIncrement
+            state_delta(i)-= Delta; 
             
             Jcolumn = (Q1 - Q0)*(-1.0/Delta);   // - sign because K=-dQ/dx
-            this->jacobians->K.PasteMatrix(&Jcolumn,0,i);
+            this->jacobians->K.PasteMatrix(Jcolumn,0,i);
         }
         // Compute R=-dQ(x,v)/dv by backward differentiation
         for (int i=0; i<mrows_w; ++i) {
@@ -362,7 +373,7 @@ public:
             (*state_w)(i)-= Delta;
             
             Jcolumn = (Q1 - Q0)*(-1.0/Delta);   // - sign because R=-dQ/dv
-            this->jacobians->R.PasteMatrix(&Jcolumn,0,i);
+            this->jacobians->R.PasteMatrix(Jcolumn,0,i);
         }
      }; 
 
@@ -383,13 +394,13 @@ public:
     virtual bool IsStiff() = 0;
 
         /// Create the jacobian loads if needed, and also
-        /// set the ChLcpVariables referenced by the sparse KRM block.
+        /// set the ChVariables referenced by the sparse KRM block.
     virtual void CreateJacobianMatrices() {
         if (!this->jacobians) {
             // create jacobian structure
             this->jacobians = new ChLoadJacobians;
             // set variables forsparse KRM block
-            std::vector<ChLcpVariables*> mvars;
+            std::vector<ChVariables*> mvars;
             loadable->LoadableGetVariables(mvars);
             this->jacobians->SetVariables(mvars);
         }
@@ -448,20 +459,30 @@ public:
             ndoftot += loadables[i]->LoadableGet_ndof_w();
         return ndoftot;
     }
-    virtual void LoadGetStateBlock_x(ChVectorDynamic<>& mD) { 
+    virtual void LoadGetStateBlock_x(ChState& mD) { 
         int ndoftot = 0;
         for (int i= 0; i<loadables.size(); ++i) {
             loadables[i]->LoadableGetStateBlock_x(ndoftot, mD);
             ndoftot += loadables[i]->LoadableGet_ndof_x();
         }
     }
-    virtual void LoadGetStateBlock_w(ChVectorDynamic<>& mD) { 
+    virtual void LoadGetStateBlock_w(ChStateDelta& mD) { 
         int ndoftot = 0;
         for (int i= 0; i<loadables.size(); ++i) {
             loadables[i]->LoadableGetStateBlock_w(ndoftot, mD);
             ndoftot += loadables[i]->LoadableGet_ndof_w();
         }
     }
+    virtual void LoadStateIncrement(const ChState& x, const ChStateDelta& dw, ChState& x_new) { 
+        int ndoftotx = 0;
+        int ndoftotw = 0;
+        for (int i= 0; i<loadables.size(); ++i) {
+            loadables[i]->LoadableStateIncrement(ndoftotx, x_new, x, ndoftotw, dw);
+            ndoftotx += loadables[i]->LoadableGet_ndof_x();
+            ndoftotw += loadables[i]->LoadableGet_ndof_w();
+        }
+    };
+
     virtual int LoadGet_field_ncoords() { return loadables[0]->Get_field_ncoords();}
 
         /// Compute Q, the generalized load. 
@@ -492,6 +513,7 @@ public:
         double Delta = 1e-8;
 
         int mrows_w = this->LoadGet_ndof_w();
+        int mrows_x = this->LoadGet_ndof_x();
 
         // compute Q at current speed & position, x_0, v_0
         ChVectorDynamic<> Q0(mrows_w);
@@ -500,15 +522,19 @@ public:
 
         ChVectorDynamic<> Q1(mrows_w);
         ChVectorDynamic<> Jcolumn(mrows_w);
+        ChState       state_x_inc(mrows_x, nullptr);
+        ChStateDelta  state_delta(mrows_w, nullptr);
 
         // Compute K=-dQ(x,v)/dx by backward differentiation
         for (int i=0; i<mrows_w; ++i) {
-            (*state_x)(i)+= Delta; //***TODO*** use NodeIntStateIncrement
-            this->ComputeQ(state_x, state_w);   // Q1 = Q(x+Dx, v)
+            state_delta(i)+= Delta; 
+            this->LoadStateIncrement(*state_x, state_delta, state_x_inc);  // exponential, usually state_x_inc(i) = state_x(i) + Delta;
+            this->ComputeQ(&state_x_inc, state_w);   // Q1 = Q(x+Dx, v)
             Q1 = this->load_Q;
-            (*state_x)(i)-= Delta; //***TODO*** use NodeIntStateIncrement
+            state_delta(i)-= Delta; 
+
             Jcolumn = (Q1 - Q0)*(-1.0/Delta);   // - sign because K=-dQ/dx
-            this->jacobians->K.PasteMatrix(&Jcolumn,0,i);
+            this->jacobians->K.PasteMatrix(Jcolumn,0,i);
         }
         // Compute R=-dQ(x,v)/dv by backward differentiation
         for (int i=0; i<mrows_w; ++i) {
@@ -518,23 +544,25 @@ public:
             (*state_w)(i)-= Delta;
             
             Jcolumn = (Q1 - Q0)*(-1.0/Delta);   // - sign because R=-dQ/dv
-            this->jacobians->R.PasteMatrix(&Jcolumn,0,i);
+            this->jacobians->R.PasteMatrix(Jcolumn,0,i);
         }
      }; 
 
  
     virtual void LoadIntLoadResidual_F(ChVectorDynamic<>& R, const double c) {
         unsigned int rowQ = 0;
-        int ndoftot = 0;
         for (int k= 0; k<loadables.size(); ++k) {
+            std::vector<ChVariables*> kvars;
+            loadables[k]->LoadableGetVariables(kvars);
             for (int i =0; i< loadables[k]->GetSubBlocks(); ++i) {
-                unsigned int mblockoffset = loadables[k]->GetSubBlockOffset(i);
-                for (unsigned int row =0; row< loadables[k]->GetSubBlockSize(i); ++row) {
-                    R(row + mblockoffset) += this->load_Q(rowQ) * c;
-                    ++rowQ;
+                if (kvars[i]->IsActive()) {
+                    unsigned int mblockoffset = loadables[k]->GetSubBlockOffset(i);
+                    for (unsigned int row =0; row< loadables[k]->GetSubBlockSize(i); ++row) {
+                        R(row + mblockoffset) += this->load_Q(rowQ) * c;
+                        ++rowQ;
+                    }
                 }
             }
-            //ndoftot += loadables[i]->LoadableGet_ndof_w();
         }
         // GetLog() << " debug: R=" << R << "\n";
     };
@@ -544,13 +572,13 @@ public:
     virtual bool IsStiff() = 0;
 
         /// Create the jacobian loads if needed, and also
-        /// set the ChLcpVariables referenced by the sparse KRM block.
+        /// set the ChVariables referenced by the sparse KRM block.
     virtual void CreateJacobianMatrices() {
         if (!this->jacobians) {
             // create jacobian structure
             this->jacobians = new ChLoadJacobians;
             // set variables for sparse KRM block appending them to mvars list
-            std::vector<ChLcpVariables*> mvars;
+            std::vector<ChVariables*> mvars;
             for (int i= 0; i<loadables.size(); ++i)
                 loadables[i]->LoadableGetVariables(mvars);
             this->jacobians->SetVariables(mvars);
@@ -561,9 +589,6 @@ public:
     virtual ChVectorDynamic<>& GetQ() {return load_Q;}
 };
 
+}  // end namespace chrono
 
-
-
-}  // END_OF_NAMESPACE____
-
-#endif  
+#endif

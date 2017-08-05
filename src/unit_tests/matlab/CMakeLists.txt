@@ -1,8 +1,11 @@
+# Unit tests for the Chrono::Matlab module
+# ==================================================================
+
 SET(LIBRARIES ChronoEngine ChronoEngine_matlab)
 INCLUDE_DIRECTORIES( ${CH_INCLUDES} ${CH_MATLABINC})
 
 SET(TESTS
-    test_matlab
+    utest_matlab
 )
 
 MESSAGE(STATUS "Unit test programs for MATLAB module...")
@@ -22,6 +25,6 @@ FOREACH(PROGRAM ${TESTS})
     TARGET_LINK_LIBRARIES(${PROGRAM} ${LIBRARIES})
     ADD_DEPENDENCIES(${PROGRAM} ${LIBRARIES})
 
-    INSTALL(TARGETS ${PROGRAM} DESTINATION bin)
+    #INSTALL(TARGETS ${PROGRAM} DESTINATION ${CH_INSTALL_DEMO})
     ADD_TEST(${PROGRAM} ${PROJECT_BINARY_DIR}/bin/${PROGRAM})
 ENDFOREACH(PROGRAM)

@@ -1,5 +1,5 @@
 #=============================================================================
-# CMake configuration file for the Chrono postprocessing module
+# CMake configuration file for the Chrono postprocess module
 # 
 # Cannot be used stand-alone (it's loaded by CMake config. file in parent dir.)
 #=============================================================================
@@ -14,7 +14,7 @@ ENDIF()
 MESSAGE(STATUS "==== Chrono Postprocess module ====")
 
 #-----------------------------------------------------------------------------
-# LIST THE FILES THAT MAKE THE POSTPROCESSING LIBRARY
+# LIST THE FILES THAT MAKE THE POSTPROCESS LIBRARY
 
 SET(ChronoEngine_POSTPROCESS_SOURCES 
     ChPovRay.cpp
@@ -56,8 +56,8 @@ ADD_DEPENDENCIES(ChronoEngine_postprocess ChronoEngine)
 	
 INSTALL(TARGETS ChronoEngine_postprocess
         RUNTIME DESTINATION bin
-        LIBRARY DESTINATION lib
-        ARCHIVE DESTINATION lib)		
+        LIBRARY DESTINATION lib64
+        ARCHIVE DESTINATION lib64)		
 
 INSTALL(FILES ${ChronoEngine_POSTPROCESS_HEADERS}
         DESTINATION include/chrono_postprocess)

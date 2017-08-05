@@ -2,7 +2,7 @@
 // PROJECT CHRONO - http://projectchrono.org
 //
 // Copyright (c) 2014 projectchrono.org
-// All right reserved.
+// All rights reserved.
 //
 // Use of this source code is governed by a BSD-style license that can be found
 // in the LICENSE file at the top level of the distribution and at
@@ -25,8 +25,9 @@
 //
 // =============================================================================
 
-#include "assets/ChCylinderShape.h"
-#include "assets/ChColorAsset.h"
+#include "chrono/assets/ChCylinderShape.h"
+#include "chrono/assets/ChPointPointDrawing.h"
+#include "chrono/assets/ChColorAsset.h"
 
 #include "chrono_vehicle/wheeled_vehicle/suspension/ChMultiLink.h"
 
@@ -64,41 +65,49 @@ ChMultiLink::ChMultiLink(const std::string& name) : ChSuspension(name) {
 // -----------------------------------------------------------------------------
 void ChMultiLink::Initialize(std::shared_ptr<ChBodyAuxRef> chassis,
                              const ChVector<>& location,
-                             std::shared_ptr<ChBody> tierod_body) {
+                             std::shared_ptr<ChBody> tierod_body,
+                             int steering_index,
+                             double left_ang_vel,
+                             double right_ang_vel) {
+    m_location = location;
+    m_steering_index = steering_index;
+
     // Express the suspension reference frame in the absolute coordinate system.
     ChFrame<> suspension_to_abs(location);
     suspension_to_abs.ConcatenatePreTransformation(chassis->GetFrame_REF_to_abs());
 
-    // Transform all points to absolute frame and initialize left side.
-    std::vector<ChVector<> > points_R(NUM_POINTS);
-    std::vector<ChVector<> > points_L(NUM_POINTS);
-    std::vector<ChVector<> > dirs_R(NUM_DIRS);
-    std::vector<ChVector<> > dirs_L(NUM_DIRS);
+    // Transform all points and directions to absolute frame
+    m_pointsL.resize(NUM_POINTS);
+    m_pointsR.resize(NUM_POINTS);
+
+    m_dirsL.resize(NUM_DIRS);
+    m_dirsR.resize(NUM_DIRS);
 
     for (int i = 0; i < NUM_POINTS; i++) {
         ChVector<> rel_pos = getLocation(static_cast<PointId>(i));
-        points_L[i] = suspension_to_abs.TransformLocalToParent(rel_pos);
-        rel_pos.y = -rel_pos.y;
-        points_R[i] = suspension_to_abs.TransformLocalToParent(rel_pos);
+        m_pointsL[i] = suspension_to_abs.TransformLocalToParent(rel_pos);
+        rel_pos.y() = -rel_pos.y();
+        m_pointsR[i] = suspension_to_abs.TransformLocalToParent(rel_pos);
     }
 
     for (int i = 0; i < NUM_DIRS; i++) {
         ChVector<> rel_dir = getDirection(static_cast<DirectionId>(i));
-        dirs_L[i] = suspension_to_abs.TransformDirectionLocalToParent(rel_dir);
-        rel_dir.y = -rel_dir.y;
-        dirs_R[i] = suspension_to_abs.TransformDirectionLocalToParent(rel_dir);
+        m_dirsL[i] = suspension_to_abs.TransformDirectionLocalToParent(rel_dir);
+        rel_dir.y() = -rel_dir.y();
+        m_dirsR[i] = suspension_to_abs.TransformDirectionLocalToParent(rel_dir);
     }
 
     // Initialize left and right sides.
-    InitializeSide(LEFT, chassis, tierod_body, points_L, dirs_L);
-    InitializeSide(RIGHT, chassis, tierod_body, points_R, dirs_R);
+    InitializeSide(LEFT, chassis, tierod_body, m_pointsL, m_dirsL, left_ang_vel);
+    InitializeSide(RIGHT, chassis, tierod_body, m_pointsR, m_dirsR, right_ang_vel);
 }
 
 void ChMultiLink::InitializeSide(VehicleSide side,
                                  std::shared_ptr<ChBodyAuxRef> chassis,
                                  std::shared_ptr<ChBody> tierod_body,
                                  const std::vector<ChVector<> >& points,
-                                 const std::vector<ChVector<> >& dirs) {
+                                 const std::vector<ChVector<> >& dirs,
+                                 double ang_vel) {
     std::string suffix = (side == LEFT) ? "_L" : "_R";
 
     // Chassis orientation (expressed in absolute frame)
@@ -106,24 +115,22 @@ void ChMultiLink::InitializeSide(VehicleSide side,
     ChQuaternion<> chassisRot = chassis->GetFrame_REF_to_abs().GetRot();
 
     // Create and initialize spindle body (same orientation as the chassis)
-    m_spindle[side] = std::make_shared<ChBody>(chassis->GetSystem()->GetContactMethod());
+    m_spindle[side] = std::shared_ptr<ChBody>(chassis->GetSystem()->NewBody());
     m_spindle[side]->SetNameString(m_name + "_spindle" + suffix);
     m_spindle[side]->SetPos(points[SPINDLE]);
     m_spindle[side]->SetRot(chassisRot);
+    m_spindle[side]->SetWvel_loc(ChVector<>(0, ang_vel, 0));
     m_spindle[side]->SetMass(getSpindleMass());
     m_spindle[side]->SetInertiaXX(getSpindleInertia());
-    AddVisualizationSpindle(m_spindle[side], getSpindleRadius(), getSpindleWidth());
     chassis->GetSystem()->AddBody(m_spindle[side]);
 
     // Create and initialize upright body (same orientation as the chassis)
-    m_upright[side] = std::make_shared<ChBody>(chassis->GetSystem()->GetContactMethod());
+    m_upright[side] = std::shared_ptr<ChBody>(chassis->GetSystem()->NewBody());
     m_upright[side]->SetNameString(m_name + "_upright" + suffix);
     m_upright[side]->SetPos(points[UPRIGHT]);
     m_upright[side]->SetRot(chassisRot);
     m_upright[side]->SetMass(getUprightMass());
     m_upright[side]->SetInertiaXX(getUprightInertia());
-    AddVisualizationUpright(m_upright[side], points[UA_U], points[LAT_U], points[TL_U], points[TIEROD_U],
-                            points[UPRIGHT], getUprightRadius());
     chassis->GetSystem()->AddBody(m_upright[side]);
 
     // Unit vectors for orientation matrices.
@@ -142,13 +149,12 @@ void ChMultiLink::InitializeSide(VehicleSide side,
     v = Vcross(w, u);
     rot.Set_A_axis(u, v, w);
 
-    m_upperArm[side] = std::make_shared<ChBody>(chassis->GetSystem()->GetContactMethod());
+    m_upperArm[side] = std::shared_ptr<ChBody>(chassis->GetSystem()->NewBody());
     m_upperArm[side]->SetNameString(m_name + "_upperArm" + suffix);
     m_upperArm[side]->SetPos(points[UA_CM]);
     m_upperArm[side]->SetRot(rot);
     m_upperArm[side]->SetMass(getUpperArmMass());
     m_upperArm[side]->SetInertiaXX(getUpperArmInertia());
-    AddVisualizationUpperArm(m_upperArm[side], points[UA_F], points[UA_B], points[UA_U], getUpperArmRadius());
     chassis->GetSystem()->AddBody(m_upperArm[side]);
 
     // Create and initialize lateral body.
@@ -161,13 +167,12 @@ void ChMultiLink::InitializeSide(VehicleSide side,
     u = Vcross(v, w);
     rot.Set_A_axis(u, v, w);
 
-    m_lateral[side] = std::make_shared<ChBody>(chassis->GetSystem()->GetContactMethod());
+    m_lateral[side] = std::shared_ptr<ChBody>(chassis->GetSystem()->NewBody());
     m_lateral[side]->SetNameString(m_name + "_lateral" + suffix);
     m_lateral[side]->SetPos(points[LAT_CM]);
     m_lateral[side]->SetRot(rot);
     m_lateral[side]->SetMass(getLateralMass());
     m_lateral[side]->SetInertiaXX(getLateralInertia());
-    AddVisualizationLateral(m_lateral[side], points[LAT_U], points[LAT_C], getLateralRadius());
     chassis->GetSystem()->AddBody(m_lateral[side]);
 
     // Create and initialize trailing link body.
@@ -180,14 +185,12 @@ void ChMultiLink::InitializeSide(VehicleSide side,
     u = Vcross(v, w);
     rot.Set_A_axis(u, v, w);
 
-    m_trailingLink[side] = std::make_shared<ChBody>(chassis->GetSystem()->GetContactMethod());
+    m_trailingLink[side] = std::shared_ptr<ChBody>(chassis->GetSystem()->NewBody());
     m_trailingLink[side]->SetNameString(m_name + "_trailingLink" + suffix);
     m_trailingLink[side]->SetPos(points[TL_CM]);
     m_trailingLink[side]->SetRot(rot);
     m_trailingLink[side]->SetMass(getTrailingLinkMass());
     m_trailingLink[side]->SetInertiaXX(getTrailingLinkInertia());
-    AddVisualizationTrailingLink(m_trailingLink[side], points[TL_C], points[SPRING_L], points[TL_U],
-                                 getTrailingLinkRadius());
     chassis->GetSystem()->AddBody(m_trailingLink[side]);
 
     // Create and initialize the revolute joint between upright and spindle.
@@ -267,14 +270,14 @@ void ChMultiLink::InitializeSide(VehicleSide side,
     m_shock[side] = std::make_shared<ChLinkSpringCB>();
     m_shock[side]->SetNameString(m_name + "_shock" + suffix);
     m_shock[side]->Initialize(chassis, m_trailingLink[side], false, points[SHOCK_C], points[SHOCK_L]);
-    m_shock[side]->Set_SpringCallback(getShockForceCallback());
+    m_shock[side]->RegisterForceFunctor(getShockForceFunctor());
     chassis->GetSystem()->AddLink(m_shock[side]);
 
     m_spring[side] = std::make_shared<ChLinkSpringCB>();
     m_spring[side]->SetNameString(m_name + "_spring" + suffix);
     m_spring[side]->Initialize(chassis, m_trailingLink[side], false, points[SPRING_C], points[SPRING_L], false,
                                getSpringRestLength());
-    m_spring[side]->Set_SpringCallback(getSpringForceCallback());
+    m_spring[side]->RegisterForceFunctor(getSpringForceFunctor());
     chassis->GetSystem()->AddLink(m_spring[side]);
 
     // Create and initialize the axle shaft and its connection to the spindle. Note that the
@@ -282,12 +285,44 @@ void ChMultiLink::InitializeSide(VehicleSide side,
     m_axle[side] = std::make_shared<ChShaft>();
     m_axle[side]->SetNameString(m_name + "_axle" + suffix);
     m_axle[side]->SetInertia(getAxleInertia());
+    m_axle[side]->SetPos_dt(-ang_vel);
     chassis->GetSystem()->Add(m_axle[side]);
 
     m_axle_to_spindle[side] = std::make_shared<ChShaftsBody>();
     m_axle_to_spindle[side]->SetNameString(m_name + "_axle_to_spindle" + suffix);
     m_axle_to_spindle[side]->Initialize(m_axle[side], m_spindle[side], ChVector<>(0, -1, 0));
     chassis->GetSystem()->Add(m_axle_to_spindle[side]);
+}
+
+// -----------------------------------------------------------------------------
+// Get the total mass of the suspension subsystem.
+// -----------------------------------------------------------------------------
+double ChMultiLink::GetMass() const {
+    return 2 * (getSpindleMass() + getUpperArmMass() + getLateralMass() + getTrailingLinkMass() + getUprightMass());
+}
+
+// -----------------------------------------------------------------------------
+// Get the current COM location of the suspension subsystem.
+// -----------------------------------------------------------------------------
+ChVector<> ChMultiLink::GetCOMPos() const {
+    ChVector<> com(0, 0, 0);
+
+    com += getSpindleMass() * m_spindle[LEFT]->GetPos();
+    com += getSpindleMass() * m_spindle[RIGHT]->GetPos();
+
+    com += getUpperArmMass() * m_upperArm[LEFT]->GetPos();
+    com += getUpperArmMass() * m_upperArm[RIGHT]->GetPos();
+
+    com += getLateralMass() * m_lateral[LEFT]->GetPos();
+    com += getLateralMass() * m_lateral[RIGHT]->GetPos();
+
+    com += getTrailingLinkMass() * m_trailingLink[LEFT]->GetPos();
+    com += getTrailingLinkMass() * m_trailingLink[RIGHT]->GetPos();
+
+    com += getUprightMass() * m_upright[LEFT]->GetPos();
+    com += getUprightMass() * m_upright[RIGHT]->GetPos();
+
+    return com / GetMass();
 }
 
 // -----------------------------------------------------------------------------
@@ -298,7 +333,7 @@ void ChMultiLink::LogHardpointLocations(const ChVector<>& ref, bool inches) {
     for (int i = 0; i < NUM_POINTS; i++) {
         ChVector<> pos = ref + unit * getLocation(static_cast<PointId>(i));
 
-        GetLog() << "   " << m_pointNames[i].c_str() << "  " << pos.x << "  " << pos.y << "  " << pos.z << "\n";
+        GetLog() << "   " << m_pointNames[i].c_str() << "  " << pos.x() << "  " << pos.y() << "  " << pos.z() << "\n";
     }
 }
 
@@ -369,6 +404,69 @@ void ChMultiLink::LogConstraintViolations(VehicleSide side) {
     // Distance constraint
     GetLog() << "Tierod distance       ";
     GetLog() << "  " << m_distTierod[side]->GetCurrentDistance() - m_distTierod[side]->GetImposedDistance() << "\n";
+}
+
+// -----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
+void ChMultiLink::AddVisualizationAssets(VisualizationType vis) {
+    ChSuspension::AddVisualizationAssets(vis);
+
+    if (vis == VisualizationType::NONE)
+        return;
+
+    AddVisualizationUpright(m_upright[LEFT], m_pointsL[UA_U], m_pointsL[LAT_U], m_pointsL[TL_U], m_pointsL[TIEROD_U],
+                            m_pointsL[UPRIGHT], getUprightRadius());
+    AddVisualizationUpright(m_upright[RIGHT], m_pointsR[UA_U], m_pointsR[LAT_U], m_pointsR[TL_U], m_pointsR[TIEROD_U],
+                            m_pointsR[UPRIGHT], getUprightRadius());
+
+    AddVisualizationUpperArm(m_upperArm[LEFT], m_pointsL[UA_F], m_pointsL[UA_B], m_pointsL[UA_U], getUpperArmRadius());
+    AddVisualizationUpperArm(m_upperArm[RIGHT], m_pointsR[UA_F], m_pointsR[UA_B], m_pointsR[UA_U], getUpperArmRadius());
+
+    AddVisualizationLateral(m_lateral[LEFT], m_pointsL[LAT_U], m_pointsL[LAT_C], getLateralRadius());
+    AddVisualizationLateral(m_lateral[RIGHT], m_pointsR[LAT_U], m_pointsR[LAT_C], getLateralRadius());
+
+    AddVisualizationTrailingLink(m_trailingLink[LEFT], m_pointsL[TL_C], m_pointsL[SPRING_L], m_pointsL[TL_U],
+                                 getTrailingLinkRadius());
+    AddVisualizationTrailingLink(m_trailingLink[RIGHT], m_pointsR[TL_C], m_pointsR[SPRING_L], m_pointsR[TL_U],
+                                 getTrailingLinkRadius());
+
+    // Add visualization for the springs and shocks
+    m_spring[LEFT]->AddAsset(std::make_shared<ChPointPointSpring>(0.06, 150, 15));
+    m_spring[RIGHT]->AddAsset(std::make_shared<ChPointPointSpring>(0.06, 150, 15));
+
+    m_shock[LEFT]->AddAsset(std::make_shared<ChPointPointSegment>());
+    m_shock[RIGHT]->AddAsset(std::make_shared<ChPointPointSegment>());
+
+    // Add visualization for the tie-rods
+    m_distTierod[LEFT]->AddAsset(std::make_shared<ChPointPointSegment>());
+    m_distTierod[RIGHT]->AddAsset(std::make_shared<ChPointPointSegment>());
+    m_distTierod[LEFT]->AddAsset(std::make_shared<ChColorAsset>(0.8f, 0.3f, 0.3f));
+    m_distTierod[RIGHT]->AddAsset(std::make_shared<ChColorAsset>(0.8f, 0.3f, 0.3f));
+}
+
+void ChMultiLink::RemoveVisualizationAssets() {
+    ChSuspension::RemoveVisualizationAssets();
+
+    m_upright[LEFT]->GetAssets().clear();
+    m_upright[RIGHT]->GetAssets().clear();
+
+    m_upperArm[LEFT]->GetAssets().clear();
+    m_upperArm[RIGHT]->GetAssets().clear();
+
+    m_lateral[LEFT]->GetAssets().clear();
+    m_lateral[RIGHT]->GetAssets().clear();
+
+    m_trailingLink[LEFT]->GetAssets().clear();
+    m_trailingLink[RIGHT]->GetAssets().clear();
+
+    m_spring[LEFT]->GetAssets().clear();
+    m_spring[RIGHT]->GetAssets().clear();
+
+    m_shock[LEFT]->GetAssets().clear();
+    m_shock[RIGHT]->GetAssets().clear();
+
+    m_distTierod[LEFT]->GetAssets().clear();
+    m_distTierod[RIGHT]->GetAssets().clear();
 }
 
 // -----------------------------------------------------------------------------
@@ -505,14 +603,6 @@ void ChMultiLink::AddVisualizationTrailingLink(std::shared_ptr<ChBody> link,
     auto col = std::make_shared<ChColorAsset>();
     col->SetColor(ChColor(0.2f, 0.6f, 0.6f));
     link->AddAsset(col);
-}
-
-void ChMultiLink::AddVisualizationSpindle(std::shared_ptr<ChBody> spindle, double radius, double width) {
-    auto cyl = std::make_shared<ChCylinderShape>();
-    cyl->GetCylinderGeometry().p1 = ChVector<>(0, width / 2, 0);
-    cyl->GetCylinderGeometry().p2 = ChVector<>(0, -width / 2, 0);
-    cyl->GetCylinderGeometry().rad = radius;
-    spindle->AddAsset(cyl);
 }
 
 }  // end namespace vehicle

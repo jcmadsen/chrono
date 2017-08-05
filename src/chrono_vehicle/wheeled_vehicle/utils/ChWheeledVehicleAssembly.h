@@ -2,7 +2,7 @@
 // PROJECT CHRONO - http://projectchrono.org
 //
 // Copyright (c) 2014 projectchrono.org
-// All right reserved.
+// All rights reserved.
 //
 // Use of this source code is governed by a BSD-style license that can be found
 // in the LICENSE file at the top level of the distribution and at
@@ -29,13 +29,6 @@
 
 #include "chrono_vehicle/wheeled_vehicle/vehicle/WheeledVehicle.h"
 #include "chrono_vehicle/powertrain/SimplePowertrain.h"
-
-/**
-    @addtogroup vehicle_wheeled
-    @{
-        @defgroup vehicle_wheeled_utils Utility classes
-    @}
-*/
 
 namespace chrono {
 namespace vehicle {
@@ -66,9 +59,7 @@ class CH_VEHICLE_API ChTireContactCallback {
     /// append the contact shape(s) to the specified wheel body. Optionally,
     /// this function can first change the collision model type for the
     /// provided wheel body (consistent with the system type).
-    virtual void onCallback(std::shared_ptr<ChBody> wheelBody,  ///< Pointer to the wheel body
-                            double radius,                      ///< wheel radius
-                            double width                        ///< wheel width
+    virtual void onCallback(std::shared_ptr<ChBody> wheelBody  ///< Pointer to the wheel body
                             ) = 0;
 };
 
@@ -124,7 +115,7 @@ class CH_VEHICLE_API ChWheeledVehicleAssembly {
                     );
 
     /// Update the vehicle model at the specified time.
-    void Update(double time);
+    void Synchronize(double time);
 
     /// Get handle to the underlying vehicle subsystem.
     std::shared_ptr<WheeledVehicle> GetVehicle() const { return m_vehicle; }

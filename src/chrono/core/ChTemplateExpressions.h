@@ -1,20 +1,20 @@
-//
+// =============================================================================
 // PROJECT CHRONO - http://projectchrono.org
 //
-// Copyright (c) 2010-2012 Alessandro Tasora
-// Copyright (c) 2013 Project Chrono
+// Copyright (c) 2014 projectchrono.org
 // All rights reserved.
 //
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE file at the top level of the distribution
-// and at http://projectchrono.org/license-chrono.txt.
+// Use of this source code is governed by a BSD-style license that can be found
+// in the LICENSE file at the top level of the distribution and at
+// http://projectchrono.org/license-chrono.txt.
 //
+// =============================================================================
 
 #ifndef CHTEMPLATEEXPRESSION_H
 #define CHTEMPLATEEXPRESSION_H
 
 
-#include "core/ChApiCE.h"
+#include "chrono/core/ChApiCE.h"
 
 
 namespace chrono {
@@ -66,9 +66,6 @@ struct enable_if {};
 template<class T>
 struct enable_if<true, T> { typedef T type; };
 
-
-
-} // end namespace
-
+}  // end namespace chrono
 
 #endif

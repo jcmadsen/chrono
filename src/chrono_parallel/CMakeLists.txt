@@ -13,16 +13,29 @@ option(ENABLE_MODULE_PARALLEL "Enable the Chrono Parallel module" OFF)
 
 if(NOT ENABLE_MODULE_PARALLEL)
   mark_as_advanced(FORCE BLAZE_DIR)
-  mark_as_advanced(FORCE BOOST_DIR)
   mark_as_advanced(FORCE USE_PARALLEL_DOUBLE)
+  mark_as_advanced(FORCE USE_PARALLEL_SIMD)
+  
+  # GCC > 4.9 does not support CUDA (<= 8.0) by default. 
+  # Users may explicitly select CUDA support if they are sure that their compiler
+  # does make use of any conflicting features, such as C++14.
+  if(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
+    if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 4.9)
+      message(STATUS "GCC version:  ${CMAKE_CXX_COMPILER_VERSION} does not support USE_PARALLEL_CUDA by default")
+      set(USE_PARALLEL_CUDA OFF CACHE OFF "")
+      mark_as_advanced(FORCE USE_PARALLEL_CUDA)
+    endif()
+  endif()
+
   return()
 endif()
 
 message(STATUS "==== Chrono Parallel module ====")
 
 mark_as_advanced(CLEAR BLAZE_DIR)
-mark_as_advanced(CLEAR BOOST_DIR)
 mark_as_advanced(CLEAR USE_PARALLEL_DOUBLE)
+mark_as_advanced(CLEAR USE_PARALLEL_SIMD)
+mark_as_advanced(CLEAR USE_PARALLEL_CUDA)
 
 # ------------------------------------------------------------------------------
 # Additional compiler flags
@@ -35,23 +48,63 @@ set(CH_PARALLEL_C_FLAGS "")
 # Additional dependencies, specific to this module
 # ------------------------------------------------------------------------------
 
+# ----- CUDA support -----
 
-OPTION(USE_PARALLEL_DOUBLE "Compile Chrono::Parallel with double precision math (no SSE support)" ON)
+find_package(CUDA)
+
+cmake_dependent_option(USE_PARALLEL_CUDA "Enable CUDA support in Chrono::Parallel" ON "CUDA_FOUND" OFF)
+
+
+IF(USE_PARALLEL_CUDA)
+  SET(CUDA_SEPARABLE_COMPILATION ON)
+
+  IF(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
+  ELSEIF(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+    IF(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
+      IF(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 4.9)
+        SET(CUDA_SEPARABLE_COMPILATION OFF)
+        SET(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -std c++11")
+        SET(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -Xcompiler -std=c++11")
+      ENDIF()
+    ENDIF()
+    SET(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS}; --compiler-options -fPIC)
+  ELSEIF(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+    SET(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS}; --compiler-options -fPIC)
+  ENDIF()
+
+  #SET(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS}; -gencode=arch=compute_30,code=sm_30)
+
+  INCLUDE(${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/FindCudaArch.cmake)
+  SELECT_NVCC_ARCH_FLAGS(NVCC_FLAGS_EXTRA)
+  LIST(APPEND CUDA_NVCC_FLAGS ${NVCC_FLAGS_EXTRA})
+
+  SET(CHRONO_PARALLEL_USE_CUDA "#define CHRONO_PARALLEL_USE_CUDA")
+ELSE()
+  SET(CHRONO_PARALLEL_USE_CUDA "#undef CHRONO_PARALLEL_USE_CUDA")
+ENDIF()
+
+# ----- SIMD (SSE or AVX) support -----
+
+cmake_dependent_option(USE_PARALLEL_SIMD "Enable SIMD support in Chrono::Parallel (if available)" ON "CHRONO_HAS_AVX" OFF)
+
+if(USE_PARALLEL_SIMD)
+  set(CHRONO_PARALLEL_USE_SIMD "#define CHRONO_PARALLEL_USE_SIMD")
+endif()
+
+# ----- Double precision support -----
+
+OPTION(USE_PARALLEL_DOUBLE "Compile Chrono::Parallel with double precision math" ON)
 
 IF(USE_PARALLEL_DOUBLE)
   SET(CHRONO_PARALLEL_USE_DOUBLE "#define CHRONO_PARALLEL_USE_DOUBLE")
 ENDIF()
 
-# Add the OpenMP-specific compiler and linker flags
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
-set(CH_PARALLEL_CXX_FLAGS "${CH_PARALLEL_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-set(CH_PARALLEL_C_FLAGS "${CH_PARALLEL_C_FLAGS} ${OpenMP_CXX_FLAGS}")
+# ----- Thrust library -----
 
-# Find the Thrust library
 find_package(Thrust)
 
-# Find the Blaze library
+# ----- Blaze library -----
+
 IF(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
   SET(BLAZE_DIR ""  CACHE PATH   "Where is Blaze located?")
 ELSEIF(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
@@ -60,30 +113,36 @@ ELSEIF(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
   FIND_PATH(BLAZE_DIR NAMES blaze/Blaze.h PATHS "/usr/include" "/usr/local/include")
 ENDIF()
 
-#Configure Blaze and Thrust
+# ----- Configure Blaze and Thrust -----
 
 IF(ENABLE_OPENMP)
-	add_definitions(-DTHRUST_DEVICE_SYSTEM=THRUST_DEVICE_SYSTEM_OMP)
-	add_definitions(-DTHRUST_HOST_SYSTEM=THRUST_HOST_SYSTEM_OMP)
+  add_definitions(-DTHRUST_DEVICE_SYSTEM=THRUST_DEVICE_SYSTEM_OMP)
+  add_definitions(-DTHRUST_HOST_SYSTEM=THRUST_HOST_SYSTEM_OMP)
 ELSEIF(ENABLE_TBB)
-	add_definitions(-DBLAZE_USE_CPP_THREADS)
-	add_definitions(-DTHRUST_DEVICE_SYSTEM=THRUST_DEVICE_SYSTEM_TBB)
-	add_definitions(-DTHRUST_HOST_SYSTEM=THRUST_HOST_SYSTEM_TBB)
+  add_definitions(-DBLAZE_USE_CPP_THREADS)
+  add_definitions(-DTHRUST_DEVICE_SYSTEM=THRUST_DEVICE_SYSTEM_TBB)
+  add_definitions(-DTHRUST_HOST_SYSTEM=THRUST_HOST_SYSTEM_TBB)
 ELSE()
-	add_definitions(-DBLAZE_USE_CPP_THREADS)
-	add_definitions(-DTHRUST_DEVICE_SYSTEM=THRUST_DEVICE_SYSTEM_CPP)
-	add_definitions(-DTHRUST_HOST_SYSTEM=THRUST_HOST_SYSTEM_CPP)
+  add_definitions(-DBLAZE_USE_CPP_THREADS)
+  add_definitions(-DTHRUST_DEVICE_SYSTEM=THRUST_DEVICE_SYSTEM_CPP)
+  add_definitions(-DTHRUST_HOST_SYSTEM=THRUST_HOST_SYSTEM_CPP)
 ENDIF()
 
-# Find BOOST -- required for Blaze
-# TODO: is this robust enough on other platforms?
-IF(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
-   SET(BOOST_DIR ""  CACHE PATH   "Where is Boost located?")
-ENDIF()
+# ----- BOOST -- required for Blaze -----
+
+set(BOOST_ROOT "" CACHE PATH "Where is Boost located?")
+find_package(Boost REQUIRED)
+
+if (Boost_FOUND)
+  message(STATUS "Boost include dir: ${Boost_INCLUDE_DIRS}")
+else()
+  mark_as_advanced(CLEAR BOOST_ROOT)
+endif()
 
 # ----------------------------------------------------------------------------
 # Generate and install configuration header file.
 # ----------------------------------------------------------------------------
+
 # Generate the configuration header file using substitution variables.
 # Place the header file in the library output directory and make sure it can
 # be found at compile time.
@@ -102,7 +161,7 @@ install(FILES "${PROJECT_BINARY_DIR}/chrono_parallel/ChConfigParallel.h"
 
 SET(CH_PARALLEL_INCLUDES
     ${BLAZE_DIR}
-    ${BOOST_DIR}
+    ${Boost_INCLUDE_DIRS}
     ${THRUST_INCLUDE_DIR}
 )
 
@@ -128,71 +187,83 @@ SET(ChronoEngine_Parallel_BASE
     ChDataManager.h
     ChTimerParallel.h
     ChDataManager.cpp
+    ChCudaDefines.h
     )
 
 SOURCE_GROUP("" FILES ${ChronoEngine_Parallel_BASE})
 
 SET(ChronoEngine_Parallel_PHYSICS
     physics/ChSystemParallel.h
-    physics/ChNodeFluid.h
     physics/ChSystemParallel.cpp
-    physics/ChSystemParallelDVI.cpp
-    physics/ChSystemParallelDEM.cpp
-    physics/ChNodeFluid.cpp
+    physics/ChSystemParallelNSC.cpp
+    physics/ChSystemParallelSMC.cpp
+    physics/Ch3DOFContainer.h
+    physics/Ch3DOFContainer.cpp
+    physics/ChFluidKernels.h
+    physics/ChFluidContainer.cpp
+    physics/ChFEAContainer.cpp
+    physics/ChParticleContainer.cpp
+    physics/ChMPMSettings.h
     )
 
 SOURCE_GROUP(physics FILES ${ChronoEngine_Parallel_PHYSICS})
 
-SET(ChronoEngine_Parallel_LCP
-    lcp/ChLcpSolverParallel.h
-    lcp/ChLcpSystemDescriptorParallel.h
-    lcp/ChLcpSolverParallel.cpp
-    lcp/ChLcpSolverParallelDVI.cpp
-    lcp/ChLcpSolverParallelDEM.cpp
+SET(ChronoEngine_Parallel_CUDA
+    #math/matrix.cu
+    #math/matrixf.cu
+    #math/matrixf.cuh
+    #math/real3.cu
+    #math/real4.cu
+    #math/vec3.cu
+    physics/ChMPM.cu
+    physics/ChMPM.cuh
+    physics/MPMUtils.h
     )
 
-SOURCE_GROUP(lcp FILES ${ChronoEngine_Parallel_LCP})
-
+SOURCE_GROUP(cuda FILES ${ChronoEngine_Parallel_CUDA})
+    
 SET(ChronoEngine_Parallel_MATH
     math/ChParallelMath.h
-    math/ChThrustLinearAlgebra.h
-    math/mat33.h
+    math/matrix.cpp
+    math/matrix.h
+    math/other_types.h
     math/real.h
+    math/real_double.h
+    math/real_single.h
     math/real2.h
+    math/real2.cpp
+    math/real3.cpp
     math/real3.h
+    math/real4.cpp
     math/real4.h
+    math/simd_avx.h
+    math/simd_non.h
+    math/simd_sse.h
+    math/sse.h
+    math/svd.h
+    math/utility.h
+    math/vec3.cpp
     )
 
 SOURCE_GROUP(math FILES ${ChronoEngine_Parallel_MATH})
 
 SET(ChronoEngine_Parallel_SOLVER
+    solver/ChSystemDescriptorParallel.h
+    solver/ChIterativeSolverParallel.h
+    solver/ChIterativeSolverParallel.cpp
+    solver/ChIterativeSolverParallelNSC.cpp
+    solver/ChIterativeSolverParallelSMC.cpp
     solver/ChSolverParallel.h
-    solver/ChSolverJacobi.h
-    solver/ChSolverCG.h
-    solver/ChSolverCGS.h
-    solver/ChSolverPGS.h
-    solver/ChSolverGD.h
-    solver/ChSolverSD.h
-    solver/ChSolverAPGD.h
-    solver/ChSolverAPGDREF.h
-    solver/ChSolverMinRes.h
-    solver/ChSolverBiCG.h
-    solver/ChSolverBiCGStab.h
-    solver/ChSolverPDIP.h
     solver/ChSolverParallel.cpp
-    solver/ChSolverJacobi.cpp
-    solver/ChSolverCG.cpp
-    solver/ChSolverCGS.cpp
-    solver/ChSolverPGS.cpp
-    solver/ChSolverGD.cpp
-    solver/ChSolverSD.cpp
-    #solver/ChSolverFN.cpp
-    solver/ChSolverAPGD.cpp
-    solver/ChSolverAPGDREF.cpp
-    solver/ChSolverMinRes.cpp
-    solver/ChSolverBiCG.cpp
-    solver/ChSolverBiCGStab.cpp
-    solver/ChSolverPDIP.cpp
+    solver/ChSolverParallelAPGD.cpp
+    solver/ChSolverParallelAPGDREF.cpp
+    solver/ChSolverParallelMinRes.cpp
+    solver/ChSolverParallelBB.cpp
+    solver/ChSolverParallelJacobi.cpp
+    solver/ChSolverParallelCG.cpp
+    solver/ChSolverParallelGS.cpp
+    solver/ChSolverParallelSPGQP.cpp
+    solver/ChShurProduct.cpp
     )
 
 SOURCE_GROUP(solver FILES ${ChronoEngine_Parallel_SOLVER})
@@ -202,35 +273,31 @@ SET(ChronoEngine_Parallel_CONSTRAINTS
     constraints/ChConstraintRigidRigid.h
     constraints/ChConstraintBilateral.cpp
     constraints/ChConstraintBilateral.h
+    constraints/ChConstraintUtils.cpp
+    constraints/ChConstraintUtils.h
     )
 
 SOURCE_GROUP(constraints FILES ${ChronoEngine_Parallel_CONSTRAINTS})
 
 SET(ChronoEngine_Parallel_COLLISION
-    collision/ChCAABBGenerator.h
-    collision/ChCAABBGenerator.cpp
-    collision/ChCBroadphase.h
-    collision/ChCBroadphase.cpp
-    collision/ChCBroadphaseUtils.h
-    collision/ChCDataStructures.h
-    collision/ChCNarrowphaseUtils.h
-    collision/ChCNarrowphaseMPR.h
-    collision/ChCNarrowphaseMPR.cpp
-    collision/ChCNarrowphaseDispatch.h
-    collision/ChCNarrowphaseDispatch.cpp
-    collision/ChCNarrowphaseGJK_EPA.h
-    collision/ChCNarrowphaseGJK_EPA.cpp
-    collision/ChCNarrowphaseVoronoiSimplex.h
-    collision/ChCNarrowphaseVoronoiSimplex.cpp
-    collision/ChCNarrowphaseRUtils.h
-    collision/ChCNarrowphaseR.h
-    collision/ChCNarrowphaseR.cpp
-    collision/ChCCollisionModelParallel.h
-    collision/ChCCollisionModelParallel.cpp
-    collision/ChCCollisionSystemParallel.h
-    collision/ChCCollisionSystemParallel.cpp
-    collision/ChCCollisionSystemBulletParallel.h
-    collision/ChCCollisionSystemBulletParallel.cpp
+    collision/ChAABBGenerator.cpp
+    collision/ChBroadphase.cpp
+    collision/ChBroadphaseUtils.h
+    collision/ChDataStructures.h
+    collision/ChNarrowphaseUtils.h
+    collision/ChNarrowphaseMPR.h
+    collision/ChNarrowphaseMPR.cpp
+    collision/ChNarrowphaseDispatch.cpp
+    collision/ChNarrowphaseRUtils.h
+    collision/ChNarrowphaseR.h
+    collision/ChNarrowphaseR.cpp
+    collision/ChCollision.h
+    collision/ChCollisionModelParallel.h
+    collision/ChCollisionModelParallel.cpp
+    collision/ChCollisionSystemParallel.h
+    collision/ChCollisionSystemParallel.cpp
+    collision/ChCollisionSystemBulletParallel.h
+    collision/ChCollisionSystemBulletParallel.cpp
     collision/ChContactContainerParallel.h
     collision/ChContactContainerParallel.cpp
     )
@@ -360,42 +427,57 @@ IF (MSVC)
         )
 ENDIF()
 
-
 # ------------------------------------------------------------------------------
 # Add the ChronoEngine_parallel library
 # ------------------------------------------------------------------------------
 
-ADD_LIBRARY(ChronoEngine_parallel SHARED
+IF(USE_PARALLEL_CUDA)
+    CUDA_ADD_LIBRARY(ChronoEngine_parallel SHARED
             ${ChronoEngine_Parallel_BASE}
             ${ChronoEngine_Parallel_PHYSICS}
-            ${ChronoEngine_Parallel_LCP}
+            ${ChronoEngine_Parallel_CUDA}
             ${ChronoEngine_Parallel_COLLISION}
             ${ChronoEngine_Parallel_CONSTRAINTS}
             ${ChronoEngine_Parallel_SOLVER}
             ${ChronoEngine_Parallel_MATH}
             )
+    SET(CHRONO_PARALLEL_LINKED_LIBRARIES ChronoEngine ${CUDA_FRAMEWORK} ${MPI_LIBRARIES} ${TBB_LIBRARIES})
+ELSE()
+    ADD_LIBRARY(ChronoEngine_parallel SHARED
+            ${ChronoEngine_Parallel_BASE}
+            ${ChronoEngine_Parallel_PHYSICS}
+            ${ChronoEngine_Parallel_COLLISION}
+            ${ChronoEngine_Parallel_CONSTRAINTS}
+            ${ChronoEngine_Parallel_SOLVER}
+            ${ChronoEngine_Parallel_MATH}
+            )
+    SET(CHRONO_PARALLEL_LINKED_LIBRARIES ChronoEngine ${MPI_LIBRARIES} ${TBB_LIBRARIES})
+ENDIF()
 
-
-IF(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
-    SET_TARGET_PROPERTIES( ChronoEngine_parallel PROPERTIES XCODE_ATTRIBUTE_ENABLE_OPENMP_SUPPORT YES)
-    FIND_LIBRARY(CUDA_FRAMEWORK CUDA)
+IF(ENABLE_MODULE_FEA)
+    SET(CHRONO_PARALLEL_LINKED_LIBRARIES ${CHRONO_PARALLEL_LINKED_LIBRARIES} ChronoEngine_fea)
 ENDIF()
 
 SET_TARGET_PROPERTIES(ChronoEngine_parallel PROPERTIES
-                      COMPILE_FLAGS "${CH_CXX_FLAGS} ${CH_PARALLEL_CXX_FLAGS}"
                       LINK_FLAGS "${CH_LINKERFLAG_SHARED}"
                       COMPILE_DEFINITIONS "CH_API_COMPILE_PARALLEL")
 
-TARGET_LINK_LIBRARIES(ChronoEngine_parallel ChronoEngine ${CUDA_FRAMEWORK} ${MPI_LIBRARIES} ${TBB_LIBRARIES})
+TARGET_LINK_LIBRARIES(ChronoEngine_parallel ${CHRONO_PARALLEL_LINKED_LIBRARIES})
 
 INSTALL(TARGETS ChronoEngine_parallel
         RUNTIME DESTINATION bin
-        LIBRARY DESTINATION lib
-        ARCHIVE DESTINATION lib)
+        LIBRARY DESTINATION lib64
+        ARCHIVE DESTINATION lib64)
 
 INSTALL(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/
-    DESTINATION include/chrono_parallel
-    FILES_MATCHING PATTERN "*.h")
+        DESTINATION include/chrono_parallel
+        FILES_MATCHING PATTERN "*.h")
+
+IF(USE_PARALLEL_CUDA)
+  INSTALL(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/
+          DESTINATION include/chrono_parallel
+          FILES_MATCHING PATTERN "*.cuh")
+ENDIF()
 
 mark_as_advanced(FORCE
     CUDA_BUILD_CUBIN

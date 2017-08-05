@@ -2,7 +2,7 @@
 // PROJECT CHRONO - http://projectchrono.org
 //
 // Copyright (c) 2014 projectchrono.org
-// All right reserved.
+// All rights reserved.
 //
 // Use of this source code is governed by a BSD-style license that can be found
 // in the LICENSE file at the top level of the distribution and at
@@ -49,12 +49,12 @@ ChWheeledVehicleAssembly::ChWheeledVehicleAssembly(ChSystem* system,
 void ChWheeledVehicleAssembly::Initialize(const ChVector<>& init_loc, const ChQuaternion<>& init_rot) {
     // Initialize the vehicle and powertrain systems.
     m_vehicle->Initialize(ChCoordsys<>(init_loc, init_rot));
-    m_powertrain->Initialize();
+    m_powertrain->Initialize(m_vehicle->GetChassisBody(), m_vehicle->GetDriveshaft());
 
     // If provided, invoke the user-specified callback to attach chassis contact
     // geometry.
     if (m_chassis_cb) {
-        std::shared_ptr<ChBodyAuxRef> chassisBody = m_vehicle->GetChassis();
+        std::shared_ptr<ChBodyAuxRef> chassisBody = m_vehicle->GetChassisBody();
 
         m_chassis_cb->onCallback(chassisBody);
         chassisBody->SetCollide(true);
@@ -65,10 +65,8 @@ void ChWheeledVehicleAssembly::Initialize(const ChVector<>& init_loc, const ChQu
     if (m_tire_cb) {
         for (int i = 0; i < 2 * m_vehicle->GetNumberAxles(); i++) {
             std::shared_ptr<ChBody> wheelBody = m_vehicle->GetWheelBody(i);
-            double radius = m_vehicle->GetWheel(i)->GetRadius();
-            double width = m_vehicle->GetWheel(i)->GetWidth();
 
-            m_tire_cb->onCallback(wheelBody, radius, width);
+            m_tire_cb->onCallback(wheelBody);
             wheelBody->SetCollide(true);
         }
     }
@@ -77,7 +75,7 @@ void ChWheeledVehicleAssembly::Initialize(const ChVector<>& init_loc, const ChQu
 // -----------------------------------------------------------------------------
 // Update the vehicle model at the specified time.
 // -----------------------------------------------------------------------------
-void ChWheeledVehicleAssembly::Update(double time) {
+void ChWheeledVehicleAssembly::Synchronize(double time) {
     // Invoke the user-provided callback to get driver inputs at current time.
     double throttle = 0;
     double steering = 0;
@@ -87,10 +85,10 @@ void ChWheeledVehicleAssembly::Update(double time) {
         m_driver_cb->onCallback(time, throttle, steering, braking);
 
     // Update the powertrain system.
-    m_powertrain->Update(time, throttle, m_vehicle->GetDriveshaftSpeed());
+    m_powertrain->Synchronize(time, throttle, m_vehicle->GetDriveshaftSpeed());
 
     // Update the vehicle system.
-    m_vehicle->Update(time, steering, braking, m_powertrain->GetOutputTorque(), m_tire_forces);
+    m_vehicle->Synchronize(time, steering, braking, m_powertrain->GetOutputTorque(), m_tire_forces);
 }
 
 }  // end namespace vehicle

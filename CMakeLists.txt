@@ -15,7 +15,7 @@ cmake_minimum_required(VERSION 2.8)
 #-----------------------------------------------------------------------------
 
 if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
-    message( FATAL_ERROR  "In-source build is not possible and not reccomended. Choose an empty directory for build output.")
+    message( FATAL_ERROR  "In-source build is not possible and not recommended. Choose an empty directory for build output.")
 endif(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
 
 enable_testing()
@@ -55,17 +55,19 @@ set_property(GLOBAL PROPERTY USE_FOLDERS Off)
 
 project(Chrono)
 
-set(CHRONOENGINE_VERSION_MAJOR 2)
-set(CHRONOENGINE_VERSION_MINOR 0)
-set(CHRONOENGINE_VERSION_PATCH 0)
+set(CHRONO_VERSION_MAJOR 3)
+set(CHRONO_VERSION_MINOR 0)
+set(CHRONO_VERSION_PATCH 0)
 
-set(CHRONOENGINE_VERSION
-    "${CHRONOENGINE_VERSION_MAJOR}.${CHRONOENGINE_VERSION_MINOR}.${CHRONOENGINE_VERSION_PATCH}")
+set(CHRONO_VERSION "${CHRONO_VERSION_MAJOR}.${CHRONO_VERSION_MINOR}.${CHRONO_VERSION_PATCH}")
 
 set(CPACK_PACKAGE_VERSION "${CHRONO_VERSION}")
-set(CPACK_PACKAGE_VERSION_MAJOR "${CHRONOENGINE_VERSION_MAJOR}")
-set(CPACK_PACKAGE_VERSION_MINOR "${CHRONOENGINE_VERSION_MINOR}")
-set(CPACK_PACKAGE_VERSION_PATCH "${CHRONOENGINE_VERSION_PATCH}")
+set(CPACK_PACKAGE_VERSION_MAJOR "${CHRONO_VERSION_MAJOR}")
+set(CPACK_PACKAGE_VERSION_MINOR "${CHRONO_VERSION_MINOR}")
+set(CPACK_PACKAGE_VERSION_PATCH "${CHRONO_VERSION_PATCH}")
+
+# Version as a hexadecimal integer of the form 0x00MMmmPP
+set(CH_VERSION 0x00030000)
 
 #-----------------------------------------------------------------------------
 # Location of additional CMake scripts
@@ -141,7 +143,7 @@ endif()
 #-----------------------------------------------------------------------------
 
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
-set(LIBRARY_OUTPUT_PATH ${PROJECT_BINARY_DIR}/lib)
+set(LIBRARY_OUTPUT_PATH ${PROJECT_BINARY_DIR}/lib64)
 
 #-----------------------------------------------------------------------------
 
@@ -186,8 +188,25 @@ set(CPACK_SOURCE_STRIP_FILES "")
 #set(CPACK_TOPLEVEL_TAG "Linux-x64")
 
 #------------------------------------------------------------
+# Install destinations for data and demo programs
+#------------------------------------------------------------
+
+if(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
+    set(CH_INSTALL_DATA "data")
+    set(CH_INSTALL_DEMO "bin")
+    set(CH_INSTALL_SAMPLE_PROJ "template_project")
+    set(CH_INSTALL_PYTHON "bin")
+else()
+    set(CH_INSTALL_DATA "share/chrono/data")
+    set(CH_INSTALL_DEMO "share/chrono/bin")
+    set(CH_INSTALL_SAMPLE_PROJ "share/chrono/template_project")
+    set(CH_INSTALL_PYTHON "share/chrono/python")
+endif()
+
+#------------------------------------------------------------
 # Copy data directory to BUILD tree 
 # Install data directory 
+# Install sample template_project
 #------------------------------------------------------------
 
 if(MSVC OR XCODE_VERSION)
@@ -196,7 +215,8 @@ else()
     file(COPY ${CMAKE_SOURCE_DIR}/data/ DESTINATION ${CMAKE_BINARY_DIR}/data/)
 endif()
 
-install(DIRECTORY ${CMAKE_SOURCE_DIR}/data/ DESTINATION data)
+install(DIRECTORY ${CMAKE_SOURCE_DIR}/data/ DESTINATION ${CH_INSTALL_DATA})
+install(DIRECTORY ${CMAKE_SOURCE_DIR}/template_project/ DESTINATION ${CH_INSTALL_SAMPLE_PROJ})
 
 #------------------------------------------------------------
 # Defer configuration of all Chrono libraries and programs

@@ -1,41 +1,32 @@
-//
+// =============================================================================
 // PROJECT CHRONO - http://projectchrono.org
 //
-// Copyright (c) 2010-2012 Alessandro Tasora
+// Copyright (c) 2014 projectchrono.org
 // All rights reserved.
 //
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE file at the top level of the distribution
-// and at http://projectchrono.org/license-chrono.txt.
+// Use of this source code is governed by a BSD-style license that can be found
+// in the LICENSE file at the top level of the distribution and at
+// http://projectchrono.org/license-chrono.txt.
 //
-
-///////////////////////////////////////////////////
-//
+// =============================================================================
+// Authors: Alessandro Tasora
+// =============================================================================
 //   Demo code about
-//
 //     - distributed multi domain simulation
-//
-//	 CHRONO
-//   ------
-//   Multibody dinamics engine
-//
-// ------------------------------------------------
-//             www.deltaknowledge.com
-// ------------------------------------------------
-///////////////////////////////////////////////////
+// =============================================================================
 
 // Include some headers used by this tutorial...
 
-#include "lcp/ChLcpVariablesGeneric.h"
-#include "lcp/ChLcpVariablesBody.h"
-#include "lcp/ChLcpConstraintTwoGeneric.h"
+#include "lcp/ChVariablesGeneric.h"
+#include "lcp/ChVariablesBody.h"
+#include "lcp/ChConstraintTwoGeneric.h"
 #include "core/ChLinearAlgebra.h"
 #include "unit_MPI/ChMpi.h"
 #include "unit_MPI/ChSystemMPI.h"
 #include "unit_MPI/ChBodyMPI.h"
-#include "unit_MPI/ChLcpSystemDescriptorMPI.h"
+#include "unit_MPI/ChSystemDescriptorMPI.h"
 #include "unit_MPI/ChDomainLatticePartitioning.h"
-#include "unit_MPI/ChLcpIterativeSchwarzMPI.h"
+#include "unit_MPI/ChIterativeSchwarzMPI.h"
 
 // Remember to use the namespace 'chrono' because all classes
 // of Chrono::Engine belong to this namespace and its children...
@@ -90,11 +81,11 @@ int main(int argc, char* argv[]) {
     // Prepare the system with a special 'system descriptor'
     // that is necessary when doing simulations with MPI.
     ChSystemDescriptorMPIlattice3D mydescriptor(mysystem.nodeMPI);
-    mysystem.ChangeLcpSystemDescriptor(&mydescriptor);
+    mysystem.ChangeSystemDescriptor(&mydescriptor);
 
     // Use the Schwarz solver
-    ChLcpIterativeSchwarzMPI mysolver;
-    mysystem.ChangeLcpSolverSpeed(&mysolver);
+    ChIterativeSchwarzMPI mysolver;
+    mysystem.ChangeSolverSpeed(&mysolver);
 
     // Save on file the aabb of the boundaries of each domain, for debugging/visualization
     bool save_domain_boxes_on_file = true;

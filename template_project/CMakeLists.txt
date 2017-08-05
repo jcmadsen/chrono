@@ -1,7 +1,7 @@
 #--------------------------------------------------------------
 # 
 # Example of CMake configuration file to build an external 
-# project depending on Chrono and on optionam Chrono modules.
+# project depending on Chrono and on optional Chrono modules.
 # 
 # This minimal sample project can be used as a template for a
 # user project.  Modify sections 1, 2, and 3 below as appropriate.
@@ -31,8 +31,9 @@ project(my_project)
 # Matlab, Parallel, Postprocess, Python, Vehicle.
 # 
 # Note that you will have to set the variable Chrono_DIR to 
-# specify the location of the ChronoConfig.cmake script. This
-# can be either a Chrono build tree or a Chrono install tree.
+# specify the location of the ChronoConfig.cmake script, if
+# it is not in its default install location.
+# Chrono_DIR can be either a Chrono build tree or a Chrono install tree.
 # 
 # The following variables are set and can be used further down:
 # CHRONO_FOUND
@@ -58,6 +59,7 @@ project(my_project)
 # In this example, we only request the Irrlicht module (required)
 #--------------------------------------------------------------
 
+LIST(APPEND CMAKE_PREFIX_PATH "${CMAKE_INSTALL_PREFIX}/../Chrono/lib64")
 find_package(Chrono
              COMPONENTS Irrlicht
              CONFIG)

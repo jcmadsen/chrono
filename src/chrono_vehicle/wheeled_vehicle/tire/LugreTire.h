@@ -2,7 +2,7 @@
 // PROJECT CHRONO - http://projectchrono.org
 //
 // Copyright (c) 2014 projectchrono.org
-// All right reserved.
+// All rights reserved.
 //
 // Use of this source code is governed by a BSD-style license that can be found
 // in the LICENSE file at the top level of the distribution and at
@@ -19,10 +19,12 @@
 #ifndef LUGRE_TIRE_H
 #define LUGRE_TIRE_H
 
+#include "chrono/assets/ChTriangleMeshShape.h"
+
 #include "chrono_vehicle/ChApiVehicle.h"
 #include "chrono_vehicle/wheeled_vehicle/tire/ChLugreTire.h"
 
-#include "thirdparty/rapidjson/document.h"
+#include "chrono_thirdparty/rapidjson/document.h"
 
 namespace chrono {
 namespace vehicle {
@@ -37,14 +39,18 @@ class CH_VEHICLE_API LugreTire : public ChLugreTire {
     LugreTire(const rapidjson::Document& d);
     ~LugreTire();
 
-    virtual int getNumDiscs() const override { return m_numDiscs; }
-    virtual double getRadius() const override { return m_radius; }
-    virtual const double* getDiscLocations() const override { return m_discLocs; }
+    virtual double GetRadius() const override { return m_radius; }
 
-    virtual double getNormalStiffness() const override { return m_normalStiffness; }
-    virtual double getNormalDamping() const override { return m_normalDamping; }
+    virtual int GetNumDiscs() const override { return m_numDiscs; }
+    virtual const double* GetDiscLocations() const override { return m_discLocs; }
+
+    virtual double GetNormalStiffness() const override { return m_normalStiffness; }
+    virtual double GetNormalDamping() const override { return m_normalDamping; }
 
     virtual void SetLugreParams() override {}
+
+    virtual void AddVisualizationAssets(VisualizationType vis) override;
+    virtual void RemoveVisualizationAssets() override final;
 
   private:
     void Create(const rapidjson::Document& d);
@@ -55,6 +61,11 @@ class CH_VEHICLE_API LugreTire : public ChLugreTire {
 
     double m_normalStiffness;
     double m_normalDamping;
+
+    bool m_has_mesh;
+    std::string m_meshName;
+    std::string m_meshFile;
+    std::shared_ptr<ChTriangleMeshShape> m_trimesh_shape;
 };
 
 /// @} vehicle_wheeled_tire

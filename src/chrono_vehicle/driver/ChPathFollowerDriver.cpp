@@ -2,7 +2,7 @@
 // PROJECT CHRONO - http://projectchrono.org
 //
 // Copyright (c) 2014 projectchrono.org
-// All right reserved.
+// All rights reserved.
 //
 // Use of this source code is governed by a BSD-style license that can be found
 // in the LICENSE file at the top level of the distribution and at
@@ -20,7 +20,7 @@
 // =============================================================================
 
 #include "chrono/core/ChMathematics.h"
-#include "chrono/geometry/ChCLineBezier.h"
+#include "chrono/geometry/ChLineBezier.h"
 #include "chrono/utils/ChUtilsInputOutput.h"
 
 #include "chrono_vehicle/driver/ChPathFollowerDriver.h"
@@ -29,11 +29,12 @@ namespace chrono {
 namespace vehicle {
 
 ChPathFollowerDriver::ChPathFollowerDriver(ChVehicle& vehicle,
-                                           ChBezierCurve* path,
+                                           std::shared_ptr<ChBezierCurve> path,
                                            const std::string& path_name,
-                                           double target_speed)
+                                           double target_speed,
+                                           bool isClosedPath)
     : ChDriver(vehicle),
-      m_steeringPID(path),
+      m_steeringPID(path, isClosedPath),
       m_pathName(path_name),
       m_target_speed(target_speed),
       m_throttle_threshold(0.2) {
@@ -43,11 +44,12 @@ ChPathFollowerDriver::ChPathFollowerDriver(ChVehicle& vehicle,
 ChPathFollowerDriver::ChPathFollowerDriver(ChVehicle& vehicle,
                                            const std::string& steering_filename,
                                            const std::string& speed_filename,
-                                           ChBezierCurve* path,
+                                           std::shared_ptr<ChBezierCurve> path,
                                            const std::string& path_name,
-                                           double target_speed)
+                                           double target_speed,
+                                           bool isClosedPath)
     : ChDriver(vehicle),
-      m_steeringPID(steering_filename, path),
+      m_steeringPID(steering_filename, path, isClosedPath),
       m_speedPID(speed_filename),
       m_pathName(path_name),
       m_target_speed(target_speed),
@@ -61,7 +63,7 @@ void ChPathFollowerDriver::Create() {
     m_speedPID.Reset(m_vehicle);
 
     // Create a fixed body to carry a visualization asset for the path
-    auto road = std::make_shared<ChBody>();
+    auto road = std::shared_ptr<ChBody>(m_vehicle.GetSystem()->NewBody());
     road->SetBodyFixed(true);
     m_vehicle.GetSystem()->AddBody(road);
 

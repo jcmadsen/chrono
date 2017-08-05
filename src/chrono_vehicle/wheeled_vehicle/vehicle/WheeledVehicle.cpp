@@ -2,7 +2,7 @@
 // PROJECT CHRONO - http://projectchrono.org
 //
 // Copyright (c) 2014 projectchrono.org
-// All right reserved.
+// All rights reserved.
 //
 // Use of this source code is governed by a BSD-style license that can be found
 // in the LICENSE file at the top level of the distribution and at
@@ -27,11 +27,15 @@
 
 #include "chrono_vehicle/wheeled_vehicle/vehicle/WheeledVehicle.h"
 
+#include "chrono_vehicle/chassis/RigidChassis.h"
+
 #include "chrono_vehicle/wheeled_vehicle/suspension/DoubleWishbone.h"
 #include "chrono_vehicle/wheeled_vehicle/suspension/DoubleWishboneReduced.h"
 #include "chrono_vehicle/wheeled_vehicle/suspension/SolidAxle.h"
 #include "chrono_vehicle/wheeled_vehicle/suspension/MultiLink.h"
 #include "chrono_vehicle/wheeled_vehicle/suspension/MacPhersonStrut.h"
+#include "chrono_vehicle/wheeled_vehicle/suspension/SemiTrailingArm.h"
+#include "chrono_vehicle/wheeled_vehicle/suspension/ThreeLinkIRS.h"
 
 #include "chrono_vehicle/wheeled_vehicle/antirollbar/AntirollBarRSD.h"
 
@@ -46,8 +50,8 @@
 
 #include "chrono_vehicle/ChVehicleModelData.h"
 
-#include "thirdparty/rapidjson/document.h"
-#include "thirdparty/rapidjson/filereadstream.h"
+#include "chrono_thirdparty/rapidjson/document.h"
+#include "chrono_thirdparty/rapidjson/filereadstream.h"
 
 using namespace rapidjson;
 
@@ -72,6 +76,36 @@ static ChQuaternion<> loadQuaternion(const Value& a) {
 
 // -----------------------------------------------------------------------------
 // -----------------------------------------------------------------------------
+void WheeledVehicle::LoadChassis(const std::string& filename) {
+    FILE* fp = fopen(filename.c_str(), "r");
+
+    char readBuffer[65536];
+    FileReadStream is(fp, readBuffer, sizeof(readBuffer));
+
+    fclose(fp);
+
+    Document d;
+    d.ParseStream<ParseFlag::kParseCommentsFlag>(is);
+
+    // Check that the given file is a chassis specification file.
+    assert(d.HasMember("Type"));
+    std::string type = d["Type"].GetString();
+    assert(type.compare("Chassis") == 0);
+
+    // Extract the chassis type.
+    assert(d.HasMember("Template"));
+    std::string subtype = d["Template"].GetString();
+
+    // Create the steering using the appropriate template.
+    if (subtype.compare("RigidChassis") == 0) {
+        m_chassis = std::make_shared<RigidChassis>(d);
+    }
+
+    GetLog() << "  Loaded JSON: " << filename.c_str() << "\n";
+}
+
+// -----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 void WheeledVehicle::LoadSteering(const std::string& filename, int which) {
     FILE* fp = fopen(filename.c_str(), "r");
 
@@ -81,19 +115,18 @@ void WheeledVehicle::LoadSteering(const std::string& filename, int which) {
     fclose(fp);
 
     Document d;
-    d.ParseStream(is);
+    d.ParseStream<ParseFlag::kParseCommentsFlag>(is);
 
     // Check that the given file is a steering specification file.
     assert(d.HasMember("Type"));
     std::string type = d["Type"].GetString();
     assert(type.compare("Steering") == 0);
 
-    // Extract the driveline type.
+    // Extract the steering type.
     assert(d.HasMember("Template"));
     std::string subtype = d["Template"].GetString();
 
     // Create the steering using the appropriate template.
-    // Create the driveline using the appropriate template.
     if (subtype.compare("PitmanArm") == 0) {
         m_steerings[which] = std::make_shared<PitmanArm>(d);
     } else if (subtype.compare("RackPinion") == 0) {
@@ -114,7 +147,7 @@ void WheeledVehicle::LoadDriveline(const std::string& filename) {
     fclose(fp);
 
     Document d;
-    d.ParseStream(is);
+    d.ParseStream<ParseFlag::kParseCommentsFlag>(is);
 
     // Check that the given file is a driveline specification file.
     assert(d.HasMember("Type"));
@@ -148,7 +181,7 @@ void WheeledVehicle::LoadSuspension(const std::string& filename, int axle) {
     fclose(fp);
 
     Document d;
-    d.ParseStream(is);
+    d.ParseStream<ParseFlag::kParseCommentsFlag>(is);
 
     // Check that the given file is a suspension specification file.
     assert(d.HasMember("Type"));
@@ -170,6 +203,10 @@ void WheeledVehicle::LoadSuspension(const std::string& filename, int axle) {
         m_suspensions[axle] = std::make_shared<MultiLink>(d);
     } else if (subtype.compare("MacPhersonStrut") == 0) {
         m_suspensions[axle] = std::make_shared<MacPhersonStrut>(d);
+    } else if (subtype.compare("SemiTrailingArm") == 0) {
+        m_suspensions[axle] = std::make_shared<SemiTrailingArm>(d);
+    } else if (subtype.compare("ThreeLinkIRS") == 0) {
+        m_suspensions[axle] = std::make_shared<ThreeLinkIRS>(d);
     }
 
     GetLog() << "  Loaded JSON: " << filename.c_str() << "\n";
@@ -186,7 +223,7 @@ void WheeledVehicle::LoadAntirollbar(const std::string& filename) {
     fclose(fp);
 
     Document d;
-    d.ParseStream(is);
+    d.ParseStream<ParseFlag::kParseCommentsFlag>(is);
 
     // Check that the given file is an antirollbar specification file.
     assert(d.HasMember("Type"));
@@ -215,7 +252,7 @@ void WheeledVehicle::LoadWheel(const std::string& filename, int axle, int side) 
     fclose(fp);
 
     Document d;
-    d.ParseStream(is);
+    d.ParseStream<ParseFlag::kParseCommentsFlag>(is);
 
     // Check that the given file is a wheel specification file.
     assert(d.HasMember("Type"));
@@ -245,14 +282,14 @@ void WheeledVehicle::LoadBrake(const std::string& filename, int axle, int side) 
     fclose(fp);
 
     Document d;
-    d.ParseStream(is);
+    d.ParseStream<ParseFlag::kParseCommentsFlag>(is);
 
-    // Check that the given file is a wheel specification file.
+    // Check that the given file is a brake specification file.
     assert(d.HasMember("Type"));
     std::string type = d["Type"].GetString();
     assert(type.compare("Brake") == 0);
 
-    // Extract the wheel type.
+    // Extract the brake type.
     assert(d.HasMember("Template"));
     std::string subtype = d["Template"].GetString();
 
@@ -266,13 +303,12 @@ void WheeledVehicle::LoadBrake(const std::string& filename, int axle, int side) 
 
 // -----------------------------------------------------------------------------
 // -----------------------------------------------------------------------------
-WheeledVehicle::WheeledVehicle(const std::string& filename, ChMaterialSurfaceBase::ContactMethod contact_method)
-    : ChWheeledVehicle(contact_method), m_chassisUseMesh(false) {
+WheeledVehicle::WheeledVehicle(const std::string& filename, ChMaterialSurface::ContactMethod contact_method)
+    : ChWheeledVehicle("", contact_method) {
     Create(filename);
 }
 
-WheeledVehicle::WheeledVehicle(ChSystem* system, const std::string& filename)
-    : ChWheeledVehicle(system), m_chassisUseMesh(false) {
+WheeledVehicle::WheeledVehicle(ChSystem* system, const std::string& filename) : ChWheeledVehicle("", system) {
     Create(filename);
 }
 
@@ -290,57 +326,24 @@ void WheeledVehicle::Create(const std::string& filename) {
     fclose(fp);
 
     Document d;
-    d.ParseStream(is);
+    d.ParseStream<ParseFlag::kParseCommentsFlag>(is);
 
     // Read top-level data
     assert(d.HasMember("Type"));
     assert(d.HasMember("Template"));
     assert(d.HasMember("Name"));
 
-    // -------------------------------------------
-    // Create the chassis body
-    // -------------------------------------------
+    std::string name = d["Name"].GetString();
+    std::string type = d["Type"].GetString();
+    std::string subtype = d["Template"].GetString();
+    assert(type.compare("Vehicle") == 0);
+    assert(subtype.compare("WheeledVehicle") == 0);
 
-    m_chassis = std::make_shared<ChBodyAuxRef>(m_system->GetContactMethod());
+    SetName(name);
 
-    m_chassisMass = d["Chassis"]["Mass"].GetDouble();
-    m_chassisCOM = loadVector(d["Chassis"]["COM"]);
-    m_chassisInertia = loadVector(d["Chassis"]["Inertia"]);
-
-    m_chassis->SetIdentifier(0);
-    m_chassis->SetName("chassis");
-    m_chassis->SetMass(m_chassisMass);
-    m_chassis->SetFrame_COG_to_REF(ChFrame<>(m_chassisCOM, ChQuaternion<>(1, 0, 0, 0)));
-    m_chassis->SetInertiaXX(m_chassisInertia);
-
-    if (d.HasMember("Visualization")) {
-        assert(d["Visualization"].HasMember("Mesh Filename"));
-        assert(d["Visualization"].HasMember("Mesh Name"));
-
-        m_chassisMeshFile = d["Visualization"]["Mesh Filename"].GetString();
-        m_chassisMeshName = d["Visualization"]["Mesh Name"].GetString();
-
-        geometry::ChTriangleMeshConnected trimesh;
-        trimesh.LoadWavefrontMesh(vehicle::GetDataFile(m_chassisMeshFile), false, false);
-
-        auto trimesh_shape = std::make_shared<ChTriangleMeshShape>();
-        trimesh_shape->SetMesh(trimesh);
-        trimesh_shape->SetName(m_chassisMeshName);
-        m_chassis->AddAsset(trimesh_shape);
-
-        m_chassisUseMesh = true;
-    } else {
-        auto sphere = std::make_shared<ChSphereShape>();
-        sphere->GetSphereGeometry().rad = 0.1;
-        sphere->Pos = m_chassisCOM;
-        m_chassis->AddAsset(sphere);
-    }
-
-    m_system->Add(m_chassis);
-
-    // ---------------------------------
-    // More validations of the JSON file
-    // ---------------------------------
+    // ----------------------------
+    // Validations of the JSON file
+    // ----------------------------
 
     assert(d.HasMember("Steering Subsystems"));
     assert(d.HasMember("Driveline"));
@@ -364,6 +367,16 @@ void WheeledVehicle::Create(const std::string& filename) {
     m_steerings.resize(m_num_strs);
     m_strLocations.resize(m_num_strs);
     m_strRotations.resize(m_num_strs);
+
+    // -------------------------------------------
+    // Create the chassis system
+    // -------------------------------------------
+    assert(d.HasMember("Chassis"));
+
+    {
+        std::string file_name = d["Chassis"]["Input File"].GetString();
+        LoadChassis(vehicle::GetDataFile(file_name));
+    }
 
     // ------------------------------
     // Create the steering subsystems
@@ -431,33 +444,27 @@ void WheeledVehicle::Create(const std::string& filename) {
         LoadBrake(vehicle::GetDataFile(file_name), i, 1);
     }
 
-    // -----------------------
-    // Extract driver position
-    // -----------------------
-
-    m_driverCsys.pos = loadVector(d["Driver Position"]["Location"]);
-    m_driverCsys.rot = loadQuaternion(d["Driver Position"]["Orientation"]);
-
     GetLog() << "Loaded JSON: " << filename.c_str() << "\n";
 }
 
 // -----------------------------------------------------------------------------
 // -----------------------------------------------------------------------------
-void WheeledVehicle::Initialize(const ChCoordsys<>& chassisPos) {
-    m_chassis->SetFrame_REF_to_abs(ChFrame<>(chassisPos));
+void WheeledVehicle::Initialize(const ChCoordsys<>& chassisPos, double chassisFwdVel) {
+    // Invoke base class method to initialize the chassis.
+    ChWheeledVehicle::Initialize(chassisPos, chassisFwdVel);
 
     // Initialize the steering subsystems.
     for (int i = 0; i < m_num_strs; i++) {
-        m_steerings[i]->Initialize(m_chassis, m_strLocations[i], m_strRotations[i]);
+        m_steerings[i]->Initialize(m_chassis->GetBody(), m_strLocations[i], m_strRotations[i]);
     }
 
     // Initialize the suspension, wheel, and brake subsystems.
     for (int i = 0; i < m_num_axles; i++) {
         if (m_suspSteering[i] >= 0)
-            m_suspensions[i]->Initialize(m_chassis, m_suspLocations[i],
-                                         m_steerings[m_suspSteering[i]]->GetSteeringLink());
+            m_suspensions[i]->Initialize(m_chassis->GetBody(), m_suspLocations[i],
+                                         m_steerings[m_suspSteering[i]]->GetSteeringLink(), m_suspSteering[i]);
         else
-            m_suspensions[i]->Initialize(m_chassis, m_suspLocations[i], m_chassis);
+            m_suspensions[i]->Initialize(m_chassis->GetBody(), m_suspLocations[i], m_chassis->GetBody(), -1);
 
         m_wheels[2 * i]->Initialize(m_suspensions[i]->GetSpindle(LEFT));
         m_wheels[2 * i + 1]->Initialize(m_suspensions[i]->GetSpindle(RIGHT));
@@ -469,12 +476,12 @@ void WheeledVehicle::Initialize(const ChCoordsys<>& chassisPos) {
     // Initialize the antirollbar subsystems.
     for (unsigned int i = 0; i < m_antirollbars.size(); i++) {
         int j = m_arbSuspension[i];
-        m_antirollbars[i]->Initialize(m_chassis, m_arbLocations[i], m_suspensions[j]->GetLeftBody(),
+        m_antirollbars[i]->Initialize(m_chassis->GetBody(), m_arbLocations[i], m_suspensions[j]->GetLeftBody(),
                                       m_suspensions[j]->GetRightBody());
     }
 
     // Initialize the driveline
-    m_driveline->Initialize(m_chassis, m_suspensions, m_driven_susp);
+    m_driveline->Initialize(m_chassis->GetBody(), m_suspensions, m_driven_susp);
 }
 
 }  // end namespace vehicle

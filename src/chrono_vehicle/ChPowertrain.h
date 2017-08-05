@@ -2,7 +2,7 @@
 // PROJECT CHRONO - http://projectchrono.org
 //
 // Copyright (c) 2014 projectchrono.org
-// All right reserved.
+// All rights reserved.
 //
 // Use of this source code is governed by a BSD-style license that can be found
 // in the LICENSE file at the top level of the distribution and at
@@ -21,15 +21,9 @@
 
 #include "chrono/core/ChVector.h"
 #include "chrono/physics/ChBody.h"
+#include "chrono/physics/ChShaft.h"
 
 #include "chrono_vehicle/ChApiVehicle.h"
-
-/**
-    @addtogroup vehicle
-    @{
-        @defgroup vehicle_powertrain Powertrain models
-    @}
-*/
 
 namespace chrono {
 namespace vehicle {
@@ -69,9 +63,9 @@ class CH_VEHICLE_API ChPowertrain {
     /// Return the current transmission gear.
     virtual int GetCurrentTransmissionGear() const = 0;
 
-    /// Return the ouput torque from the powertrain.
+    /// Return the output torque from the powertrain.
     /// This is the torque that is passed to a vehicle system, thus providing the
-    /// interface between the powertrain and vehcicle cosimulation modules.
+    /// interface between the powertrain and vehicle co-simulation modules.
     virtual double GetOutputTorque() const = 0;
 
     /// Return the current mode of the transmission.
@@ -80,14 +74,19 @@ class CH_VEHICLE_API ChPowertrain {
     /// Set the mode of the transmission.
     virtual void SetDriveMode(DriveMode mmode) = 0;
 
-    /// Update the state of this powertrain system at the current time.
+    /// Initialize this powertrain system.
+    virtual void Initialize(std::shared_ptr<ChBody> chassis,     ///< [in] chassis o the associated vehicle
+                            std::shared_ptr<ChShaft> driveshaft  ///< [in] shaft connection to the vehicle driveline
+                            ) = 0;
+
+    /// Synchronize the state of this powertrain system at the current time.
     /// The powertrain system is provided the current driver throttle input, a
     /// value in the range [0,1], and the current angular speed of the transmission
     /// shaft (from the driveline).
-    virtual void Update(double time,        ///< [in] current time
-                        double throttle,    ///< [in] current throttle input [0,1]
-                        double shaft_speed  ///< [in] current angular speed of the transmission shaft
-                        ) = 0;
+    virtual void Synchronize(double time,        ///< [in] current time
+                             double throttle,    ///< [in] current throttle input [0,1]
+                             double shaft_speed  ///< [in] current angular speed of the transmission shaft
+                             ) = 0;
 
     /// Advance the state of this powertrain system by the specified time step.
     virtual void Advance(double step) = 0;

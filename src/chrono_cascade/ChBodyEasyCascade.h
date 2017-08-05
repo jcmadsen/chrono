@@ -1,13 +1,14 @@
-//
+// =============================================================================
 // PROJECT CHRONO - http://projectchrono.org
 //
-// Copyright (c) 2011 Alessandro Tasora
+// Copyright (c) 2014 projectchrono.org
 // All rights reserved.
 //
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE file at the top level of the distribution
-// and at http://projectchrono.org/license-chrono.txt.
+// Use of this source code is governed by a BSD-style license that can be found
+// in the LICENSE file at the top level of the distribution and at
+// http://projectchrono.org/license-chrono.txt.
 //
+// =============================================================================
 
 #ifndef CHBODYEASYCASCADE_H
 #define CHBODYEASYCASCADE_H
@@ -23,6 +24,8 @@ namespace chrono {
 
 namespace cascade {
 
+/// @addtogroup cascade_module
+/// @{
 
 // This header includes some easy-to-use bodies, that can be used
 // to create ChBody objects that already include a visualization shape
@@ -109,7 +112,7 @@ class ChBodyEasyCascade : public ChBodyAuxRef {
 
 
 
-
+/// @} cascade_module
 
 }  // END_OF_NAMESPACE____
 }  // END_OF_NAMESPACE____

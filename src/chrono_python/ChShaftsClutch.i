@@ -1,7 +1,7 @@
 %{
 
 /* Includes the header in the wrapper code */
-#include "physics/ChShaftsClutch.h"
+#include "chrono/physics/ChShaftsClutch.h"
 
 %}
  
@@ -10,7 +10,7 @@
 
 
 /* Parse the header file to generate wrappers */
-%include "../physics/ChShaftsClutch.h"  
+%include "../chrono/physics/ChShaftsClutch.h"  
 
 
 

@@ -2,7 +2,7 @@
 // PROJECT CHRONO - http://projectchrono.org
 //
 // Copyright (c) 2015 projectchrono.org
-// All right reserved.
+// All rights reserved.
 //
 // Use of this source code is governed by a BSD-style license that can be found
 // in the LICENSE file at the top level of the distribution and at
@@ -28,10 +28,6 @@
 
 #include "chrono/physics/ChGlobal.h"
 
-#include "chrono/assets/ChCylinderShape.h"
-#include "chrono/assets/ChTexture.h"
-#include "chrono/assets/ChColorAsset.h"
-
 #include "chrono_vehicle/wheeled_vehicle/tire/ChFialaTire.h"
 
 #define fialaUseSmallAngle 0
@@ -54,17 +50,55 @@ ChFialaTire::ChFialaTire(const std::string& name) : ChTire(name), m_stepsize(1e-
 
 // -----------------------------------------------------------------------------
 // -----------------------------------------------------------------------------
-void ChFialaTire::Initialize() {
+void ChFialaTire::Initialize(std::shared_ptr<ChBody> wheel, VehicleSide side) {
+    ChTire::Initialize(wheel, side);
+
     SetFialaParams();
 
-    // Initialize contact patach state variables to 0;
+    // Initialize contact patch state variables to 0;
     m_states.cp_long_slip = 0;
     m_states.cp_side_slip = 0;
 }
 
 // -----------------------------------------------------------------------------
 // -----------------------------------------------------------------------------
-void ChFialaTire::Update(double time, const WheelState& wheel_state, const ChTerrain& terrain) {
+void ChFialaTire::AddVisualizationAssets(VisualizationType vis) {
+    if (vis == VisualizationType::NONE)
+        return;
+
+    m_cyl_shape = std::make_shared<ChCylinderShape>();
+    m_cyl_shape->GetCylinderGeometry().rad = GetRadius();
+    m_cyl_shape->GetCylinderGeometry().p1 = ChVector<>(0, GetVisualizationWidth() / 2, 0);
+    m_cyl_shape->GetCylinderGeometry().p2 = ChVector<>(0, -GetVisualizationWidth() / 2, 0);
+    m_wheel->AddAsset(m_cyl_shape);
+
+    m_texture = std::make_shared<ChTexture>();
+    m_texture->SetTextureFilename(GetChronoDataFile("greenwhite.png"));
+    m_wheel->AddAsset(m_texture);
+}
+
+void ChFialaTire::RemoveVisualizationAssets() {
+    // Make sure we only remove the assets added by ChFialaTire::AddVisualizationAssets.
+    // This is important for the ChTire object because a wheel may add its own assets
+    // to the same body (the spindle/wheel).
+    {
+        auto it = std::find(m_wheel->GetAssets().begin(), m_wheel->GetAssets().end(), m_cyl_shape);
+        if (it != m_wheel->GetAssets().end())
+            m_wheel->GetAssets().erase(it);
+    }
+    {
+        auto it = std::find(m_wheel->GetAssets().begin(), m_wheel->GetAssets().end(), m_texture);
+        if (it != m_wheel->GetAssets().end())
+            m_wheel->GetAssets().erase(it);
+    }
+}
+
+// -----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
+void ChFialaTire::Synchronize(double time, const WheelState& wheel_state, const ChTerrain& terrain) {
+    // Invoke the base class function.
+    ChTire::Synchronize(time, wheel_state, terrain);
+
     ChCoordsys<> contact_frame;
     // Clear the force accumulators and set the application point to the wheel
     // center.
@@ -76,7 +110,7 @@ void ChFialaTire::Update(double time, const WheelState& wheel_state, const ChTer
     ChMatrix33<> A(wheel_state.rot);
     ChVector<> disc_normal = A.Get_A_Yaxis();
 
-    // Assuuming the tire is a disc, check contact with terrain
+    // Assuming the tire is a disc, check contact with terrain
     m_data.in_contact =
         disc_terrain_contact(terrain, wheel_state.pos, disc_normal, m_unloaded_radius, m_data.frame, m_data.depth);
     if (m_data.in_contact) {
@@ -89,16 +123,16 @@ void ChFialaTire::Update(double time, const WheelState& wheel_state, const ChTer
         // the terrain so fast that no contact force is generated.
         // The sign of the velocity term in the damping function is negative since
         // a positive velocity means a decreasing depth, not an increasing depth
-        double Fn_mag = getNormalStiffnessForce(m_data.depth) + getNormalDampingForce(m_data.depth, -m_data.vel.z);
+        double Fn_mag = GetNormalStiffnessForce(m_data.depth) + GetNormalDampingForce(m_data.depth, -m_data.vel.z());
 
         if (Fn_mag < 0) {
             Fn_mag = 0;
         }
 
         m_data.normal_force = Fn_mag;
-        m_states.abs_vx = std::abs(m_data.vel.x);
-        m_states.vsx = m_data.vel.x - wheel_state.omega * (m_unloaded_radius - m_data.depth);
-        m_states.vsy = m_data.vel.y;
+        m_states.abs_vx = std::abs(m_data.vel.x());
+        m_states.vsx = m_data.vel.x() - wheel_state.omega * (m_unloaded_radius - m_data.depth);
+        m_states.vsy = m_data.vel.y();
         m_states.omega = wheel_state.omega;
         m_states.disc_normal = disc_normal;
     } else {
@@ -126,8 +160,7 @@ void ChFialaTire::Advance(double step) {
             double h = std::min<>(m_stepsize, step - t);
 
             // Advance state for longitudinal direction
-			// integrate using trapezoidal rule intergration since this equation is linear
-			// ref: https://en.wikipedia.org/wiki/Trapezoidal_rule_(differential_equations)
+			// integrate using trapezoidal rule integration since this equation is linear
 			// cp_long_slip_dot = -1/m_relax_length_x*(Vsx+(abs(Vx)*cp_long_slip))
             m_states.cp_long_slip =
                 ((2 * m_relax_length_x - h * m_states.abs_vx) * m_states.cp_long_slip - 2 * h * m_states.vsx) /
@@ -135,7 +168,6 @@ void ChFialaTire::Advance(double step) {
 
 #if(fialaUseSmallAngle == 0)
 			// integrate using RK2 since this equation is non-linear
-			// ref: http://mathworld.wolfram.com/Runge-KuttaMethod.html
 			// cp_side_slip = 1/m_relax_length_y*(Vsy-(abs(Vx)*tan(cp_long_slip)))
 			double k1 = h / m_relax_length_y*(m_states.vsy - m_states.abs_vx*std::tan(m_states.cp_side_slip));
 			double temp = std::max<>(-CH_C_PI_2 + .0001, std::min<>(CH_C_PI_2 - .0001, m_states.cp_side_slip+k1/2));
@@ -143,9 +175,8 @@ void ChFialaTire::Advance(double step) {
 			m_states.cp_side_slip = m_states.cp_side_slip + k2;
 #else
 			// Advance state for lateral direction
-			// integrate using trapezoidal rule intergration since this equation is linear
+			// integrate using trapezoidal rule integration since this equation is linear
 			//  after using a small angle approximation for tan(alpha)
-			// ref: https://en.wikipedia.org/wiki/Trapezoidal_rule_(differential_equations)
 			// cp_long_slip_dot = -1/m_relax_length_x*(Vsx+(abs(Vx)*cp_long_slip))
 			m_states.cp_side_slip =
 				((2 * m_relax_length_y - h * m_states.abs_vx) * m_states.cp_side_slip + 2 * h * m_states.vsy) /
@@ -172,7 +203,7 @@ void ChFialaTire::Advance(double step) {
         //}
 
         // Now calculate the new force and moment values (normal force and moment has already been accounted for in
-        // Update())
+        // Synchronize())
         // See reference for more detail on the calculations
         double SsA = std::min<>(1.0,std::sqrt(std::pow(m_states.cp_long_slip, 2) + std::pow(std::tan(m_states.cp_side_slip), 2)));
         double U = m_u_max - (m_u_max - m_u_min) * SsA;
@@ -221,7 +252,7 @@ void ChFialaTire::Advance(double step) {
         m_tireforce.moment +=
             Vcross((m_data.frame.pos + m_data.depth*m_data.frame.rot.GetZaxis()) - m_tireforce.point, m_tireforce.force);
     }
-    // Else do nothing since the "m_tireForce" force and moment values are already 0 (set in Update())
+    // Else do nothing since the "m_tireForce" force and moment values are already 0 (set in Synchronize())
 }
 
 }  // end namespace vehicle

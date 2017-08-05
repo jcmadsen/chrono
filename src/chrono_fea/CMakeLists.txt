@@ -18,6 +18,7 @@ MESSAGE(STATUS "==== Chrono FEA module ====")
 
 SET(ChronoEngine_FEA_SOURCES
     ChBuilderBeam.cpp
+    ChElementBeamANCF.cpp
     ChElementGeneric.cpp
     ChElementSpring.cpp  
     ChElementBar.cpp  
@@ -26,8 +27,15 @@ SET(ChronoEngine_FEA_SOURCES
     ChElementHexa_8.cpp
     ChElementHexa_20.cpp 
     ChElementShellANCF.cpp
+	ChElementShellReissner4.cpp
     ChElementBrick.cpp
+    ChElementBrick_9.cpp
     ChNodeFEAxyz.cpp
+    ChNodeFEAxyzrot.cpp
+    ChNodeFEAxyzP.cpp
+    ChNodeFEAxyzD.cpp
+    ChNodeFEAxyzDD.cpp
+    ChNodeFEAcurv.cpp
     ChGaussIntegrationRule.cpp
     ChGaussPoint.cpp
     ChMesh.cpp
@@ -40,17 +48,18 @@ SET(ChronoEngine_FEA_SOURCES
     ChLinkPointFrame.cpp
     ChLinkDirFrame.cpp
     ChLinkPointPoint.cpp
+	ChLinkPointTriface.cpp
     ChContactSurface.cpp
 	  ChContactSurfaceNodeCloud.cpp
 	  ChContactSurfaceMesh.cpp
 	  ChMeshSurface.cpp
 	  ChLoadContactSurfaceMesh.cpp
+    ChMaterialShellReissner.cpp
 )
 
 SET(ChronoEngine_FEA_HEADERS
     ChApiFEA.h
     ChBeamSection.h
-    ChShellSection.h
     ChBuilderBeam.h
     ChContinuumPoisson3D.h
     ChContinuumThermal.h
@@ -60,15 +69,19 @@ SET(ChronoEngine_FEA_HEADERS
     ChNodeFEAxyzrot.h
     ChNodeFEAxyzP.h 
     ChNodeFEAxyzD.h 
+    ChNodeFEAxyzDD.h
+    ChNodeFEAcurv.h
     ChElementBase.h
     ChElementGeneric.h
     ChElementCorotational.h
     ChElementSpring.h
     ChElementBar.h 
     ChElementBeam.h
-    ChElementBeamEuler.h
     ChElementBeamANCF.h
+    ChElementBeamEuler.h
+    ChElementCableANCF.h
     ChElementBrick.h 
+    ChElementBrick_9.h
     ChElement3D.h
     ChElementTetrahedron.h
     ChElementTetra_4.h
@@ -78,7 +91,10 @@ SET(ChronoEngine_FEA_HEADERS
     ChElementHexa_20.h
     ChElementShell.h
     ChElementShellANCF.h
+	ChElementShellReissner4.h
 	  ChFaceTetra_4.h
+    ChFaceBrick_9.h
+	ChFaceHexa_8.h
 	  ChLoadsBeam.h
     ChGaussIntegrationRule.h
     ChGaussPoint.h
@@ -89,15 +105,19 @@ SET(ChronoEngine_FEA_HEADERS
     ChPolarDecomposition.h
     ChMatrixCorotation.h
     ChVisualizationFEAmesh.h
+	ChLinkInterface.h
     ChLinkPointFrame.h
     ChLinkDirFrame.h
     ChLinkPointPoint.h
+	ChLinkPointTriface.h
     ChContactSurface.h
 	  ChContactSurfaceNodeCloud.h
 	  ChContactSurfaceMesh.h
 	  ChMeshSurface.h
     ChUtilsFEA.h
 	  ChLoadContactSurfaceMesh.h
+	  ChRotUtils.h
+	ChMaterialShellReissner.h
 )
 
 SOURCE_GROUP("" FILES 
@@ -123,8 +143,8 @@ ADD_DEPENDENCIES(ChronoEngine_fea ChronoEngine)
 
 INSTALL(TARGETS ChronoEngine_fea
         RUNTIME DESTINATION bin
-        LIBRARY DESTINATION lib
-        ARCHIVE DESTINATION lib)
+        LIBRARY DESTINATION lib64
+        ARCHIVE DESTINATION lib64)
 
 INSTALL(FILES ${ChronoEngine_FEA_HEADERS}
         DESTINATION include/chrono_fea)

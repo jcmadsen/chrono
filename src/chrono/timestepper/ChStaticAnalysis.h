@@ -1,23 +1,25 @@
-//
+// =============================================================================
 // PROJECT CHRONO - http://projectchrono.org
 //
-// Copyright (c) 2013 Project Chrono
+// Copyright (c) 2014 projectchrono.org
 // All rights reserved.
 //
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE file at the top level of the distribution
-// and at http://projectchrono.org/license-chrono.txt.
+// Use of this source code is governed by a BSD-style license that can be found
+// in the LICENSE file at the top level of the distribution and at
+// http://projectchrono.org/license-chrono.txt.
 //
+// =============================================================================
 
 #ifndef CHSTATICANALYSIS_H
 #define CHSTATICANALYSIS_H
 
-#include <stdlib.h>
-#include "core/ChApiCE.h"
-#include "core/ChMath.h"
-#include "core/ChVectorDynamic.h"
-#include "timestepper/ChState.h"
-#include "timestepper/ChIntegrable.h"
+#include <cstdlib>
+
+#include "chrono/core/ChApiCE.h"
+#include "chrono/core/ChMath.h"
+#include "chrono/core/ChVectorDynamic.h"
+#include "chrono/timestepper/ChState.h"
+#include "chrono/timestepper/ChIntegrable.h"
 
 namespace chrono {
 
@@ -114,8 +116,9 @@ class ChStaticLinearAnalysis : public ChStaticAnalysis {
             0,        // factor for  M
             0,        // factor for  dF/dv
             -1.0,     // factor for  dF/dx (the stiffness matrix)
-            X, V, T,  // not needed
-            false     // do not StateScatter update to Xnew Vnew T+dt before computing correction
+            X, V, T,  // not needed here
+            false,    // do not StateScatter update to Xnew Vnew T+dt before computing correction
+            true      // force a call to the solver's Setup() function
             );
 
         X += Dx;
@@ -183,7 +186,7 @@ class ChStaticNonLinearAnalysis : public ChStaticAnalysis {
             mintegrable->LoadResidual_F(R, 1.0);
             mintegrable->LoadConstraint_C(Qc, 1.0);
 
-            double cfactor = ChMin(1.0, ((double)(i + 1) / (double)(incremental_steps + 1)));
+            double cfactor = ChMin(1.0, ((double)(i + 2) / (double)(incremental_steps + 1)));
             R *= cfactor;
             Qc *= cfactor;
 
@@ -194,11 +197,12 @@ class ChStaticNonLinearAnalysis : public ChStaticAnalysis {
 
             mintegrable->StateSolveCorrection(
                 Dx, L, R, Qc,
-                0,     // factor for  M
-                0,     // factor for  dF/dv
-                -1.0,  // factor for  dF/dx (the stiffness matrix)
-                Xnew, V, T,
-                false  // do not StateScatter update to Xnew Vnew T+dt before computing correction
+                0,           // factor for  M
+                0,           // factor for  dF/dv
+                -1.0,        // factor for  dF/dx (the stiffness matrix)
+                Xnew, V, T,  // not needed here
+                false,       // do not StateScatter update to Xnew Vnew T+dt before computing correction
+                true         // force a call to the solver's Setup() function
                 );
 
             Xnew += Dx;
@@ -238,5 +242,6 @@ class ChStaticNonLinearAnalysis : public ChStaticAnalysis {
     double GetTolerance() { return tolerance; }
 };
 
-}  // END_OF_NAMESPACE____
+}  // end namespace chrono
+
 #endif

@@ -1,34 +1,22 @@
-//
+// =============================================================================
 // PROJECT CHRONO - http://projectchrono.org
 //
-// Copyright (c) 2012 Alessandro Tasora
+// Copyright (c) 2014 projectchrono.org
 // All rights reserved.
 //
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE file at the top level of the distribution
-// and at http://projectchrono.org/license-chrono.txt.
+// Use of this source code is governed by a BSD-style license that can be found
+// in the LICENSE file at the top level of the distribution and at
+// http://projectchrono.org/license-chrono.txt.
 //
+// =============================================================================
+// Authors: Alessandro Tasora
+// =============================================================================
 
 #ifndef CHOBJSBOXSHAPE_H
 #define CHOBJSBOXSHAPE_H
 
-///////////////////////////////////////////////////
-//
-//   ChBoxShape.h
-//
-//   Class for defining a box as an asset shape
-//   that can be visualized in some way.
-//
-//   HEADER file for CHRONO,
-//	 Multibody dynamics engine
-//
-// ------------------------------------------------
-//             www.deltaknowledge.com
-// ------------------------------------------------
-///////////////////////////////////////////////////
-
-#include "assets/ChVisualization.h"
-#include "geometry/ChCBox.h"
+#include "chrono/assets/ChVisualization.h"
+#include "chrono/geometry/ChBox.h"
 
 namespace chrono {
 
@@ -36,8 +24,6 @@ namespace chrono {
 /// in some way.
 
 class ChApi ChBoxShape : public ChVisualization {
-    // Chrono RTTI, needed for serialization
-    CH_RTTI(ChBoxShape, ChVisualization);
 
   protected:
     //
@@ -71,7 +57,7 @@ class ChApi ChBoxShape : public ChVisualization {
     virtual void ArchiveOUT(ChArchiveOut& marchive)
     {
         // version number
-        marchive.VersionWrite(1);
+        marchive.VersionWrite<ChBoxShape>();
         // serialize parent class
         ChVisualization::ArchiveOUT(marchive);
         // serialize all member data:
@@ -82,7 +68,7 @@ class ChApi ChBoxShape : public ChVisualization {
     virtual void ArchiveIN(ChArchiveIn& marchive) 
     {
         // version number
-        int version = marchive.VersionRead();
+        int version = marchive.VersionRead<ChBoxShape>();
         // deserialize parent class
         ChVisualization::ArchiveIN(marchive);
         // stream in all member data:
@@ -90,9 +76,9 @@ class ChApi ChBoxShape : public ChVisualization {
     }
 };
 
-//////////////////////////////////////////////////////
-//////////////////////////////////////////////////////
+CH_CLASS_VERSION(ChBoxShape,0)
 
-}  // END_OF_NAMESPACE____
+
+}  // end namespace chrono
 
 #endif
